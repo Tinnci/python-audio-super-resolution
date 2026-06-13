@@ -29,6 +29,7 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
 - [Roadmap](#roadmap)
 - [Development](#development)
 - [Release](#release)
+- [Project Structure](#project-structure)
 - [Requirements](#requirements)
 - [License](#license)
 - [Credits](#credits)
@@ -311,6 +312,13 @@ pixi run build
 ## Release
 
 See [docs/RELEASE.md](docs/RELEASE.md). Releases are built with Pixi and published through PyPI trusted publishing.
+
+## Project Structure
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) describes the package layers and backend contract.
+- [tests/README.md](tests/README.md) describes the lightweight test strategy.
+- `.github/ISSUE_TEMPLATE/` contains bug and feature templates.
+- `.github/workflows/` contains CI, release, and security workflows.
 
 ## Requirements
 

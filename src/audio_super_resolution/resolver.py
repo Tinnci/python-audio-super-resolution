@@ -42,6 +42,9 @@ class BackendInfo:
 
     name: str
     description: str
+    installed: bool
+    optional_dependency: str | None = None
+    package_extra: str | None = None
 
 
 class EnhancementBackend(Protocol):
@@ -60,6 +63,8 @@ class SincResampleBackend:
 
     name = "sinc-resample"
     description = "Deterministic polyphase sinc resampling baseline."
+    optional_dependency = None
+    package_extra = None
 
     def __init__(self, config: InferenceConfig | None = None) -> None:
         self.config = config or InferenceConfig()
@@ -84,7 +89,13 @@ def available_backends() -> list[BackendInfo]:
     """Return the registered enhancement backends."""
 
     return [
-        BackendInfo(name=name, description=backend.description)
+        BackendInfo(
+            name=name,
+            description=backend.description,
+            installed=_backend_is_available(backend),
+            optional_dependency=getattr(backend, "optional_dependency", None),
+            package_extra=getattr(backend, "package_extra", None),
+        )
         for name, backend in sorted(_BACKENDS.items(), key=lambda item: item[0])
     ]
 
@@ -99,6 +110,13 @@ def get_backend(name: str, config: InferenceConfig | None = None) -> Enhancement
         raise ValueError(f"Unknown backend {name!r}. Available backends: {choices}") from exc
 
     return backend_type(config=config)
+
+
+def _backend_is_available(backend_type: type[EnhancementBackend]) -> bool:
+    checker = getattr(backend_type, "is_available", None)
+    if checker is None:
+        return True
+    return bool(checker())
 
 
 def discover_audio_files(

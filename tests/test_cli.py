@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -18,8 +19,17 @@ def test_env_info(capsys) -> None:
 def test_list_backends(capsys) -> None:
     assert main(["--list-backends"]) == 0
     output = capsys.readouterr().out
-    assert "sinc-resample:" in output
-    assert "audiosr:" in output
+    assert "Backend" in output
+    assert "sinc-resample" in output
+    assert "audiosr" in output
+
+
+def test_list_backends_json(capsys) -> None:
+    assert main(["--list-backends", "--list-format", "json"]) == 0
+    backends = json.loads(capsys.readouterr().out)
+
+    assert {backend["name"] for backend in backends} == {"audiosr", "sinc-resample"}
+    assert all("installed" in backend for backend in backends)
 
 
 def test_config_info_uses_cli_options(tmp_path: Path, capsys) -> None:

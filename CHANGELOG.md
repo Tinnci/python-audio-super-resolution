@@ -14,3 +14,5 @@ This project follows semantic versioning once published to PyPI.
 - Added audio quality checks for sample rate, duration drift, clipping, and peak level.
 - Added examples for single-file enhancement, batch processing, and quality checks.
 - Added the optional `audiosr` backend wrapper for AudioSR latent diffusion inference.
+- Added backend availability metadata and JSON output for `--list-backends`.
+- Added GitHub issue templates, Dependabot configuration, CodeQL security workflow, and architecture/test documentation.

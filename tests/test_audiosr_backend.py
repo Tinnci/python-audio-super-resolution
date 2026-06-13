@@ -20,6 +20,12 @@ def test_audiosr_backend_requires_optional_dependency(monkeypatch: pytest.Monkey
         backend.enhance_file(tmp_path / "input.wav", tmp_path / "output.wav", AUDIOSR_SAMPLE_RATE)
 
 
+def test_audiosr_availability_handles_injected_module_without_spec(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "audiosr", types.SimpleNamespace())
+
+    assert not AudiosrBackend.is_available()
+
+
 def test_audiosr_backend_rejects_unsupported_target_sample_rate(tmp_path: Path) -> None:
     backend = AudiosrBackend(config=InferenceConfig(model_cache_dir=tmp_path / "models"))
 

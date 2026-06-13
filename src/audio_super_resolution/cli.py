@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import platform
+from dataclasses import asdict
 from pathlib import Path
 
 from . import __version__
@@ -15,61 +17,89 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="audio-super-res",
         description="Enhance audio to a target sample rate from the command line.",
+        formatter_class=lambda prog: argparse.RawTextHelpFormatter(prog, max_help_position=42),
     )
+
     parser.add_argument("input", nargs="?", type=Path, help="Input audio file or directory.")
     parser.add_argument("output", nargs="?", type=Path, help="Output file or output directory.")
-    parser.add_argument("--target-sr", type=int, default=48000, help="Target sample rate. Defaults to 48000.")
-    parser.add_argument("--device", choices=VALID_DEVICES, default="cpu", help="Inference device. Defaults to cpu.")
-    parser.add_argument(
-        "--precision",
-        choices=VALID_PRECISIONS,
-        default="float32",
-        help="Inference precision. Defaults to float32.",
+
+    info_params = parser.add_argument_group("Info and Debugging")
+    info_params.add_argument(
+        "--list-backends", action="store_true", help="List available enhancement backends and exit."
     )
-    parser.add_argument("--chunk-seconds", type=float, default=30.0, help="Chunk size for model backends.")
-    parser.add_argument("--overlap-seconds", type=float, default=1.0, help="Chunk overlap for model backends.")
-    parser.add_argument("--seed", type=int, default=0, help="Seed for deterministic model backends.")
-    parser.add_argument("--model-cache-dir", type=Path, help="Directory for model weights and metadata.")
-    parser.add_argument(
-        "--model-name",
-        choices=AUDIOSR_MODEL_NAMES,
-        default="basic",
-        help="Model name for model-backed backends. Defaults to basic.",
+    info_params.add_argument(
+        "--list-format",
+        choices=["pretty", "json"],
+        default="pretty",
+        help="Format for backend listings. Defaults to pretty.",
     )
-    parser.add_argument("--ddim-steps", type=int, default=50, help="DDIM sampling steps for diffusion backends.")
-    parser.add_argument("--guidance-scale", type=float, default=3.5, help="Guidance scale for diffusion backends.")
-    parser.add_argument(
-        "--backend",
-        default="sinc-resample",
-        choices=_backend_names(),
-        help="Enhancement backend to use.",
+    info_params.add_argument(
+        "--config-info", action="store_true", help="Print resolved inference configuration and exit."
     )
-    parser.add_argument("--recursive", action="store_true", help="Scan input directories recursively.")
-    parser.add_argument(
+    info_params.add_argument("--env-info", action="store_true", help="Print environment information and exit.")
+    info_params.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+
+    io_params = parser.add_argument_group("Enhancement I/O")
+    io_params.add_argument("--target-sr", type=int, default=48000, help="Target sample rate. Defaults to 48000.")
+    io_params.add_argument("--recursive", action="store_true", help="Scan input directories recursively.")
+    io_params.add_argument(
         "--extension",
         action="append",
         dest="extensions",
         help="Audio extension to include when scanning directories. Can be repeated.",
     )
-    parser.add_argument("--suffix", default="-sr", help="Suffix used for generated output file names.")
-    parser.add_argument(
+    io_params.add_argument("--suffix", default="-sr", help="Suffix used for generated output file names.")
+    io_params.add_argument(
         "--dry-run",
         action="store_true",
         help="Print planned input/output paths without writing files.",
     )
-    parser.add_argument("--list-backends", action="store_true", help="List available enhancement backends and exit.")
-    parser.add_argument("--config-info", action="store_true", help="Print resolved inference configuration and exit.")
-    parser.add_argument("--prepare-model-cache", action="store_true", help="Create the model cache directory and exit.")
-    parser.add_argument(
+
+    backend_params = parser.add_argument_group("Backend and Inference")
+    backend_params.add_argument(
+        "--backend",
+        default="sinc-resample",
+        choices=_backend_names(),
+        help="Enhancement backend to use.",
+    )
+    backend_params.add_argument(
+        "--device", choices=VALID_DEVICES, default="cpu", help="Inference device. Defaults to cpu."
+    )
+    backend_params.add_argument(
+        "--precision",
+        choices=VALID_PRECISIONS,
+        default="float32",
+        help="Inference precision. Defaults to float32.",
+    )
+    backend_params.add_argument("--chunk-seconds", type=float, default=30.0, help="Chunk size for model backends.")
+    backend_params.add_argument("--overlap-seconds", type=float, default=1.0, help="Chunk overlap for model backends.")
+    backend_params.add_argument("--seed", type=int, default=0, help="Seed for deterministic model backends.")
+    backend_params.add_argument("--model-cache-dir", type=Path, help="Directory for model weights and metadata.")
+    backend_params.add_argument(
+        "--prepare-model-cache", action="store_true", help="Create the model cache directory and exit."
+    )
+    backend_params.add_argument(
+        "--model-name",
+        choices=AUDIOSR_MODEL_NAMES,
+        default="basic",
+        help="Model name for model-backed backends. Defaults to basic.",
+    )
+    backend_params.add_argument(
+        "--ddim-steps", type=int, default=50, help="DDIM sampling steps for diffusion backends."
+    )
+    backend_params.add_argument(
+        "--guidance-scale", type=float, default=3.5, help="Guidance scale for diffusion backends."
+    )
+
+    quality_params = parser.add_argument_group("Quality Checks")
+    quality_params.add_argument(
         "--quality-report", action="store_true", help="Print quality checks for each written output file."
     )
-    parser.add_argument(
+    quality_params.add_argument(
         "--fail-on-quality-issue",
         action="store_true",
         help="Return a non-zero exit code if quality checks find issues.",
     )
-    parser.add_argument("--env-info", action="store_true", help="Print environment information and exit.")
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
 
@@ -80,9 +110,24 @@ def print_env_info(config: InferenceConfig) -> None:
     print(f"model_cache_dir: {config.model_cache_dir}")
 
 
-def print_backends() -> None:
-    for backend in available_backends():
-        print(f"{backend.name}: {backend.description}")
+def print_backends(list_format: str = "pretty") -> None:
+    backends = available_backends()
+    if list_format == "json":
+        print(json.dumps([asdict(backend) for backend in backends], indent=2))
+        return
+
+    name_width = max(len("Backend"), *(len(backend.name) for backend in backends))
+    status_width = len("Installed")
+    extra_width = max(len("Extra"), *(len(backend.package_extra or "-") for backend in backends))
+
+    print(f"{'Backend':<{name_width}}  {'Installed':<{status_width}}  {'Extra':<{extra_width}}  Description")
+    print("-" * (name_width + status_width + extra_width + 15 + 11))
+    for backend in backends:
+        installed = "yes" if backend.installed else "no"
+        extra = backend.package_extra or "-"
+        print(
+            f"{backend.name:<{name_width}}  {installed:<{status_width}}  {extra:<{extra_width}}  {backend.description}"
+        )
 
 
 def print_config(config: InferenceConfig) -> None:
@@ -100,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(str(exc))
 
     if args.list_backends:
-        print_backends()
+        print_backends(args.list_format)
         return 0
 
     if args.config_info:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import os
 from pathlib import Path
 from types import ModuleType
@@ -22,10 +23,19 @@ class AudiosrBackend:
 
     name = "audiosr"
     description = "AudioSR latent diffusion backend. Requires the optional audiosr dependency."
+    optional_dependency = "audiosr"
+    package_extra = "audiosr"
 
     def __init__(self, config: InferenceConfig | None = None) -> None:
         self.config = config or InferenceConfig()
         self._model = None
+
+    @classmethod
+    def is_available(cls) -> bool:
+        try:
+            return importlib.util.find_spec("audiosr") is not None
+        except (ImportError, ValueError):
+            return False
 
     def enhance(self, audio: np.ndarray, sample_rate: int, target_sample_rate: int) -> np.ndarray:
         raise RuntimeError("The audiosr backend requires file-based enhancement through AudioSuperResolver.enhance().")

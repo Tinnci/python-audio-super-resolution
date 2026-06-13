@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a problem with the CLI, Python API, packaging, or backend behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: Provide a concise description of what failed and what you expected.
+      placeholder: What happened?
+    validations:
+      required: true
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Existing issues
+      description: Please search existing issues before filing a new report.
+      options:
+        - label: I have searched and found no existing issue for this problem.
+          required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or code
+      description: Paste the exact command or minimal Python snippet that reproduces the issue.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Include the full error output or stack trace.
+      render: shell
+  - type: textarea
+    id: system
+    attributes:
+      label: System information
+      description: Run `audio-super-res --env-info` and paste the output here.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - sinc-resample
+        - audiosr
+        - other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other useful information here.
