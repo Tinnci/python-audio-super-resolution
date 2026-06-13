@@ -10,21 +10,21 @@ This repository should stay useful before model inference lands. The baseline ba
 - Preserve relative paths during recursive batch processing.
 - Keep backend selection stable through `--backend` and `AudioSuperResolver(backend=...)`.
 
-Status: in progress. The baseline implementation is available through the `sinc-resample` backend.
+Status: complete for the baseline package. The implementation is available through the `sinc-resample` backend.
 
 ## Phase 2: Model Backend Integration
 
-- Add a model cache directory and download policy.
-- Add a configuration object for device, precision, chunk size, overlap, and seed.
+- Add a model cache directory and download policy. Done for local cache path configuration; download policy remains backend-specific.
+- Add a configuration object for device, precision, chunk size, overlap, and seed. Done.
 - Implement the first AudioSR-style model backend behind the existing backend protocol.
 - Keep the baseline `sinc-resample` backend for tests and CPU-only environments.
 - Add clear errors for missing model weights, unsupported devices, and unavailable accelerators.
 
 ## Phase 3: Evaluation and Examples
 
-- Add objective checks for sample rate, clipping, peak level, and duration drift.
-- Add example scripts for speech, music, and batch folder enhancement.
-- Add a small fixture-based test set that can run in CI without model weights.
+- Add objective checks for sample rate, clipping, peak level, and duration drift. Done.
+- Add example scripts for single-file enhancement, batch folder enhancement, and quality checks. Done.
+- Add a small fixture-based test set that can run in CI without model weights. Done with generated fixtures.
 - Add optional long-running tests for model inference.
 
 ## Phase 4: Release Readiness

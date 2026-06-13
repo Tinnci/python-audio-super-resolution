@@ -71,8 +71,8 @@ default = { features = ["dev"], solve-group = "default" }
 
 [tool.pixi.tasks]
 test = "pytest"
-lint = "ruff check src tests"
-format = "ruff format src tests"
+lint = "ruff check src tests examples"
+format = "ruff format src tests examples"
 build = "hatchling build"
 audio-super-res = "audio-super-res"
 audiosr = "audiosr"

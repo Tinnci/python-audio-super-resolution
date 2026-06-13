@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from audio_super_resolution import AudioSuperResolver, available_backends, plan_enhancements
+from audio_super_resolution import AudioSuperResolver, InferenceConfig, available_backends, plan_enhancements
 
 
 def test_enhance_writes_target_sample_rate(tmp_path: Path) -> None:
@@ -22,6 +22,7 @@ def test_enhance_writes_target_sample_rate(tmp_path: Path) -> None:
     assert output_path.exists()
     assert result.sample_rate == target_sr
     assert result.input_sample_rate == sample_rate
+    assert result.input_duration_seconds == pytest.approx(0.1)
     assert written_sr == target_sr
     assert result.backend == "sinc-resample"
 
@@ -78,3 +79,11 @@ def test_enhance_many_preserves_relative_directory_structure(tmp_path: Path) -> 
 
 def test_backend_registry_lists_sinc_resample() -> None:
     assert any(backend.name == "sinc-resample" for backend in available_backends())
+
+
+def test_backend_receives_inference_config(tmp_path: Path) -> None:
+    config = InferenceConfig(model_cache_dir=tmp_path / "models")
+    resolver = AudioSuperResolver(backend="sinc-resample", config=config)
+
+    assert resolver.config == config
+    assert resolver.backend.config == config

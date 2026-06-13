@@ -8,6 +8,8 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import resample_poly
 
+from .config import InferenceConfig
+
 DEFAULT_AUDIO_EXTENSIONS = (".wav", ".flac", ".ogg", ".aiff", ".aif")
 
 
@@ -19,6 +21,7 @@ class EnhancementResult:
     output_path: Path
     input_sample_rate: int
     sample_rate: int
+    input_duration_seconds: float
     duration_seconds: float
     channels: int
     backend: str
@@ -45,6 +48,7 @@ class EnhancementBackend(Protocol):
 
     name: str
     description: str
+    config: InferenceConfig
 
     def enhance(self, audio: np.ndarray, sample_rate: int, target_sample_rate: int) -> np.ndarray:
         """Return audio enhanced to target_sample_rate."""
@@ -55,6 +59,9 @@ class SincResampleBackend:
 
     name = "sinc-resample"
     description = "Deterministic polyphase sinc resampling baseline."
+
+    def __init__(self, config: InferenceConfig | None = None) -> None:
+        self.config = config or InferenceConfig()
 
     def enhance(self, audio: np.ndarray, sample_rate: int, target_sample_rate: int) -> np.ndarray:
         if sample_rate == target_sample_rate:
@@ -80,7 +87,7 @@ def available_backends() -> list[BackendInfo]:
     ]
 
 
-def get_backend(name: str) -> EnhancementBackend:
+def get_backend(name: str, config: InferenceConfig | None = None) -> EnhancementBackend:
     """Create a backend by name."""
 
     try:
@@ -89,7 +96,7 @@ def get_backend(name: str) -> EnhancementBackend:
         choices = ", ".join(sorted(_BACKENDS))
         raise ValueError(f"Unknown backend {name!r}. Available backends: {choices}") from exc
 
-    return backend_type()
+    return backend_type(config=config)
 
 
 def discover_audio_files(
@@ -175,12 +182,20 @@ def _enhanced_file_name(input_path: Path, suffix: str, target_sr: int) -> str:
 class AudioSuperResolver:
     """High-level API for audio super-resolution workflows."""
 
-    def __init__(self, target_sr: int = 48000, backend: EnhancementBackend | str | None = None) -> None:
+    def __init__(
+        self,
+        target_sr: int = 48000,
+        backend: EnhancementBackend | str | None = None,
+        config: InferenceConfig | None = None,
+    ) -> None:
         if target_sr <= 0:
             raise ValueError("target_sr must be greater than zero")
 
         self.target_sr = target_sr
-        self.backend = get_backend(backend) if isinstance(backend, str) else backend or SincResampleBackend()
+        self.config = config or InferenceConfig()
+        self.backend = get_backend(backend, config=self.config) if isinstance(backend, str) else backend
+        if self.backend is None:
+            self.backend = SincResampleBackend(config=self.config)
 
     def enhance(
         self,
@@ -196,6 +211,7 @@ class AudioSuperResolver:
             raise ValueError("target_sr must be greater than zero")
 
         audio, sample_rate = sf.read(input_path, always_2d=True)
+        input_duration_seconds = audio.shape[0] / sample_rate
         enhanced = self.backend.enhance(audio, sample_rate, requested_sr)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -207,6 +223,7 @@ class AudioSuperResolver:
             output_path=output_path,
             input_sample_rate=sample_rate,
             sample_rate=requested_sr,
+            input_duration_seconds=input_duration_seconds,
             duration_seconds=frames / requested_sr,
             channels=enhanced.shape[1] if enhanced.ndim > 1 else 1,
             backend=self.backend.name,

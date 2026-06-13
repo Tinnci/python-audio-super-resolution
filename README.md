@@ -22,6 +22,9 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
 - [Usage](#usage)
   - [Command Line Interface](#command-line-interface)
   - [Python API](#python-api)
+  - [Inference Configuration](#inference-configuration)
+  - [Quality Reports](#quality-reports)
+- [Examples](#examples)
 - [Roadmap](#roadmap)
 - [Development](#development)
 - [Requirements](#requirements)
@@ -40,6 +43,8 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
 - Recursively scan audio folders while preserving relative output paths.
 - Supports common audio formats handled by libsndfile, including WAV, FLAC, and OGG.
 - Provides a Python API for batch processing and integration into larger pipelines.
+- Exposes shared inference configuration for device, precision, chunking, seed, and model cache.
+- Includes objective audio quality checks for sample rate, duration drift, clipping, and peak level.
 - Uses a backend abstraction so model-based AudioSR implementations can be added cleanly.
 - Managed with Pixi for reproducible development tasks and dependencies.
 
@@ -69,6 +74,17 @@ Enhance an audio file to a target sample rate:
 audio-super-res input.wav output.wav --target-sr 48000
 ```
 
+Configure inference options for backends that use model inference:
+
+```sh
+audio-super-res input.wav output.wav \
+  --device cpu \
+  --precision float32 \
+  --chunk-seconds 30 \
+  --overlap-seconds 1 \
+  --seed 0
+```
+
 If the output path is omitted, the CLI writes next to the input file:
 
 ```sh
@@ -93,6 +109,24 @@ List available enhancement backends:
 
 ```sh
 audio-super-res --list-backends
+```
+
+Print the resolved inference configuration:
+
+```sh
+audio-super-res --config-info
+```
+
+Create the configured model cache directory:
+
+```sh
+audio-super-res --prepare-model-cache
+```
+
+Run post-write audio quality checks:
+
+```sh
+audio-super-res input.wav output.wav --quality-report --fail-on-quality-issue
 ```
 
 The shorter alias is also available:
@@ -142,6 +176,56 @@ from audio_super_resolution import plan_enhancements
 
 jobs = plan_enhancements("low-res-audio", "enhanced-audio", recursive=True)
 ```
+
+### Inference Configuration
+
+```python
+from audio_super_resolution import AudioSuperResolver, InferenceConfig
+
+config = InferenceConfig(
+    device="cpu",
+    precision="float32",
+    chunk_seconds=30.0,
+    overlap_seconds=1.0,
+    seed=0,
+)
+
+config.ensure_model_cache_dir()
+resolver = AudioSuperResolver(target_sr=48000, backend="sinc-resample", config=config)
+```
+
+The default model cache directory can be overridden with:
+
+```sh
+set AUDIO_SUPER_RESOLUTION_CACHE=C:\path\to\models
+```
+
+On Unix-like shells:
+
+```sh
+export AUDIO_SUPER_RESOLUTION_CACHE=/path/to/models
+```
+
+### Quality Reports
+
+```python
+from audio_super_resolution import inspect_audio_quality
+
+report = inspect_audio_quality(
+    "output.wav",
+    expected_sample_rate=48000,
+    expected_duration_seconds=30.0,
+)
+
+if not report.passed:
+    print(report.issues)
+```
+
+## Examples
+
+- [examples/basic_usage.py](examples/basic_usage.py)
+- [examples/batch_process.py](examples/batch_process.py)
+- [examples/quality_check.py](examples/quality_check.py)
 
 ## Roadmap
 
