@@ -22,6 +22,7 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
 - [Usage](#usage)
   - [Command Line Interface](#command-line-interface)
   - [Python API](#python-api)
+- [Roadmap](#roadmap)
 - [Development](#development)
 - [Requirements](#requirements)
 - [License](#license)
@@ -35,6 +36,8 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
 ## Features
 
 - Enhance audio to a target sample rate from the command line.
+- Process a single file or batch process directories.
+- Recursively scan audio folders while preserving relative output paths.
 - Supports common audio formats handled by libsndfile, including WAV, FLAC, and OGG.
 - Provides a Python API for batch processing and integration into larger pipelines.
 - Uses a backend abstraction so model-based AudioSR implementations can be added cleanly.
@@ -66,6 +69,32 @@ Enhance an audio file to a target sample rate:
 audio-super-res input.wav output.wav --target-sr 48000
 ```
 
+If the output path is omitted, the CLI writes next to the input file:
+
+```sh
+audio-super-res input.wav --target-sr 48000
+```
+
+This creates `input-sr48000.wav`.
+
+Batch process a directory:
+
+```sh
+audio-super-res ./low-res-audio ./enhanced-audio --recursive --target-sr 48000
+```
+
+Preview planned outputs without writing files:
+
+```sh
+audio-super-res ./low-res-audio ./enhanced-audio --recursive --dry-run
+```
+
+List available enhancement backends:
+
+```sh
+audio-super-res --list-backends
+```
+
 The shorter alias is also available:
 
 ```sh
@@ -89,6 +118,39 @@ result = resolver.enhance("input.wav", "output.wav")
 print(result.output_path)
 print(result.sample_rate)
 ```
+
+Batch processing:
+
+```python
+from audio_super_resolution import AudioSuperResolver
+
+resolver = AudioSuperResolver(target_sr=48000, backend="sinc-resample")
+results = resolver.enhance_many(
+    "low-res-audio",
+    "enhanced-audio",
+    recursive=True,
+)
+
+for result in results:
+    print(result.input_path, "->", result.output_path)
+```
+
+Plan output paths without writing files:
+
+```python
+from audio_super_resolution import plan_enhancements
+
+jobs = plan_enhancements("low-res-audio", "enhanced-audio", recursive=True)
+```
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the staged plan. The short version:
+
+- Stabilize the CLI/API contract around files, directories, and backend selection.
+- Add model-backed AudioSR inference behind the existing backend interface.
+- Add objective quality metrics and example notebooks.
+- Publish release artifacts once the first model backend is usable.
 
 ## Development
 
