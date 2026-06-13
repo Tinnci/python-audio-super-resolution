@@ -13,3 +13,4 @@ This project follows semantic versioning once published to PyPI.
 - Added inference configuration for device, precision, chunking, seed, and model cache path.
 - Added audio quality checks for sample rate, duration drift, clipping, and peak level.
 - Added examples for single-file enhancement, batch processing, and quality checks.
+- Added the optional `audiosr` backend wrapper for AudioSR latent diffusion inference.

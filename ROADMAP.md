@@ -16,7 +16,7 @@ Status: complete for the baseline package. The implementation is available throu
 
 - Add a model cache directory and download policy. Done for local cache path configuration; download policy remains backend-specific.
 - Add a configuration object for device, precision, chunk size, overlap, and seed. Done.
-- Implement the first AudioSR-style model backend behind the existing backend protocol.
+- Implement the first AudioSR-style model backend behind the existing backend protocol. Done with the optional `audiosr` backend wrapper.
 - Keep the baseline `sinc-resample` backend for tests and CPU-only environments.
 - Add clear errors for missing model weights, unsupported devices, and unavailable accelerators.
 
@@ -37,7 +37,7 @@ Status: complete for the baseline package. The implementation is available throu
 ## Candidate Backends
 
 - `sinc-resample`: deterministic baseline, already implemented.
-- `audiosr`: latent diffusion audio super-resolution backend.
+- `audiosr`: latent diffusion audio super-resolution backend, implemented as an optional dependency wrapper.
 - `nuwave`: diffusion-based bandwidth extension backend.
 - `custom`: user-provided backend implementing the Python protocol.
 

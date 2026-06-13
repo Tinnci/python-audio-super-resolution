@@ -5,6 +5,7 @@ import platform
 from pathlib import Path
 
 from . import __version__
+from .audiosr_backend import AUDIOSR_MODEL_NAMES
 from .config import VALID_DEVICES, VALID_PRECISIONS, InferenceConfig, default_model_cache_dir
 from .quality import format_quality_report, inspect_audio_quality
 from .resolver import AudioSuperResolver, available_backends, plan_enhancements
@@ -29,6 +30,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--overlap-seconds", type=float, default=1.0, help="Chunk overlap for model backends.")
     parser.add_argument("--seed", type=int, default=0, help="Seed for deterministic model backends.")
     parser.add_argument("--model-cache-dir", type=Path, help="Directory for model weights and metadata.")
+    parser.add_argument(
+        "--model-name",
+        choices=AUDIOSR_MODEL_NAMES,
+        default="basic",
+        help="Model name for model-backed backends. Defaults to basic.",
+    )
+    parser.add_argument("--ddim-steps", type=int, default=50, help="DDIM sampling steps for diffusion backends.")
+    parser.add_argument("--guidance-scale", type=float, default=3.5, help="Guidance scale for diffusion backends.")
     parser.add_argument(
         "--backend",
         default="sinc-resample",
@@ -131,14 +140,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     resolver = AudioSuperResolver(target_sr=args.target_sr, backend=args.backend, config=config)
-    results = [
-        resolver.enhance(
-            input_path=job.input_path,
-            output_path=job.output_path,
-            target_sr=args.target_sr,
-        )
-        for job in jobs
-    ]
+    try:
+        results = [
+            resolver.enhance(
+                input_path=job.input_path,
+                output_path=job.output_path,
+                target_sr=args.target_sr,
+            )
+            for job in jobs
+        ]
+    except (RuntimeError, ValueError) as exc:
+        parser.error(str(exc))
 
     for result in results:
         print(
@@ -177,6 +189,9 @@ def _build_config(args: argparse.Namespace) -> InferenceConfig:
         overlap_seconds=args.overlap_seconds,
         seed=args.seed,
         model_cache_dir=model_cache_dir,
+        model_name=args.model_name,
+        ddim_steps=args.ddim_steps,
+        guidance_scale=args.guidance_scale,
     )
 
 

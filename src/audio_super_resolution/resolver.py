@@ -8,6 +8,7 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import resample_poly
 
+from .audiosr_backend import AudiosrBackend
 from .config import InferenceConfig
 
 DEFAULT_AUDIO_EXTENSIONS = (".wav", ".flac", ".ogg", ".aiff", ".aif")
@@ -74,6 +75,7 @@ class SincResampleBackend:
 
 
 _BACKENDS: dict[str, type[EnhancementBackend]] = {
+    AudiosrBackend.name: AudiosrBackend,
     SincResampleBackend.name: SincResampleBackend,
 }
 
@@ -210,22 +212,26 @@ class AudioSuperResolver:
         if requested_sr <= 0:
             raise ValueError("target_sr must be greater than zero")
 
-        audio, sample_rate = sf.read(input_path, always_2d=True)
-        input_duration_seconds = audio.shape[0] / sample_rate
-        enhanced = self.backend.enhance(audio, sample_rate, requested_sr)
+        input_info = sf.info(input_path)
+        file_enhancer = getattr(self.backend, "enhance_file", None)
+        if callable(file_enhancer):
+            file_enhancer(input_path, output_path, requested_sr)
+        else:
+            audio, sample_rate = sf.read(input_path, always_2d=True)
+            enhanced = self.backend.enhance(audio, sample_rate, requested_sr)
 
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(output_path, enhanced, requested_sr)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            sf.write(output_path, enhanced, requested_sr)
 
-        frames = enhanced.shape[0]
+        output_info = sf.info(output_path)
         return EnhancementResult(
             input_path=input_path,
             output_path=output_path,
-            input_sample_rate=sample_rate,
-            sample_rate=requested_sr,
-            input_duration_seconds=input_duration_seconds,
-            duration_seconds=frames / requested_sr,
-            channels=enhanced.shape[1] if enhanced.ndim > 1 else 1,
+            input_sample_rate=input_info.samplerate,
+            sample_rate=output_info.samplerate,
+            input_duration_seconds=input_info.frames / input_info.samplerate,
+            duration_seconds=output_info.frames / output_info.samplerate,
+            channels=output_info.channels,
             backend=self.backend.name,
         )
 

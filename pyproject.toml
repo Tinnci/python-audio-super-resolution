@@ -26,11 +26,14 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "numpy>=1.26",
+    "numpy>=1.23.5",
     "scipy>=1.11",
     "soundfile>=0.12",
     "tqdm>=4.66",
 ]
+
+[project.optional-dependencies]
+audiosr = ["audiosr==0.0.7"]
 
 [project.urls]
 Homepage = "https://github.com/Tinnci/python-audio-super-resolution"
@@ -52,7 +55,7 @@ platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
 [tool.pixi.dependencies]
 python = ">=3.10"
 pip = ">=24"
-numpy = ">=1.26"
+numpy = ">=1.23.5"
 scipy = ">=1.11"
 pysoundfile = ">=0.12"
 tqdm = ">=4.66"

@@ -33,6 +33,9 @@ class InferenceConfig:
     overlap_seconds: float = 1.0
     seed: int = 0
     model_cache_dir: Path = field(default_factory=default_model_cache_dir)
+    model_name: str = "basic"
+    ddim_steps: int = 50
+    guidance_scale: float = 3.5
 
     def __post_init__(self) -> None:
         device = self.device.lower()
@@ -49,10 +52,15 @@ class InferenceConfig:
             raise ValueError("overlap_seconds must be greater than or equal to zero")
         if self.overlap_seconds >= self.chunk_seconds:
             raise ValueError("overlap_seconds must be less than chunk_seconds")
+        if self.ddim_steps <= 0:
+            raise ValueError("ddim_steps must be greater than zero")
+        if self.guidance_scale <= 0:
+            raise ValueError("guidance_scale must be greater than zero")
 
         object.__setattr__(self, "device", device)
         object.__setattr__(self, "precision", precision)
         object.__setattr__(self, "model_cache_dir", model_cache_dir)
+        object.__setattr__(self, "model_name", self.model_name.lower())
 
     def ensure_model_cache_dir(self) -> Path:
         """Create and return the configured model cache directory."""
@@ -70,4 +78,7 @@ class InferenceConfig:
             "overlap_seconds": self.overlap_seconds,
             "seed": self.seed,
             "model_cache_dir": str(self.model_cache_dir),
+            "model_name": self.model_name,
+            "ddim_steps": self.ddim_steps,
+            "guidance_scale": self.guidance_scale,
         }

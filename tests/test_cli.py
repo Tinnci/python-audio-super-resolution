@@ -19,6 +19,7 @@ def test_list_backends(capsys) -> None:
     assert main(["--list-backends"]) == 0
     output = capsys.readouterr().out
     assert "sinc-resample:" in output
+    assert "audiosr:" in output
 
 
 def test_config_info_uses_cli_options(tmp_path: Path, capsys) -> None:
@@ -30,6 +31,7 @@ def test_config_info_uses_cli_options(tmp_path: Path, capsys) -> None:
     output = capsys.readouterr().out
 
     assert "device: cpu" in output
+    assert "model_name: basic" in output
     assert f"model_cache_dir: {cache_dir}" in output
 
 

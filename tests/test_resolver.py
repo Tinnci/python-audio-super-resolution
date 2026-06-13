@@ -79,6 +79,7 @@ def test_enhance_many_preserves_relative_directory_structure(tmp_path: Path) -> 
 
 def test_backend_registry_lists_sinc_resample() -> None:
     assert any(backend.name == "sinc-resample" for backend in available_backends())
+    assert any(backend.name == "audiosr" for backend in available_backends())
 
 
 def test_backend_receives_inference_config(tmp_path: Path) -> None:

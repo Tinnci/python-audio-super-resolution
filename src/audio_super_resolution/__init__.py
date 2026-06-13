@@ -1,5 +1,6 @@
 """Audio super-resolution tools for Python."""
 
+from .audiosr_backend import AUDIOSR_MODEL_NAMES, AUDIOSR_SAMPLE_RATE, AudiosrBackend
 from .config import InferenceConfig, default_model_cache_dir
 from .quality import AudioQualityReport, format_quality_report, inspect_audio_quality
 from .resolver import (
@@ -17,11 +18,14 @@ from .resolver import (
 __all__ = [
     "DEFAULT_AUDIO_EXTENSIONS",
     "AudioSuperResolver",
+    "AudiosrBackend",
     "BackendInfo",
     "EnhancementResult",
     "InferenceConfig",
     "PlannedEnhancement",
     "AudioQualityReport",
+    "AUDIOSR_MODEL_NAMES",
+    "AUDIOSR_SAMPLE_RATE",
     "available_backends",
     "discover_audio_files",
     "default_model_cache_dir",

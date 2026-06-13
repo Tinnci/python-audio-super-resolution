@@ -66,6 +66,20 @@ cd python-audio-super-resolution
 pixi install
 ```
 
+AudioSR model inference is optional because it pulls in heavy ML dependencies:
+
+```sh
+pip install "audio-super-resolution[audiosr] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
+```
+
+For local development with the optional AudioSR backend:
+
+```sh
+pip install -e ".[audiosr]"
+```
+
+Use Python 3.10 for the AudioSR backend because the upstream `audiosr` package pins older ML dependencies.
+
 ## Usage
 
 ### Command Line Interface
@@ -112,6 +126,20 @@ List available enhancement backends:
 ```sh
 audio-super-res --list-backends
 ```
+
+Run the optional AudioSR model backend:
+
+```sh
+audio-super-res input.wav output.wav \
+  --backend audiosr \
+  --target-sr 48000 \
+  --model-name basic \
+  --device auto \
+  --ddim-steps 50 \
+  --guidance-scale 3.5
+```
+
+The AudioSR backend currently writes 48000 Hz audio and supports `basic` and `speech` models. Checkpoints are downloaded through Hugging Face into the configured model cache path.
 
 Print the resolved inference configuration:
 

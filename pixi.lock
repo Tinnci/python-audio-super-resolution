@@ -294,12 +294,13 @@ packages:
 - pypi: ./
   name: audio-super-resolution
   version: 0.1.0
-  sha256: c093854b06385facd9ff9f4e190685a164e9f23fbc3bfb26026efbf8e175ac4b
+  sha256: ec7308277ba1eb80422080a8531bf6c514eee338adb4692f08a5442b11fab17f
   requires_dist:
-  - numpy>=1.26
+  - numpy>=1.23.5
   - scipy>=1.11
   - soundfile>=0.12
   - tqdm>=4.66
+  - audiosr==0.0.7 ; extra == 'audiosr'
   requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/bzip2-1.0.8-hda65f42_9.conda
   sha256: 0b75d45f0bba3e95dc693336fa51f40ea28c980131fec438afb7ce6118ed05f6
