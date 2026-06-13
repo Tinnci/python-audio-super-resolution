@@ -10,6 +10,7 @@ import soundfile as sf
 from scipy.signal import resample_poly
 
 from .audiosr_backend import AudiosrBackend
+from .chunking import iter_audio_chunks, write_crossfaded_chunks
 from .config import InferenceConfig
 from .preprocess import apply_preprocessing
 
@@ -234,7 +235,9 @@ class AudioSuperResolver:
 
         input_info = sf.info(input_path)
         file_enhancer = getattr(self.backend, "enhance_file", None)
-        if callable(file_enhancer) and self.config.preprocess == "none":
+        if self.config.chunked:
+            self._enhance_chunked(input_path, output_path, requested_sr, file_enhancer)
+        elif callable(file_enhancer) and self.config.preprocess == "none":
             file_enhancer(input_path, output_path, requested_sr)
         elif callable(file_enhancer):
             audio, sample_rate = sf.read(input_path, always_2d=True)
@@ -274,6 +277,83 @@ class AudioSuperResolver:
             channels=output_info.channels,
             backend=self.backend.name,
         )
+
+    def _enhance_chunked(
+        self,
+        input_path: Path,
+        output_path: Path,
+        target_sample_rate: int,
+        file_enhancer,
+    ) -> None:
+        if callable(file_enhancer):
+            self._enhance_file_chunks(input_path, output_path, target_sample_rate, file_enhancer)
+            return
+
+        def enhanced_chunks():
+            for audio, sample_rate in iter_audio_chunks(
+                input_path,
+                chunk_seconds=self.config.chunk_seconds,
+                overlap_seconds=self.config.overlap_seconds,
+            ):
+                preprocessed = apply_preprocessing(
+                    audio,
+                    sample_rate=sample_rate,
+                    mode=self.config.preprocess,
+                    lowpass_cutoff_hz=self.config.lowpass_cutoff_hz,
+                    lowpass_order=self.config.lowpass_order,
+                )
+                yield self.backend.enhance(preprocessed, sample_rate, target_sample_rate)
+
+        write_crossfaded_chunks(
+            enhanced_chunks(),
+            output_path=output_path,
+            sample_rate=target_sample_rate,
+            overlap_seconds=self.config.overlap_seconds,
+        )
+
+    def _enhance_file_chunks(
+        self,
+        input_path: Path,
+        output_path: Path,
+        target_sample_rate: int,
+        file_enhancer,
+    ) -> None:
+        with TemporaryDirectory(prefix="audio-super-resolution-chunks-") as temp_dir:
+
+            def enhanced_chunks():
+                for index, (audio, sample_rate) in enumerate(
+                    iter_audio_chunks(
+                        input_path,
+                        chunk_seconds=self.config.chunk_seconds,
+                        overlap_seconds=self.config.overlap_seconds,
+                    )
+                ):
+                    preprocessed = apply_preprocessing(
+                        audio,
+                        sample_rate=sample_rate,
+                        mode=self.config.preprocess,
+                        lowpass_cutoff_hz=self.config.lowpass_cutoff_hz,
+                        lowpass_order=self.config.lowpass_order,
+                    )
+                    chunk_input_path = Path(temp_dir) / f"chunk-{index:05d}.wav"
+                    chunk_output_path = Path(temp_dir) / f"chunk-{index:05d}-enhanced.wav"
+                    sf.write(chunk_input_path, preprocessed, sample_rate, subtype="FLOAT")
+                    file_enhancer(chunk_input_path, chunk_output_path, target_sample_rate)
+
+                    enhanced, enhanced_sample_rate = sf.read(chunk_output_path, always_2d=True)
+                    if enhanced_sample_rate != target_sample_rate:
+                        raise ValueError(
+                            f"chunk output sample rate {enhanced_sample_rate} does not match target "
+                            f"{target_sample_rate}"
+                        )
+                    yield enhanced
+
+            write_crossfaded_chunks(
+                enhanced_chunks(),
+                output_path=output_path,
+                sample_rate=target_sample_rate,
+                overlap_seconds=self.config.overlap_seconds,
+            )
 
     def enhance_many(
         self,

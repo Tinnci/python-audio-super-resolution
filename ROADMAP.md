@@ -10,6 +10,7 @@ This repository should stay useful before model inference lands. The baseline ba
 - Preserve relative paths during recursive batch processing.
 - Keep backend selection stable through `--backend` and `AudioSuperResolver(backend=...)`.
 - Provide machine-readable model/backend discovery and run manifests.
+- Support explicit chunked processing for long files. Done with `chunked=True` and `--chunked`.
 
 Status: complete for the baseline package. The implementation is available through the `sinc-resample` backend.
 
@@ -27,22 +28,24 @@ Status: complete for the baseline package. The implementation is available throu
 - Add objective checks for sample rate, clipping, peak level, and duration drift. Done.
 - Add example scripts for single-file enhancement, batch folder enhancement, and quality checks. Done.
 - Add a small fixture-based test set that can run in CI without model weights. Done with generated fixtures.
-- Add optional long-running tests for model inference.
+- Add optional long-running tests for model inference. Done with an environment-gated AudioSR integration test.
 - Add manifest-based regression comparison for batch runs. Done.
+- Add standalone JSON quality report artifacts. Done.
 
 ## Phase 4: Release Readiness
 
 - Publish wheels to PyPI. Release workflow added; PyPI trusted publishing setup remains external.
 - Add GitHub release notes and changelog automation. Changelog and release workflow added.
 - Add Docker images for CPU and CUDA workflows. Baseline CPU Dockerfile added; CUDA image remains backend-specific.
-- Add a Colab notebook once a model backend is wired.
-- Add release artifacts for example manifests and quality reports.
+- Add a Colab notebook once a model backend is wired. Done as a documented notebook plan; executable notebook remains pending real-weight validation.
+- Add release artifacts for example manifests and quality reports. Done with static examples under `examples/artifacts/`.
+- Add a release dry-run checklist result. Done for `0.1.0`.
 
 ## Next Implementation Plan
 
-- Add optional AudioSR integration tests that are skipped unless the `audiosr` dependency and cache are available.
-- Add sample manifest and quality-report artifacts under `examples/` for release notes and CI documentation.
-- Add a small notebook or Colab plan once the AudioSR backend is verified with real weights.
+- Confirm PyPI trusted publishing from the PyPI project settings before the first public release.
+- Run the optional AudioSR integration test with real weights on a suitable machine.
+- Convert the documented Colab plan into an executable notebook after real-weight validation.
 - Add CUDA-oriented Docker documentation after a real GPU image can be tested.
 
 ## Candidate Backends

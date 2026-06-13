@@ -123,6 +123,35 @@ def test_cli_processes_single_file(tmp_path: Path) -> None:
     assert written_sr == 32000
 
 
+def test_cli_processes_single_file_in_chunks(tmp_path: Path) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    sample_rate = 16000
+    tone = np.sin(2 * np.pi * 440 * np.arange(sample_rate // 5) / sample_rate)
+    sf.write(input_path, tone, sample_rate)
+
+    assert (
+        main(
+            [
+                str(input_path),
+                str(output_path),
+                "--target-sr",
+                "32000",
+                "--chunked",
+                "--chunk-seconds",
+                "0.05",
+                "--overlap-seconds",
+                "0.01",
+            ]
+        )
+        == 0
+    )
+    info = sf.info(output_path)
+
+    assert info.samplerate == 32000
+    assert info.frames / info.samplerate == pytest.approx(0.2, abs=1 / info.samplerate)
+
+
 def test_cli_writes_completed_manifest(tmp_path: Path) -> None:
     input_path = tmp_path / "input.wav"
     output_path = tmp_path / "output.wav"
@@ -152,6 +181,27 @@ def test_cli_prints_quality_report(tmp_path: Path, capsys) -> None:
     assert str(output_path) in output
     assert "peak=" in output
     assert "clipped=0" in output
+
+
+def test_cli_writes_quality_report_json(tmp_path: Path, capsys) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    report_path = tmp_path / "reports" / "quality.json"
+    sample_rate = 16000
+    tone = 0.25 * np.sin(2 * np.pi * 440 * np.arange(sample_rate // 20) / sample_rate)
+    sf.write(input_path, tone, sample_rate)
+
+    assert (
+        main([str(input_path), str(output_path), "--target-sr", "32000", "--quality-report-json", str(report_path)])
+        == 0
+    )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    output = capsys.readouterr().out
+
+    assert "Wrote quality report" in output
+    assert report["passed"] is True
+    assert report["report_count"] == 1
+    assert report["reports"][0]["path"] == str(output_path)
 
 
 def test_cli_can_fail_on_quality_issue(tmp_path: Path) -> None:

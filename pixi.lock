@@ -294,7 +294,7 @@ packages:
 - pypi: ./
   name: audio-super-resolution
   version: 0.1.0
-  sha256: ec7308277ba1eb80422080a8531bf6c514eee338adb4692f08a5442b11fab17f
+  sha256: 67564ce38f784e73611eb4589645b90214e71d4a36ec9f8a47e114c5af825f24
   requires_dist:
   - numpy>=1.23.5
   - scipy>=1.11

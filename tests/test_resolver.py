@@ -88,3 +88,61 @@ def test_backend_receives_inference_config(tmp_path: Path) -> None:
 
     assert resolver.config == config
     assert resolver.backend.config == config
+
+
+def test_chunked_enhance_preserves_duration_with_array_backend(tmp_path: Path) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    sample_rate = 16000
+    target_sr = 32000
+    tone = np.sin(2 * np.pi * 440 * np.arange(sample_rate // 2) / sample_rate)
+    sf.write(input_path, tone, sample_rate)
+
+    result = AudioSuperResolver(
+        target_sr=target_sr,
+        backend="sinc-resample",
+        config=InferenceConfig(
+            chunked=True,
+            chunk_seconds=0.1,
+            overlap_seconds=0.02,
+            model_cache_dir=tmp_path / "models",
+        ),
+    ).enhance(input_path, output_path)
+
+    assert result.sample_rate == target_sr
+    assert result.duration_seconds == pytest.approx(0.5, abs=1 / target_sr)
+
+
+def test_chunked_enhance_supports_file_backends(tmp_path: Path) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    sample_rate = 8000
+    tone = np.sin(2 * np.pi * 440 * np.arange(sample_rate // 2) / sample_rate)
+    sf.write(input_path, tone, sample_rate)
+
+    class CopyFileBackend:
+        name = "copy-file"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def enhance_file(self, input_path: Path, output_path: Path, target_sample_rate: int) -> None:
+            self.calls += 1
+            audio, _ = sf.read(input_path, always_2d=True)
+            sf.write(output_path, audio, target_sample_rate)
+
+    backend = CopyFileBackend()
+    result = AudioSuperResolver(
+        target_sr=sample_rate,
+        backend=backend,
+        config=InferenceConfig(
+            chunked=True,
+            chunk_seconds=0.1,
+            overlap_seconds=0.02,
+            model_cache_dir=tmp_path / "models",
+        ),
+    ).enhance(input_path, output_path)
+
+    assert backend.calls > 1
+    assert result.sample_rate == sample_rate
+    assert result.duration_seconds == pytest.approx(0.5, abs=1 / sample_rate)

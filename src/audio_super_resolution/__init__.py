@@ -14,7 +14,14 @@ from .manifest import (
 )
 from .models import ModelInfo, list_models
 from .preprocess import DEFAULT_LOWPASS_CUTOFF_HZ, apply_preprocessing, lowpass_filter
-from .quality import AudioQualityReport, format_quality_report, inspect_audio_quality
+from .quality import (
+    AudioQualityReport,
+    build_quality_report_bundle,
+    format_quality_report,
+    inspect_audio_quality,
+    quality_report_to_dict,
+    write_quality_report_bundle,
+)
 from .resolver import (
     DEFAULT_AUDIO_EXTENSIONS,
     AudioSuperResolver,
@@ -45,6 +52,7 @@ __all__ = [
     "apply_preprocessing",
     "available_backends",
     "build_manifest",
+    "build_quality_report_bundle",
     "compare_manifests",
     "discover_audio_files",
     "default_model_cache_dir",
@@ -57,7 +65,9 @@ __all__ = [
     "load_manifest",
     "manifest_comparison_to_dict",
     "plan_enhancements",
+    "quality_report_to_dict",
     "write_manifest",
+    "write_quality_report_bundle",
 ]
 
 __version__ = "0.1.0"

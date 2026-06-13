@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import InferenceConfig
-from .quality import AudioQualityReport
+from .quality import AudioQualityReport, quality_report_to_dict
 from .resolver import EnhancementResult, PlannedEnhancement
 
 
@@ -54,7 +54,7 @@ def build_manifest(
         "config": config.as_dict(),
         "jobs": [_planned_enhancement_to_dict(job) for job in jobs],
         "results": [_enhancement_result_to_dict(result) for result in results or []],
-        "quality_reports": [_quality_report_to_dict(report) for report in quality_reports or []],
+        "quality_reports": [quality_report_to_dict(report) for report in quality_reports or []],
     }
 
 
@@ -185,23 +185,6 @@ def _enhancement_result_to_dict(result: EnhancementResult) -> dict[str, str | in
         "duration_seconds": result.duration_seconds,
         "channels": result.channels,
         "backend": result.backend,
-    }
-
-
-def _quality_report_to_dict(report: AudioQualityReport) -> dict[str, str | int | float | bool | list[str] | None]:
-    return {
-        "path": str(report.path),
-        "sample_rate": report.sample_rate,
-        "duration_seconds": report.duration_seconds,
-        "channels": report.channels,
-        "peak_level": report.peak_level,
-        "clipped_samples": report.clipped_samples,
-        "clipped_fraction": report.clipped_fraction,
-        "expected_sample_rate": report.expected_sample_rate,
-        "expected_duration_seconds": report.expected_duration_seconds,
-        "duration_drift_seconds": report.duration_drift_seconds,
-        "issues": list(report.issues),
-        "passed": report.passed,
     }
 
 

@@ -6,6 +6,7 @@ The package is organized around a stable CLI/API surface and pluggable enhanceme
 
 - `audio_super_resolution.cli`: command-line parsing, user-facing errors, and reporting.
 - `audio_super_resolution.resolver`: path planning, file dispatch, backend registry, and high-level API.
+- `audio_super_resolution.chunking`: overlapping chunk iteration and crossfaded chunk writing.
 - `audio_super_resolution.config`: shared inference configuration and model cache resolution.
 - `audio_super_resolution.models`: model catalog for CLI and programmatic discovery.
 - `audio_super_resolution.manifest`: JSON manifest generation and regression comparison for planned and completed jobs.
@@ -35,6 +36,8 @@ def enhance_file(input_path, output_path, target_sample_rate):
 
 If preprocessing is enabled in `InferenceConfig`, array-native backends receive the preprocessed array directly. File-native backends receive a temporary WAV created from the preprocessed input, keeping their file-oriented interface unchanged.
 
+If `chunked=True`, `AudioSuperResolver.enhance()` reads overlapping chunks, applies preprocessing per chunk, calls the selected backend for each chunk, and writes the result with a linear crossfade across the overlap. This path supports both array-native and file-native backends while preserving the default non-chunked behavior.
+
 ## Dependency Policy
 
 The baseline package must remain lightweight and installable without model downloads or GPU dependencies.
@@ -58,6 +61,12 @@ Machine-readable output should be available for listing commands when useful. `-
 Batch runs should be reproducible from their manifest. `--manifest` writes planned jobs, completed results, configuration, backend, and optional quality reports.
 
 `--compare-manifests` compares completed manifests by backend, target sample rate, result presence, sample rate, duration, channel count, output presence, and quality status. It returns a non-zero exit code when differences are found.
+
+`--quality-report-json` writes standalone quality report artifacts for CI workflows that do not need a full run manifest.
+
+## Test Policy
+
+Default tests must remain lightweight and must not download model weights. Real AudioSR inference is covered by an environment-gated integration test that only runs when `AUDIO_SUPER_RESOLUTION_RUN_AUDIOSR_INTEGRATION=1` is set.
 
 ## Release Policy
 

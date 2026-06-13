@@ -30,6 +30,7 @@ class InferenceConfig:
 
     device: str = "cpu"
     precision: str = "float32"
+    chunked: bool = False
     chunk_seconds: float = 30.0
     overlap_seconds: float = 1.0
     seed: int = 0
@@ -86,6 +87,7 @@ class InferenceConfig:
         return {
             "device": self.device,
             "precision": self.precision,
+            "chunked": self.chunked,
             "chunk_seconds": self.chunk_seconds,
             "overlap_seconds": self.overlap_seconds,
             "seed": self.seed,

@@ -49,8 +49,10 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
 - Supports common audio formats handled by libsndfile, including WAV, FLAC, and OGG.
 - Provides a Python API for batch processing and integration into larger pipelines.
 - Exposes shared inference configuration for device, precision, chunking, seed, and model cache.
+- Can process long files in overlapping chunks when explicitly enabled.
 - Supports optional low-pass preprocessing before model inference.
 - Includes objective audio quality checks for sample rate, duration drift, clipping, and peak level.
+- Writes standalone JSON quality report artifacts.
 - Writes and compares JSON manifests for regression checks.
 - Uses a backend abstraction so model-based AudioSR implementations can be added cleanly.
 - Managed with Pixi for reproducible development tasks and dependencies.
@@ -101,6 +103,7 @@ Configure inference options for backends that use model inference:
 audio-super-res input.wav output.wav \
   --device cpu \
   --precision float32 \
+  --chunked \
   --chunk-seconds 30 \
   --overlap-seconds 1 \
   --seed 0
@@ -194,6 +197,7 @@ Run post-write audio quality checks:
 
 ```sh
 audio-super-res input.wav output.wav --quality-report --fail-on-quality-issue
+audio-super-res input.wav output.wav --quality-report-json quality.json
 ```
 
 The shorter alias is also available:
@@ -254,6 +258,7 @@ from audio_super_resolution import AudioSuperResolver, InferenceConfig
 config = InferenceConfig(
     device="cpu",
     precision="float32",
+    chunked=True,
     chunk_seconds=30.0,
     overlap_seconds=1.0,
     seed=0,
@@ -305,6 +310,12 @@ if not report.passed:
     print(report.issues)
 ```
 
+Write a combined JSON quality report from the CLI:
+
+```sh
+audio-super-res input.wav output.wav --quality-report-json quality.json
+```
+
 ### Manifest Comparison
 
 Manifest comparison checks backend, target sample rate, per-input result presence, sample rate, duration, channel count, output path presence, and quality status. The CLI exits with `1` when differences are found, which makes it suitable for CI regression checks.
@@ -327,6 +338,7 @@ if not comparison.passed:
 - [examples/batch_process.py](examples/batch_process.py)
 - [examples/compare_manifests.py](examples/compare_manifests.py)
 - [examples/quality_check.py](examples/quality_check.py)
+- [examples/artifacts/](examples/artifacts/) contains sample manifest and quality report JSON artifacts.
 
 ## Docker
 
@@ -354,7 +366,7 @@ See [ROADMAP.md](ROADMAP.md) for the staged plan. The short version:
 
 - Stabilize the CLI/API contract around files, directories, and backend selection.
 - Add model-backed AudioSR inference behind the existing backend interface.
-- Add model discovery, objective quality metrics, and batch manifests.
+- Add model discovery, objective quality metrics, batch manifests, and JSON quality artifacts.
 - Add manifest regression checks and optional preprocessing for model-backed runs.
 - Publish release artifacts once the first model backend is usable.
 
@@ -378,6 +390,13 @@ Build the package:
 
 ```sh
 pixi run build
+```
+
+Run optional real AudioSR integration tests only when you explicitly want model inference and possible weight downloads:
+
+```sh
+set AUDIO_SUPER_RESOLUTION_RUN_AUDIOSR_INTEGRATION=1
+pixi run pytest tests/test_audiosr_integration.py
 ```
 
 ## Release

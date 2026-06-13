@@ -7,10 +7,13 @@ Use this checklist when publishing a new release.
 - Confirm `pixi run lint` passes.
 - Confirm `pixi run test` passes.
 - Confirm `pixi run build` produces both sdist and wheel artifacts.
+- Confirm `pixi run python -m pip check` passes.
 - Update `CHANGELOG.md`.
 - Update the version in `pyproject.toml`.
 - Update `src/audio_super_resolution/__init__.py`.
 - Confirm the README examples still match the CLI.
+- Confirm `examples/artifacts/` has current sample JSON artifacts.
+- Confirm the Colab plan in `docs/COLAB.md` matches the current CLI.
 
 ## GitHub Release
 
@@ -31,6 +34,20 @@ Repository setup required in PyPI:
 - Repository: `python-audio-super-resolution`
 - Workflow: `release.yml`
 - Environment: `pypi`
+
+The repository cannot prove that PyPI trusted publishing has been configured. Confirm this in PyPI before tagging the first public release.
+
+## Dry Run
+
+The current `0.1.0` dry-run record is available at [RELEASE_DRY_RUN_0.1.0.md](RELEASE_DRY_RUN_0.1.0.md).
+
+## Example Artifacts
+
+Release notes can reference the sample artifacts under [examples/artifacts/](../examples/artifacts/):
+
+- `sample-plan-manifest.json`
+- `sample-completed-manifest.json`
+- `sample-quality-report.json`
 
 ## Docker
 

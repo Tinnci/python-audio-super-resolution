@@ -24,7 +24,7 @@ from .manifest import (
     write_manifest,
 )
 from .models import list_models
-from .quality import format_quality_report, inspect_audio_quality
+from .quality import format_quality_report, inspect_audio_quality, write_quality_report_bundle
 from .resolver import AudioSuperResolver, available_backends, plan_enhancements
 
 
@@ -113,6 +113,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="float32",
         help="Inference precision. Defaults to float32.",
     )
+    backend_params.add_argument("--chunked", action="store_true", help="Process inputs in overlapping chunks.")
     backend_params.add_argument("--chunk-seconds", type=float, default=30.0, help="Chunk size for model backends.")
     backend_params.add_argument("--overlap-seconds", type=float, default=1.0, help="Chunk overlap for model backends.")
     backend_params.add_argument("--seed", type=int, default=0, help="Seed for deterministic model backends.")
@@ -153,6 +154,11 @@ def build_parser() -> argparse.ArgumentParser:
     quality_params = parser.add_argument_group("Quality Checks")
     quality_params.add_argument(
         "--quality-report", action="store_true", help="Print quality checks for each written output file."
+    )
+    quality_params.add_argument(
+        "--quality-report-json",
+        type=Path,
+        help="Write combined quality checks to a JSON file.",
     )
     quality_params.add_argument(
         "--fail-on-quality-issue",
@@ -330,7 +336,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     reports = []
-    if args.quality_report or args.fail_on_quality_issue:
+    if args.quality_report or args.quality_report_json or args.fail_on_quality_issue:
         reports = [
             inspect_audio_quality(
                 result.output_path,
@@ -339,8 +345,13 @@ def main(argv: list[str] | None = None) -> int:
             )
             for result in results
         ]
-        for report in reports:
-            print(format_quality_report(report))
+        if args.quality_report:
+            for report in reports:
+                print(format_quality_report(report))
+
+        if args.quality_report_json:
+            quality_report_path = write_quality_report_bundle(args.quality_report_json, reports)
+            print(f"Wrote quality report {quality_report_path}")
 
     if args.manifest:
         manifest_path = write_manifest(
@@ -372,6 +383,7 @@ def _build_config(args: argparse.Namespace) -> InferenceConfig:
     return InferenceConfig(
         device=args.device,
         precision=args.precision,
+        chunked=args.chunked,
         chunk_seconds=args.chunk_seconds,
         overlap_seconds=args.overlap_seconds,
         seed=args.seed,
