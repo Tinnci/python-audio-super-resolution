@@ -23,7 +23,9 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
   - [Command Line Interface](#command-line-interface)
   - [Python API](#python-api)
   - [Inference Configuration](#inference-configuration)
+  - [Preprocessing](#preprocessing)
   - [Quality Reports](#quality-reports)
+  - [Manifest Comparison](#manifest-comparison)
 - [Examples](#examples)
 - [Docker](#docker)
 - [Roadmap](#roadmap)
@@ -47,7 +49,9 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
 - Supports common audio formats handled by libsndfile, including WAV, FLAC, and OGG.
 - Provides a Python API for batch processing and integration into larger pipelines.
 - Exposes shared inference configuration for device, precision, chunking, seed, and model cache.
+- Supports optional low-pass preprocessing before model inference.
 - Includes objective audio quality checks for sample rate, duration drift, clipping, and peak level.
+- Writes and compares JSON manifests for regression checks.
 - Uses a backend abstraction so model-based AudioSR implementations can be added cleanly.
 - Managed with Pixi for reproducible development tasks and dependencies.
 
@@ -129,6 +133,13 @@ audio-super-res ./low-res-audio ./enhanced-audio --recursive --manifest run.json
 audio-super-res ./low-res-audio ./enhanced-audio --recursive --dry-run --manifest plan.json
 ```
 
+Compare two completed manifests for regressions:
+
+```sh
+audio-super-res --compare-manifests expected.json actual.json
+audio-super-res --compare-manifests expected.json actual.json --compare-format json
+```
+
 List available enhancement backends:
 
 ```sh
@@ -156,6 +167,16 @@ audio-super-res input.wav output.wav \
 ```
 
 The AudioSR backend currently writes 48000 Hz audio and supports `basic` and `speech` models. Checkpoints are downloaded through Hugging Face into the configured model cache path.
+
+Apply optional low-pass preprocessing before enhancement:
+
+```sh
+audio-super-res input.wav output.wav \
+  --backend audiosr \
+  --target-sr 48000 \
+  --preprocess lowpass \
+  --lowpass-cutoff-hz 16000
+```
 
 Print the resolved inference configuration:
 
@@ -254,6 +275,21 @@ On Unix-like shells:
 export AUDIO_SUPER_RESOLUTION_CACHE=/path/to/models
 ```
 
+### Preprocessing
+
+Low-pass preprocessing is optional and disabled by default. It can help when model backends are sensitive to unfamiliar cutoff patterns, MP3 artifacts, or aggressive prior filtering.
+
+```python
+from audio_super_resolution import InferenceConfig
+
+config = InferenceConfig(
+    preprocess="lowpass",
+    lowpass_cutoff_hz=16000,
+)
+```
+
+If `lowpass_cutoff_hz` is omitted, the cutoff defaults to `min(16000, 45% of input sample rate)`.
+
 ### Quality Reports
 
 ```python
@@ -269,10 +305,27 @@ if not report.passed:
     print(report.issues)
 ```
 
+### Manifest Comparison
+
+Manifest comparison checks backend, target sample rate, per-input result presence, sample rate, duration, channel count, output path presence, and quality status. The CLI exits with `1` when differences are found, which makes it suitable for CI regression checks.
+
+```python
+from audio_super_resolution import compare_manifests, load_manifest
+
+comparison = compare_manifests(
+    load_manifest("expected.json"),
+    load_manifest("actual.json"),
+)
+
+if not comparison.passed:
+    print(comparison.differences)
+```
+
 ## Examples
 
 - [examples/basic_usage.py](examples/basic_usage.py)
 - [examples/batch_process.py](examples/batch_process.py)
+- [examples/compare_manifests.py](examples/compare_manifests.py)
 - [examples/quality_check.py](examples/quality_check.py)
 
 ## Docker
@@ -302,6 +355,7 @@ See [ROADMAP.md](ROADMAP.md) for the staged plan. The short version:
 - Stabilize the CLI/API contract around files, directories, and backend selection.
 - Add model-backed AudioSR inference behind the existing backend interface.
 - Add model discovery, objective quality metrics, and batch manifests.
+- Add manifest regression checks and optional preprocessing for model-backed runs.
 - Publish release artifacts once the first model backend is usable.
 
 ## Development

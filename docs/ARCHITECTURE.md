@@ -8,7 +8,8 @@ The package is organized around a stable CLI/API surface and pluggable enhanceme
 - `audio_super_resolution.resolver`: path planning, file dispatch, backend registry, and high-level API.
 - `audio_super_resolution.config`: shared inference configuration and model cache resolution.
 - `audio_super_resolution.models`: model catalog for CLI and programmatic discovery.
-- `audio_super_resolution.manifest`: JSON manifest generation for planned and completed jobs.
+- `audio_super_resolution.manifest`: JSON manifest generation and regression comparison for planned and completed jobs.
+- `audio_super_resolution.preprocess`: optional input preprocessing before backend enhancement.
 - `audio_super_resolution.quality`: objective quality checks for rendered audio.
 - `audio_super_resolution.audiosr_backend`: optional wrapper around the upstream `audiosr` package.
 
@@ -32,6 +33,8 @@ def enhance_file(input_path, output_path, target_sample_rate):
 
 `AudioSuperResolver.enhance()` checks for `enhance_file()` first. This keeps file-based model packages behind the same public API without forcing every backend to accept temporary arrays.
 
+If preprocessing is enabled in `InferenceConfig`, array-native backends receive the preprocessed array directly. File-native backends receive a temporary WAV created from the preprocessed input, keeping their file-oriented interface unchanged.
+
 ## Dependency Policy
 
 The baseline package must remain lightweight and installable without model downloads or GPU dependencies.
@@ -53,6 +56,8 @@ The CLI is grouped by user task:
 Machine-readable output should be available for listing commands when useful. `--list-backends --list-format json` and `--list-models --list-format json` are the current examples.
 
 Batch runs should be reproducible from their manifest. `--manifest` writes planned jobs, completed results, configuration, backend, and optional quality reports.
+
+`--compare-manifests` compares completed manifests by backend, target sample rate, result presence, sample rate, duration, channel count, output presence, and quality status. It returns a non-zero exit code when differences are found.
 
 ## Release Policy
 

@@ -20,6 +20,7 @@ Status: complete for the baseline package. The implementation is available throu
 - Implement the first AudioSR-style model backend behind the existing backend protocol. Done with the optional `audiosr` backend wrapper.
 - Keep the baseline `sinc-resample` backend for tests and CPU-only environments.
 - Add clear errors for missing model weights, unsupported devices, and unavailable accelerators.
+- Add optional input preprocessing for model backends. Done with low-pass preprocessing.
 
 ## Phase 3: Evaluation and Examples
 
@@ -27,7 +28,7 @@ Status: complete for the baseline package. The implementation is available throu
 - Add example scripts for single-file enhancement, batch folder enhancement, and quality checks. Done.
 - Add a small fixture-based test set that can run in CI without model weights. Done with generated fixtures.
 - Add optional long-running tests for model inference.
-- Add manifest-based regression comparison for batch runs.
+- Add manifest-based regression comparison for batch runs. Done.
 
 ## Phase 4: Release Readiness
 
@@ -36,6 +37,13 @@ Status: complete for the baseline package. The implementation is available throu
 - Add Docker images for CPU and CUDA workflows. Baseline CPU Dockerfile added; CUDA image remains backend-specific.
 - Add a Colab notebook once a model backend is wired.
 - Add release artifacts for example manifests and quality reports.
+
+## Next Implementation Plan
+
+- Add optional AudioSR integration tests that are skipped unless the `audiosr` dependency and cache are available.
+- Add sample manifest and quality-report artifacts under `examples/` for release notes and CI documentation.
+- Add a small notebook or Colab plan once the AudioSR backend is verified with real weights.
+- Add CUDA-oriented Docker documentation after a real GPU image can be tested.
 
 ## Candidate Backends
 

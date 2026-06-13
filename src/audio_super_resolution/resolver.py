@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Protocol
 
 import numpy as np
@@ -10,6 +11,7 @@ from scipy.signal import resample_poly
 
 from .audiosr_backend import AudiosrBackend
 from .config import InferenceConfig
+from .preprocess import apply_preprocessing
 
 DEFAULT_AUDIO_EXTENSIONS = (".wav", ".flac", ".ogg", ".aiff", ".aif")
 
@@ -232,10 +234,30 @@ class AudioSuperResolver:
 
         input_info = sf.info(input_path)
         file_enhancer = getattr(self.backend, "enhance_file", None)
-        if callable(file_enhancer):
+        if callable(file_enhancer) and self.config.preprocess == "none":
             file_enhancer(input_path, output_path, requested_sr)
+        elif callable(file_enhancer):
+            audio, sample_rate = sf.read(input_path, always_2d=True)
+            preprocessed = apply_preprocessing(
+                audio,
+                sample_rate=sample_rate,
+                mode=self.config.preprocess,
+                lowpass_cutoff_hz=self.config.lowpass_cutoff_hz,
+                lowpass_order=self.config.lowpass_order,
+            )
+            with TemporaryDirectory(prefix="audio-super-resolution-") as temp_dir:
+                preprocessed_input_path = Path(temp_dir) / f"{input_path.stem}-preprocessed.wav"
+                sf.write(preprocessed_input_path, preprocessed, sample_rate, subtype="FLOAT")
+                file_enhancer(preprocessed_input_path, output_path, requested_sr)
         else:
             audio, sample_rate = sf.read(input_path, always_2d=True)
+            audio = apply_preprocessing(
+                audio,
+                sample_rate=sample_rate,
+                mode=self.config.preprocess,
+                lowpass_cutoff_hz=self.config.lowpass_cutoff_hz,
+                lowpass_order=self.config.lowpass_order,
+            )
             enhanced = self.backend.enhance(audio, sample_rate, requested_sr)
 
             output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -160,3 +160,39 @@ def test_cli_can_fail_on_quality_issue(tmp_path: Path) -> None:
     sf.write(input_path, np.ones(1000), 1000)
 
     assert main([str(input_path), str(output_path), "--fail-on-quality-issue"]) == 1
+
+
+def test_cli_compares_manifests_as_json(tmp_path: Path, capsys) -> None:
+    expected_path = tmp_path / "expected.json"
+    actual_path = tmp_path / "actual.json"
+    expected_path.write_text(json.dumps(_minimal_manifest(sample_rate=48000)), encoding="utf-8")
+    actual_path.write_text(json.dumps(_minimal_manifest(sample_rate=44100)), encoding="utf-8")
+
+    assert main(["--compare-manifests", str(expected_path), str(actual_path), "--compare-format", "json"]) == 1
+    comparison = json.loads(capsys.readouterr().out)
+
+    assert comparison["passed"] is False
+    assert comparison["difference_count"] == 1
+    assert comparison["differences"][0]["field"] == "sample_rate"
+
+
+def _minimal_manifest(sample_rate: int) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "mode": "completed",
+        "backend": "sinc-resample",
+        "target_sample_rate": 48000,
+        "results": [
+            {
+                "input_path": "input.wav",
+                "output_path": "output.wav",
+                "input_sample_rate": 16000,
+                "sample_rate": sample_rate,
+                "input_duration_seconds": 1.0,
+                "duration_seconds": 1.0,
+                "channels": 1,
+                "backend": "sinc-resample",
+            }
+        ],
+        "quality_reports": [],
+    }

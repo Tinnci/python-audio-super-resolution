@@ -39,6 +39,17 @@ def test_inference_config_rejects_invalid_diffusion_parameters(tmp_path: Path) -
         InferenceConfig(guidance_scale=0, model_cache_dir=tmp_path)
 
 
+def test_inference_config_rejects_invalid_preprocessing_options(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="preprocess must be one of"):
+        InferenceConfig(preprocess="normalize", model_cache_dir=tmp_path)
+
+    with pytest.raises(ValueError, match="lowpass_cutoff_hz must be greater than zero"):
+        InferenceConfig(lowpass_cutoff_hz=0, model_cache_dir=tmp_path)
+
+    with pytest.raises(ValueError, match="lowpass_order must be greater than zero"):
+        InferenceConfig(lowpass_order=0, model_cache_dir=tmp_path)
+
+
 def test_default_model_cache_dir_uses_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AUDIO_SUPER_RESOLUTION_CACHE", str(tmp_path / "cache"))
 

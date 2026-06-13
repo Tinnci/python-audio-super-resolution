@@ -17,4 +17,6 @@ This project follows semantic versioning once published to PyPI.
 - Added backend availability metadata and JSON output for `--list-backends`.
 - Added model catalog output through `--list-models`.
 - Added JSON manifests for dry-run plans and completed enhancement runs.
+- Added manifest regression comparison through `--compare-manifests`.
+- Added optional low-pass preprocessing for model-backed enhancement runs.
 - Added GitHub issue templates, Dependabot configuration, CodeQL security workflow, and architecture/test documentation.

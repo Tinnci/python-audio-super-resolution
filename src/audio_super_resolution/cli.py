@@ -8,8 +8,21 @@ from pathlib import Path
 
 from . import __version__
 from .audiosr_backend import AUDIOSR_MODEL_NAMES
-from .config import VALID_DEVICES, VALID_PRECISIONS, InferenceConfig, default_model_cache_dir
-from .manifest import build_manifest, write_manifest
+from .config import (
+    VALID_DEVICES,
+    VALID_PRECISIONS,
+    VALID_PREPROCESSING_MODES,
+    InferenceConfig,
+    default_model_cache_dir,
+)
+from .manifest import (
+    build_manifest,
+    compare_manifests,
+    format_manifest_comparison,
+    load_manifest,
+    manifest_comparison_to_dict,
+    write_manifest,
+)
 from .models import list_models
 from .quality import format_quality_report, inspect_audio_quality
 from .resolver import AudioSuperResolver, available_backends, plan_enhancements
@@ -41,6 +54,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--config-info", action="store_true", help="Print resolved inference configuration and exit."
     )
     info_params.add_argument("--env-info", action="store_true", help="Print environment information and exit.")
+    info_params.add_argument(
+        "--compare-manifests",
+        nargs=2,
+        metavar=("EXPECTED", "ACTUAL"),
+        type=Path,
+        help="Compare two JSON run manifests and exit with 1 if differences are found.",
+    )
+    info_params.add_argument(
+        "--compare-format",
+        choices=["pretty", "json"],
+        default="pretty",
+        help="Format for manifest comparison output. Defaults to pretty.",
+    )
+    info_params.add_argument(
+        "--duration-tolerance-seconds",
+        type=float,
+        default=0.05,
+        help="Duration tolerance for manifest comparison. Defaults to 0.05.",
+    )
+    info_params.add_argument(
+        "--check-output-files",
+        action="store_true",
+        help="During manifest comparison, also verify that actual output files exist.",
+    )
     info_params.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     io_params = parser.add_argument_group("Enhancement I/O")
@@ -94,6 +131,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     backend_params.add_argument(
         "--guidance-scale", type=float, default=3.5, help="Guidance scale for diffusion backends."
+    )
+    backend_params.add_argument(
+        "--preprocess",
+        choices=VALID_PREPROCESSING_MODES,
+        default="none",
+        help="Optional input preprocessing before enhancement. Defaults to none.",
+    )
+    backend_params.add_argument(
+        "--lowpass-cutoff-hz",
+        type=float,
+        help="Low-pass cutoff for --preprocess lowpass. Defaults to min(16000, 45%% of input sample rate).",
+    )
+    backend_params.add_argument(
+        "--lowpass-order",
+        type=int,
+        default=8,
+        help="Butterworth filter order for --preprocess lowpass. Defaults to 8.",
     )
 
     quality_params = parser.add_argument_group("Quality Checks")
@@ -197,6 +251,25 @@ def main(argv: list[str] | None = None) -> int:
     if args.env_info:
         print_env_info(config)
         return 0
+
+    if args.compare_manifests:
+        try:
+            expected_manifest = load_manifest(args.compare_manifests[0])
+            actual_manifest = load_manifest(args.compare_manifests[1])
+            comparison = compare_manifests(
+                expected_manifest,
+                actual_manifest,
+                duration_tolerance_seconds=args.duration_tolerance_seconds,
+                check_output_files=args.check_output_files,
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            parser.error(str(exc))
+
+        if args.compare_format == "json":
+            print(json.dumps(manifest_comparison_to_dict(comparison), indent=2))
+        else:
+            print(format_manifest_comparison(comparison))
+        return 0 if comparison.passed else 1
 
     if args.input is None:
         parser.error("input is required unless an informational flag is used")
@@ -306,6 +379,9 @@ def _build_config(args: argparse.Namespace) -> InferenceConfig:
         model_name=args.model_name,
         ddim_steps=args.ddim_steps,
         guidance_scale=args.guidance_scale,
+        preprocess=args.preprocess,
+        lowpass_cutoff_hz=args.lowpass_cutoff_hz,
+        lowpass_order=args.lowpass_order,
     )
 
 
