@@ -7,6 +7,8 @@ The package is organized around a stable CLI/API surface and pluggable enhanceme
 - `audio_super_resolution.cli`: command-line parsing, user-facing errors, and reporting.
 - `audio_super_resolution.resolver`: path planning, file dispatch, backend registry, and high-level API.
 - `audio_super_resolution.config`: shared inference configuration and model cache resolution.
+- `audio_super_resolution.models`: model catalog for CLI and programmatic discovery.
+- `audio_super_resolution.manifest`: JSON manifest generation for planned and completed jobs.
 - `audio_super_resolution.quality`: objective quality checks for rendered audio.
 - `audio_super_resolution.audiosr_backend`: optional wrapper around the upstream `audiosr` package.
 
@@ -48,7 +50,9 @@ The CLI is grouped by user task:
 - backend and inference
 - quality checks
 
-Machine-readable output should be available for listing commands when useful. `--list-backends --list-format json` is the current example.
+Machine-readable output should be available for listing commands when useful. `--list-backends --list-format json` and `--list-models --list-format json` are the current examples.
+
+Batch runs should be reproducible from their manifest. `--manifest` writes planned jobs, completed results, configuration, backend, and optional quality reports.
 
 ## Release Policy
 

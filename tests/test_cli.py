@@ -32,6 +32,21 @@ def test_list_backends_json(capsys) -> None:
     assert all("installed" in backend for backend in backends)
 
 
+def test_list_models_json(capsys) -> None:
+    assert main(["--list-models", "--list-format", "json"]) == 0
+    models = json.loads(capsys.readouterr().out)
+
+    assert {model["id"] for model in models} == {"audiosr-basic", "audiosr-speech", "sinc-resample"}
+
+
+def test_list_models_filter(capsys) -> None:
+    assert main(["--list-models", "--list-filter", "speech"]) == 0
+    output = capsys.readouterr().out
+
+    assert "audiosr-speech" in output
+    assert "audiosr-basic" not in output
+
+
 def test_config_info_uses_cli_options(tmp_path: Path, capsys) -> None:
     cache_dir = tmp_path / "cache"
 
@@ -67,12 +82,32 @@ def test_dry_run_for_file_uses_default_output_path(tmp_path: Path, capsys) -> No
     assert not (tmp_path / "input-sr44100.wav").exists()
 
 
+def test_dry_run_writes_manifest(tmp_path: Path) -> None:
+    input_path = tmp_path / "input.wav"
+    manifest_path = tmp_path / "manifest.json"
+    input_path.write_bytes(b"placeholder")
+
+    assert main([str(input_path), "--dry-run", "--target-sr", "44100", "--manifest", str(manifest_path)]) == 0
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert manifest["mode"] == "dry-run"
+    assert manifest["jobs"][0]["output_path"] == str(tmp_path / "input-sr44100.wav")
+    assert manifest["results"] == []
+
+
 def test_cli_rejects_non_positive_target_sample_rate(tmp_path: Path) -> None:
     input_path = tmp_path / "input.wav"
     input_path.write_bytes(b"placeholder")
 
     with pytest.raises(SystemExit):
         main([str(input_path), "--target-sr", "0"])
+
+
+def test_cli_reports_missing_input_without_traceback(tmp_path: Path, capsys) -> None:
+    with pytest.raises(SystemExit):
+        main([str(tmp_path / "missing.wav")])
+
+    assert "missing.wav" in capsys.readouterr().err
 
 
 def test_cli_processes_single_file(tmp_path: Path) -> None:
@@ -86,6 +121,22 @@ def test_cli_processes_single_file(tmp_path: Path) -> None:
     _, written_sr = sf.read(output_path)
 
     assert written_sr == 32000
+
+
+def test_cli_writes_completed_manifest(tmp_path: Path) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    manifest_path = tmp_path / "manifest.json"
+    sample_rate = 16000
+    tone = np.sin(2 * np.pi * 440 * np.arange(sample_rate // 20) / sample_rate)
+    sf.write(input_path, tone, sample_rate)
+
+    assert main([str(input_path), str(output_path), "--target-sr", "32000", "--manifest", str(manifest_path)]) == 0
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert manifest["mode"] == "completed"
+    assert manifest["results"][0]["input_sample_rate"] == sample_rate
+    assert manifest["results"][0]["sample_rate"] == 32000
 
 
 def test_cli_prints_quality_report(tmp_path: Path, capsys) -> None:

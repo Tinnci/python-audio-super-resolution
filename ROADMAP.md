@@ -9,6 +9,7 @@ This repository should stay useful before model inference lands. The baseline ba
 - Support single-file and directory batch processing.
 - Preserve relative paths during recursive batch processing.
 - Keep backend selection stable through `--backend` and `AudioSuperResolver(backend=...)`.
+- Provide machine-readable model/backend discovery and run manifests.
 
 Status: complete for the baseline package. The implementation is available through the `sinc-resample` backend.
 
@@ -26,6 +27,7 @@ Status: complete for the baseline package. The implementation is available throu
 - Add example scripts for single-file enhancement, batch folder enhancement, and quality checks. Done.
 - Add a small fixture-based test set that can run in CI without model weights. Done with generated fixtures.
 - Add optional long-running tests for model inference.
+- Add manifest-based regression comparison for batch runs.
 
 ## Phase 4: Release Readiness
 
@@ -33,6 +35,7 @@ Status: complete for the baseline package. The implementation is available throu
 - Add GitHub release notes and changelog automation. Changelog and release workflow added.
 - Add Docker images for CPU and CUDA workflows. Baseline CPU Dockerfile added; CUDA image remains backend-specific.
 - Add a Colab notebook once a model backend is wired.
+- Add release artifacts for example manifests and quality reports.
 
 ## Candidate Backends
 

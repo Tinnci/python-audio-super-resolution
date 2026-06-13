@@ -15,4 +15,6 @@ This project follows semantic versioning once published to PyPI.
 - Added examples for single-file enhancement, batch processing, and quality checks.
 - Added the optional `audiosr` backend wrapper for AudioSR latent diffusion inference.
 - Added backend availability metadata and JSON output for `--list-backends`.
+- Added model catalog output through `--list-models`.
+- Added JSON manifests for dry-run plans and completed enhancement runs.
 - Added GitHub issue templates, Dependabot configuration, CodeQL security workflow, and architecture/test documentation.

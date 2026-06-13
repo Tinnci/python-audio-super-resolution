@@ -9,6 +9,8 @@ from pathlib import Path
 from . import __version__
 from .audiosr_backend import AUDIOSR_MODEL_NAMES
 from .config import VALID_DEVICES, VALID_PRECISIONS, InferenceConfig, default_model_cache_dir
+from .manifest import build_manifest, write_manifest
+from .models import list_models
 from .quality import format_quality_report, inspect_audio_quality
 from .resolver import AudioSuperResolver, available_backends, plan_enhancements
 
@@ -27,11 +29,13 @@ def build_parser() -> argparse.ArgumentParser:
     info_params.add_argument(
         "--list-backends", action="store_true", help="List available enhancement backends and exit."
     )
+    info_params.add_argument("--list-models", action="store_true", help="List known enhancement models and exit.")
+    info_params.add_argument("--list-filter", help="Filter model listings by id, backend, name, or description.")
     info_params.add_argument(
         "--list-format",
         choices=["pretty", "json"],
         default="pretty",
-        help="Format for backend listings. Defaults to pretty.",
+        help="Format for backend and model listings. Defaults to pretty.",
     )
     info_params.add_argument(
         "--config-info", action="store_true", help="Print resolved inference configuration and exit."
@@ -54,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print planned input/output paths without writing files.",
     )
+    io_params.add_argument("--manifest", type=Path, help="Write a JSON manifest for planned or completed jobs.")
 
     backend_params = parser.add_argument_group("Backend and Inference")
     backend_params.add_argument(
@@ -130,6 +135,35 @@ def print_backends(list_format: str = "pretty") -> None:
         )
 
 
+def print_models(filter_text: str | None = None, list_format: str = "pretty") -> None:
+    models = list_models(filter_text=filter_text)
+    if list_format == "json":
+        print(json.dumps([asdict(model) for model in models], indent=2))
+        return
+
+    if not models:
+        print("No models found.")
+        return
+
+    id_width = max(len("Model ID"), *(len(model.id) for model in models))
+    backend_width = max(len("Backend"), *(len(model.backend) for model in models))
+    installed_width = len("Installed")
+    target_width = len("Target SR")
+
+    print(
+        f"{'Model ID':<{id_width}}  {'Backend':<{backend_width}}  "
+        f"{'Installed':<{installed_width}}  {'Target SR':<{target_width}}  Description"
+    )
+    print("-" * (id_width + backend_width + installed_width + target_width + 18 + 11))
+    for model in models:
+        installed = "yes" if model.installed else "no"
+        target = "any" if model.target_sample_rate is None else str(model.target_sample_rate)
+        print(
+            f"{model.id:<{id_width}}  {model.backend:<{backend_width}}  "
+            f"{installed:<{installed_width}}  {target:<{target_width}}  {model.description}"
+        )
+
+
 def print_config(config: InferenceConfig) -> None:
     for key, value in config.as_dict().items():
         print(f"{key}: {value}")
@@ -146,6 +180,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.list_backends:
         print_backends(args.list_format)
+        return 0
+
+    if args.list_models:
+        print_models(filter_text=args.list_filter, list_format=args.list_format)
         return 0
 
     if args.config_info:
@@ -167,14 +205,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--target-sr must be greater than zero")
 
     extensions = tuple(args.extensions) if args.extensions else None
-    jobs = plan_enhancements(
-        input_path=args.input,
-        output_path=args.output,
-        target_sr=args.target_sr,
-        recursive=args.recursive,
-        extensions=extensions,
-        suffix=args.suffix,
-    )
+    try:
+        jobs = plan_enhancements(
+            input_path=args.input,
+            output_path=args.output,
+            target_sr=args.target_sr,
+            recursive=args.recursive,
+            extensions=extensions,
+            suffix=args.suffix,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        parser.error(str(exc))
 
     if not jobs:
         parser.error("no supported audio files found")
@@ -182,6 +223,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         for job in jobs:
             print(f"{job.input_path} -> {job.output_path}")
+        if args.manifest:
+            manifest_path = write_manifest(
+                args.manifest,
+                build_manifest(
+                    mode="dry-run",
+                    jobs=jobs,
+                    config=config,
+                    backend=args.backend,
+                    target_sample_rate=args.target_sr,
+                ),
+            )
+            print(f"Wrote manifest {manifest_path}")
         return 0
 
     resolver = AudioSuperResolver(target_sr=args.target_sr, backend=args.backend, config=config)
@@ -203,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
             f"from {result.input_sample_rate} Hz using {result.backend}"
         )
 
+    reports = []
     if args.quality_report or args.fail_on_quality_issue:
         reports = [
             inspect_audio_quality(
@@ -215,8 +269,23 @@ def main(argv: list[str] | None = None) -> int:
         for report in reports:
             print(format_quality_report(report))
 
-        if args.fail_on_quality_issue and any(not report.passed for report in reports):
-            return 1
+    if args.manifest:
+        manifest_path = write_manifest(
+            args.manifest,
+            build_manifest(
+                mode="completed",
+                jobs=jobs,
+                config=config,
+                backend=args.backend,
+                target_sample_rate=args.target_sr,
+                results=results,
+                quality_reports=reports,
+            ),
+        )
+        print(f"Wrote manifest {manifest_path}")
+
+    if args.fail_on_quality_issue and any(not report.passed for report in reports):
+        return 1
 
     return 0
 

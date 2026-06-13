@@ -9,6 +9,8 @@ pixi run test
 It verifies:
 
 - CLI argument handling and informational commands.
+- Model catalog and backend discovery output.
+- JSON manifests for planned and completed jobs.
 - Single-file and batch path planning.
 - Baseline `sinc-resample` enhancement.
 - Optional AudioSR backend wiring with a fake in-memory module.

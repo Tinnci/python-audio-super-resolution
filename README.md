@@ -122,10 +122,25 @@ Preview planned outputs without writing files:
 audio-super-res ./low-res-audio ./enhanced-audio --recursive --dry-run
 ```
 
+Write a JSON manifest for planned or completed work:
+
+```sh
+audio-super-res ./low-res-audio ./enhanced-audio --recursive --manifest run.json
+audio-super-res ./low-res-audio ./enhanced-audio --recursive --dry-run --manifest plan.json
+```
+
 List available enhancement backends:
 
 ```sh
 audio-super-res --list-backends
+audio-super-res --list-backends --list-format json
+```
+
+List known enhancement models:
+
+```sh
+audio-super-res --list-models
+audio-super-res --list-models --list-filter speech --list-format json
 ```
 
 Run the optional AudioSR model backend:
@@ -203,9 +218,11 @@ for result in results:
 Plan output paths without writing files:
 
 ```python
-from audio_super_resolution import plan_enhancements
+from audio_super_resolution import InferenceConfig, build_manifest, list_models, plan_enhancements
 
 jobs = plan_enhancements("low-res-audio", "enhanced-audio", recursive=True)
+models = list_models(filter_text="audiosr")
+manifest = build_manifest("dry-run", jobs, InferenceConfig(), backend="sinc-resample", target_sample_rate=48000)
 ```
 
 ### Inference Configuration
@@ -284,7 +301,7 @@ See [ROADMAP.md](ROADMAP.md) for the staged plan. The short version:
 
 - Stabilize the CLI/API contract around files, directories, and backend selection.
 - Add model-backed AudioSR inference behind the existing backend interface.
-- Add objective quality metrics and example notebooks.
+- Add model discovery, objective quality metrics, and batch manifests.
 - Publish release artifacts once the first model backend is usable.
 
 ## Development
