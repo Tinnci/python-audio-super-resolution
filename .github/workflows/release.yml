@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.10
+        with:
+          pixi-version: v0.63.2
+      - run: pixi run lint
+      - run: pixi run test
+      - run: pixi run build
+      - uses: pypa/gh-action-pypi-publish@release/v1

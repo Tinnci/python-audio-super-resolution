@@ -25,8 +25,10 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
   - [Inference Configuration](#inference-configuration)
   - [Quality Reports](#quality-reports)
 - [Examples](#examples)
+- [Docker](#docker)
 - [Roadmap](#roadmap)
 - [Development](#development)
+- [Release](#release)
 - [Requirements](#requirements)
 - [License](#license)
 - [Credits](#credits)
@@ -227,6 +229,26 @@ if not report.passed:
 - [examples/batch_process.py](examples/batch_process.py)
 - [examples/quality_check.py](examples/quality_check.py)
 
+## Docker
+
+Build the baseline CPU image:
+
+```sh
+docker build -t audio-super-resolution .
+```
+
+Run the CLI in the container:
+
+```sh
+docker run --rm -v "%cd%":/workdir audio-super-resolution input.wav output.wav --target-sr 48000
+```
+
+On Unix-like shells:
+
+```sh
+docker run --rm -v "$PWD":/workdir audio-super-resolution input.wav output.wav --target-sr 48000
+```
+
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the staged plan. The short version:
@@ -257,6 +279,10 @@ Build the package:
 ```sh
 pixi run build
 ```
+
+## Release
+
+See [docs/RELEASE.md](docs/RELEASE.md). Releases are built with Pixi and published through PyPI trusted publishing.
 
 ## Requirements
 

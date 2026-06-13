@@ -29,9 +29,9 @@ Status: complete for the baseline package. The implementation is available throu
 
 ## Phase 4: Release Readiness
 
-- Publish wheels to PyPI.
-- Add GitHub release notes and changelog automation.
-- Add Docker images for CPU and CUDA workflows.
+- Publish wheels to PyPI. Release workflow added; PyPI trusted publishing setup remains external.
+- Add GitHub release notes and changelog automation. Changelog and release workflow added.
+- Add Docker images for CPU and CUDA workflows. Baseline CPU Dockerfile added; CUDA image remains backend-specific.
 - Add a Colab notebook once a model backend is wired.
 
 ## Candidate Backends
