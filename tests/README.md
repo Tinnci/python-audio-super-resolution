@@ -6,7 +6,7 @@ The default suite is lightweight, CPU-friendly, and offline:
 pixi run test
 ```
 
-It covers the baseline CLI/API path, backend and model discovery, manifests, quality reports, preprocessing, chunking, weight manifest validation, fake-provider downloads, LavaSR metadata validation, device discovery, and release example artifacts.
+It covers the baseline CLI/API path, backend and model discovery, manifests, quality reports, golden comparison metrics, preprocessing, chunking, weight manifest validation, fake-provider downloads, LavaSR metadata validation, device discovery, and release example artifacts.
 
 ## Policy
 

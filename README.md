@@ -204,6 +204,7 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): package layers, backend contract, and weight-management boundaries.
 - [ROADMAP.md](ROADMAP.md): current status and next implementation work.
 - [CHANGELOG.md](CHANGELOG.md): release history and unreleased changes.
+- [docs/GOLDEN.md](docs/GOLDEN.md): golden-sample fixture format and comparison metrics.
 - [docs/RELEASE.md](docs/RELEASE.md): release checklist and publishing notes.
 - [docs/COLAB.md](docs/COLAB.md): draft notebook plan gated on real model validation.
 - [tests/README.md](tests/README.md): default and optional test strategy.

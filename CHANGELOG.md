@@ -13,6 +13,7 @@ This project follows semantic versioning once published to PyPI.
 - Updated roadmap and release documentation for the completed `v0.1.x` release flow and active `v0.2.0` work.
 - Added `v0.3.0` planning scope for model admission criteria and future backend candidates.
 - Added environment-gated LavaSR real-weight download verification and torch smoke-test coverage.
+- Added golden-sample comparison helpers, tests, and fixture documentation for compatible backends.
 
 ## 0.1.1
 
