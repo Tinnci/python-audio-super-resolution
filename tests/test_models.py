@@ -1,4 +1,6 @@
-from audio_super_resolution import list_models
+import pytest
+
+from audio_super_resolution import find_model_spec, get_model_spec, list_models
 from audio_super_resolution.backends import list_backend_model_specs, registered_backend_types
 
 
@@ -37,3 +39,17 @@ def test_backend_registry_exposes_builtin_model_specs() -> None:
 
     assert {"audiosr", "sinc-resample", "lavasr-compat"} <= set(backends)
     assert {"audiosr-basic", "audiosr-speech", "sinc-resample", "lavasr-v2-bwe"} == specs
+
+
+def test_find_model_spec_selects_single_model_backend_without_model_name() -> None:
+    assert find_model_spec("lavasr-compat").id == "lavasr-v2-bwe"
+
+
+def test_find_model_spec_rejects_unknown_model_name_even_for_single_model_backend() -> None:
+    with pytest.raises(ValueError, match="Unknown model 'basic' for backend 'lavasr-compat'"):
+        find_model_spec("lavasr-compat", "basic")
+
+
+def test_get_model_spec_matches_ids_and_model_names_case_insensitively() -> None:
+    assert get_model_spec("AUDIOSR-BASIC").id == "audiosr-basic"
+    assert get_model_spec("SPEECH").id == "audiosr-speech"

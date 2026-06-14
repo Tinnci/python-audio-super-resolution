@@ -120,6 +120,26 @@ def test_prepare_model_cache_can_download_weights_without_input(
     assert str(cache_dir / "lavasr-v2-bwe") in capsys.readouterr().out
 
 
+def test_prepare_model_cache_rejects_unknown_model_name_for_single_model_backend(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--backend",
+                "lavasr-compat",
+                "--model-name",
+                "basic",
+                "--download-weights",
+                "--prepare-model-cache",
+                "--model-cache-dir",
+                str(tmp_path / "cache"),
+            ]
+        )
+
+    assert "Unknown model 'basic' for backend 'lavasr-compat'" in capsys.readouterr().err
+
+
 def test_cli_verifies_explicit_weight_manifest(tmp_path: Path, capsys) -> None:
     weight_path = tmp_path / "weights.bin"
     weight_path.write_bytes(b"weights")

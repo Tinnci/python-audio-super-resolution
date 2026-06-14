@@ -66,8 +66,9 @@ def get_model_spec(model_id: str | ModelSpec) -> ModelSpec:
     if isinstance(model_id, ModelSpec):
         return model_id
 
+    requested = model_id.lower()
     for spec in list_backend_model_specs():
-        if spec.id == model_id or spec.model_name == model_id:
+        if spec.id.lower() == requested or (spec.model_name is not None and spec.model_name.lower() == requested):
             return spec
     raise ValueError(f"Unknown model {model_id!r}")
 
@@ -80,9 +81,12 @@ def find_model_spec(backend: str, model_name: str | None = None) -> ModelSpec:
         raise ValueError(f"Backend {backend!r} does not expose model specs")
 
     if model_name is not None:
+        requested = model_name.lower()
         for spec in specs:
-            if spec.id == model_name or spec.model_name == model_name:
+            if spec.id.lower() == requested or (spec.model_name is not None and spec.model_name.lower() == requested):
                 return spec
+        choices = ", ".join(spec.id for spec in specs)
+        raise ValueError(f"Unknown model {model_name!r} for backend {backend!r}. Available models: {choices}")
 
     if len(specs) == 1:
         return specs[0]

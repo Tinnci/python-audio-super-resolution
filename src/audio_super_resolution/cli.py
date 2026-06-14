@@ -141,8 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     backend_params.add_argument(
         "--model-name",
-        default="basic",
-        help="Model name for model-backed backends. Backend-specific validation is applied at runtime.",
+        help="Model name for model-backed backends. Omit for backend defaults or single-model backends.",
     )
     backend_params.add_argument(
         "--ddim-steps", type=int, default=50, help="DDIM sampling steps for diffusion backends."
@@ -459,7 +458,7 @@ def _build_config(args: argparse.Namespace) -> InferenceConfig:
         overlap_seconds=args.overlap_seconds,
         seed=args.seed,
         model_cache_dir=model_cache_dir,
-        model_name=args.model_name,
+        model_name=args.model_name or "basic",
         ddim_steps=args.ddim_steps,
         guidance_scale=args.guidance_scale,
         preprocess=args.preprocess,
