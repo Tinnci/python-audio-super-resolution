@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -112,7 +112,7 @@ def build_quality_report_bundle(reports: list[AudioQualityReport]) -> dict[str, 
 
     return {
         "schema_version": 1,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "passed": all(report.passed for report in reports),
         "report_count": len(reports),
         "issue_count": sum(len(report.issues) for report in reports),

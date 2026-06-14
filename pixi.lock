@@ -293,8 +293,8 @@ packages:
   timestamp: 1764092507920
 - pypi: ./
   name: audio-super-resolution
-  version: 0.1.0
-  sha256: eaf87f61f10d154abb3bbb79b135db042980ff745ff57fb358a58f1b88321b07
+  version: 0.1.1
+  sha256: 950f21ce9f1f640e82012040b2bb7f7decfeaf9558c045e75cdd65b8efd7a006
   requires_dist:
   - numpy>=1.23.5
   - scipy>=1.11

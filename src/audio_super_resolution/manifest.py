@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from math import isclose
 from pathlib import Path
 from typing import Any
@@ -47,7 +47,7 @@ def build_manifest(
 
     return {
         "schema_version": 1,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "mode": mode,
         "backend": backend,
         "target_sample_rate": target_sample_rate,

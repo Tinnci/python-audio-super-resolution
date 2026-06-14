@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 This project follows semantic versioning once published to PyPI.
 
+## 0.1.1
+
+- Fixed Python 3.10 import compatibility by replacing Python 3.11-only `datetime.UTC` usage.
+
 ## 0.1.0
 
 - Added the initial Pixi-managed Python package.
