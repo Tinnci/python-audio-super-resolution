@@ -28,7 +28,7 @@ Tracked work:
 
 - `#16` Implement `lavasr-compat` self-contained inference.
 - `#17` Add golden-sample validation for compatible backends.
-- `#18` Add gated real-weight model validation.
+- `#18` Add gated real-weight model validation. Completed: gated LavaSR download verification and torch smoke tests are available.
 - `#19` Publish validated Colab and GPU documentation.
 
 Current `lavasr-compat` status:
@@ -39,7 +39,7 @@ Current `lavasr-compat` status:
 
 Remaining before marking `lavasr-compat` stable:
 
-- Run gated real-weight download/load/inference smoke tests.
+- Run the gated real-weight download/load/inference tests in an environment with `download` and `lavasr` extras installed.
 - Compare output against upstream LavaSR/Vocos on golden samples.
 - Add exactness tests for any mel/STFT behavior that differs from the reference implementation.
 - Document Colab/GPU usage only after real model validation passes.
