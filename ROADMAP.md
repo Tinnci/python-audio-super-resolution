@@ -35,12 +35,9 @@ Tracked work:
 
 Current `lavasr-compat` status:
 
-- LavaSR v2 BWE model spec and managed weight metadata are implemented.
-- Local bundle validation checks config metadata and required checkpoint key layout without importing torch.
-- A self-contained torch runtime is wired experimentally: mel features, Vocos-style ConvNeXt backbone, ISTFT head, strict state-dict loading, and low/high-frequency merge.
-- Real LavaSR v2 BWE download and bundle verification has passed through the gated integration test.
-- Real LavaSR v2 BWE torch inference smoke has passed through the gated integration test.
-- Upstream LavaSR/Vocos parity has passed through the gated parity test for a fixed synthetic fixture and shared local weights.
+- Model spec, managed weight metadata, local bundle validation, and experimental torch runtime are implemented.
+- Gated real-weight download, torch smoke, and upstream LavaSR/Vocos parity have passed locally.
+- Golden/parity details live in [docs/GOLDEN.md](docs/GOLDEN.md); gated test commands live in [tests/README.md](tests/README.md).
 
 Remaining before closing `v0.2.0`:
 
@@ -91,17 +88,20 @@ Decision rule:
 - Backend code should request capabilities from a runtime/provider abstraction instead of hard-coding CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, or ONNX Runtime checks.
 - GPU/SDK-specific tests must remain gated and should produce JSON evidence before they become release gates.
 
-## Candidate Backends
+## Backend Planning Snapshot
+
+This table is a routing guide only. Detailed model evidence and risks live in the candidate review
+documents linked from [docs/README.md](docs/README.md).
 
 | Backend | Role |
 | --- | --- |
 | `sinc-resample` | Implemented deterministic baseline. |
 | `audiosr` | Implemented optional external AudioSR wrapper. |
 | `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight download, torch smoke, and initial upstream parity pass. |
-| `mossformer-sr-compat` | Future speech super-resolution candidate. |
-| `flowhigh-compat` | Future general-audio feasibility candidate; no backend implementation until checkpoint and vocoder boundaries are proven. |
-| `resemble-enhance` | Future speech enhancement/BWE feasibility candidate; no backend implementation until dependency and 44.1 kHz target behavior are proven. |
-| `nuwave` | Future diffusion-based bandwidth extension candidate. |
+| `mossformer-sr-compat` | Feasibility candidate tracked by `#31`. |
+| `flowhigh-compat` | Feasibility candidate tracked by `#32`. |
+| `resemble-enhance` | Feasibility candidate tracked by `#33`. |
+| `nuwave` | Deferred research candidate. |
 | custom backend | User-provided backend implementing the package protocol. |
 
 ## Constraints

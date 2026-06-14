@@ -129,6 +129,7 @@ Key weight commands:
 
 ## Maintenance Policy
 
+- Documentation ownership is summarized in [docs/README.md](README.md).
 - Default tests must stay lightweight, CPU-friendly, and offline. See [tests/README.md](../tests/README.md).
 - Model maturity and milestone state live in [ROADMAP.md](../ROADMAP.md); this document owns architecture boundaries.
 - Release steps live in [RELEASE.md](RELEASE.md).

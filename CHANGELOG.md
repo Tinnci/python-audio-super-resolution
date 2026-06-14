@@ -6,24 +6,23 @@ This project follows semantic versioning once published to PyPI.
 
 ## Unreleased
 
-- Added offline LavaSR v2 bundle validation with optional PyYAML fallback parsing.
-- Added an experimental self-contained LavaSR-compatible torch runtime with Vocos-style modules and strict checkpoint loading.
+### Added
+
+- Added an experimental self-contained LavaSR-compatible torch runtime with Vocos-style modules, strict checkpoint loading, and verified local weight resolution.
+- Added offline LavaSR v2 bundle validation, environment-gated real-weight download verification, torch smoke coverage, and upstream LavaSR/Vocos parity testing.
+- Added golden-sample comparison helpers, tests, and fixture documentation for compatible backends.
+- Expanded model catalog metadata and added a public model admission scorecard API.
+- Added `v0.3.0` model-planning scope and `v0.4.0` accelerator/runtime-provider planning scope.
+- Added speech and general-audio candidate reviews for ClearerVoice, Resemble Enhance, AudioSR, FlowHigh, and deferred research candidates.
+- Added a repository-based LavaSR/GPU Colab validation guide and evidence checklist.
+
+### Changed
+
 - Wired `lavasr-compat` past verified local weights into the experimental runtime while keeping provider downloads outside backend inference.
 - Removed PyYAML from the `lavasr` extra; the extra now only provides the torch runtime dependency.
-- Updated roadmap and release documentation for the completed `v0.1.x` release flow and active `v0.2.0` work.
-- Added `v0.3.0` planning scope for model admission criteria and future backend candidates.
-- Added environment-gated LavaSR real-weight download verification and torch smoke-test coverage.
-- Added golden-sample comparison helpers, tests, and fixture documentation for compatible backends.
-- Validated `lavasr-compat` real-weight torch smoke locally through the gated integration test.
 - Reworked lightweight golden/preprocessing spectral paths to avoid fragile SciPy stateful filtering/STFT calls in default tests.
-- Added a gated LavaSR upstream parity test that compares `lavasr-compat` with upstream `LavaSR.enhancer.LavaBWE` using the same verified local weights.
-- Added `v0.4.0` planning scope for accelerator capability metadata, runtime providers, gated hardware benchmarks, accelerator install docs, and LavaSR optimized export paths.
-- Replaced the Colab draft with a repository-based LavaSR/GPU validation guide and evidence checklist.
-- Expanded model catalog metadata for backend comparison, including task/domain, input-rate metadata, I/O capabilities, accelerator declarations, weight size/source/license, validation evidence, recommended use, and limitations.
-- Added model admission criteria documentation and a public scorecard API for catalog and self-contained backend candidates.
-- Added speech SR/BWE candidate review selecting ClearerVoice `MossFormer2_SR_48K` for a feasibility spike before any new backend implementation.
-- Added general-audio SR candidate review keeping AudioSR as the external baseline, tracking FlowHigh as a feasibility candidate, and deferring new self-contained general-audio work until reproducibility is proven.
-- Added Resemble Enhance to the speech enhancement/BWE feasibility track while keeping ClearerVoice as the next speech SR candidate.
+- Updated roadmap and release documentation for the completed `v0.1.x` release flow and active `v0.2.0` work.
+- Simplified documentation ownership by adding a docs index and keeping README focused on user entry points.
 
 ## 0.1.1
 

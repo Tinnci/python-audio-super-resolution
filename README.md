@@ -29,7 +29,8 @@ Install from PyPI:
 pip install audio-super-resolution
 ```
 
-Install optional model/runtime extras only when needed:
+Install optional model/runtime extras only when needed. For example, LavaSR-compatible inference with
+managed Hugging Face downloads uses:
 
 ```sh
 pip install "audio-super-resolution[lavasr,download]"
@@ -39,6 +40,12 @@ Install the unreleased repository version from GitHub:
 
 ```sh
 pip install "audio-super-resolution @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
+```
+
+GitHub installs can include extras:
+
+```sh
+pip install "audio-super-resolution[lavasr,download] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
 ```
 
 For local development:
@@ -57,12 +64,6 @@ Optional extras:
 | `download` | Hugging Face model weight downloads. |
 | `weights` | Optional safetensors loading helpers. |
 | `lavasr` | Torch runtime for the experimental LavaSR-compatible backend. |
-
-GitHub install with optional extras:
-
-```sh
-pip install "audio-super-resolution[lavasr,download] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
-```
 
 ## CLI Quick Start
 
@@ -116,6 +117,8 @@ Current backend status:
 
 Use `audio-super-res --list-models --list-format json` for machine-readable comparison metadata, including task/domain, input and target sample rates, implementation family, I/O capabilities, accelerator declarations, weight source/size/license, validation evidence, recommended use, and known limitations.
 
+Future model candidates are tracked in the speech and general-audio reviews linked from [docs/README.md](docs/README.md). Candidate entries are not supported backends until they pass admission and validation.
+
 Managed downloads are explicit. Normal enhancement only uses local verified files unless `--download-weights` is set:
 
 ```sh
@@ -166,7 +169,12 @@ manifest = build_manifest("dry-run", jobs, InferenceConfig(), backend="sinc-resa
 Managed weights:
 
 ```python
-from audio_super_resolution import InferenceConfig, download_model_weights, resolve_model_weights, verify_model_weights
+from audio_super_resolution import (
+    InferenceConfig,
+    download_model_weights,
+    resolve_model_weights,
+    verify_model_weights,
+)
 
 download_model_weights("lavasr-v2-bwe")
 verified = verify_model_weights("lavasr-v2-bwe")
@@ -203,15 +211,10 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 
 ## Project Docs
 
+- [docs/README.md](docs/README.md): documentation map and ownership rules.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): package layers, backend contract, and weight-management boundaries.
-- [ROADMAP.md](ROADMAP.md): current status and next implementation work.
+- [ROADMAP.md](ROADMAP.md): milestone state and next implementation tracks.
 - [CHANGELOG.md](CHANGELOG.md): release history and unreleased changes.
-- [docs/GENERAL_AUDIO_CANDIDATES.md](docs/GENERAL_AUDIO_CANDIDATES.md): general-audio SR candidate review.
-- [docs/GOLDEN.md](docs/GOLDEN.md): golden-sample fixture format and comparison metrics.
-- [docs/MODEL_ADMISSION.md](docs/MODEL_ADMISSION.md): model candidate gates and scorecard API.
-- [docs/SPEECH_BACKEND_CANDIDATES.md](docs/SPEECH_BACKEND_CANDIDATES.md): speech SR/BWE candidate review.
-- [docs/RELEASE.md](docs/RELEASE.md): release checklist and publishing notes.
-- [docs/COLAB.md](docs/COLAB.md): repository-based Colab/GPU validation guide.
 - [tests/README.md](tests/README.md): default and optional test strategy.
 - [examples/](examples/): Python examples and sample JSON artifacts.
 
