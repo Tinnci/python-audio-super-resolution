@@ -61,7 +61,7 @@ Tracked work:
 - `#21` Improve model catalog metadata for backend comparison. Completed: model listings expose task/domain, I/O, accelerator declarations, weight metadata, validation evidence, recommended use, and limitations.
 - `#22` Define model admission criteria and candidate scorecard. Completed: documentation and scorecard API are available.
 - `#23` Evaluate next speech SR/BWE compatible backend candidates. Completed: ClearerVoice `MossFormer2_SR_48K` is the next feasibility target.
-- `#24` Evaluate general-audio SR candidate backends.
+- `#24` Evaluate general-audio SR candidate backends. Completed: keep AudioSR external and defer new general-audio self-contained work until a reproducible candidate is available.
 - `#31` Map ClearerVoice `MossFormer2_SR_48K` compatibility feasibility.
 
 Decision rule:

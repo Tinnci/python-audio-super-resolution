@@ -206,6 +206,7 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): package layers, backend contract, and weight-management boundaries.
 - [ROADMAP.md](ROADMAP.md): current status and next implementation work.
 - [CHANGELOG.md](CHANGELOG.md): release history and unreleased changes.
+- [docs/GENERAL_AUDIO_CANDIDATES.md](docs/GENERAL_AUDIO_CANDIDATES.md): general-audio SR candidate review.
 - [docs/GOLDEN.md](docs/GOLDEN.md): golden-sample fixture format and comparison metrics.
 - [docs/MODEL_ADMISSION.md](docs/MODEL_ADMISSION.md): model candidate gates and scorecard API.
 - [docs/SPEECH_BACKEND_CANDIDATES.md](docs/SPEECH_BACKEND_CANDIDATES.md): speech SR/BWE candidate review.
