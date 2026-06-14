@@ -27,7 +27,7 @@ Goal: make the first self-contained compatible model backend useful enough to va
 Tracked work:
 
 - `#16` Implement `lavasr-compat` self-contained inference.
-- `#17` Add golden-sample validation for compatible backends.
+- `#17` Add golden-sample validation for compatible backends. Completed: fixture format, metrics, docs, and offline tests are available.
 - `#18` Add gated real-weight model validation. Completed: gated LavaSR download verification and torch smoke tests are available.
 - `#19` Publish validated Colab and GPU documentation.
 
@@ -40,7 +40,7 @@ Current `lavasr-compat` status:
 Remaining before marking `lavasr-compat` stable:
 
 - Run the gated real-weight download/load/inference tests in an environment with `download` and `lavasr` extras installed.
-- Compare output against upstream LavaSR/Vocos on golden samples.
+- Use the golden fixture framework to compare LavaSR output against upstream LavaSR/Vocos samples.
 - Add exactness tests for any mel/STFT behavior that differs from the reference implementation.
 - Document Colab/GPU usage only after real model validation passes.
 
@@ -67,7 +67,7 @@ Decision rule:
 | --- | --- |
 | `sinc-resample` | Implemented deterministic baseline. |
 | `audiosr` | Implemented optional external AudioSR wrapper. |
-| `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight/golden validation pending. |
+| `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight execution and LavaSR-specific golden artifacts pending. |
 | `mossformer-sr-compat` | Future speech super-resolution candidate. |
 | `nuwave` | Future diffusion-based bandwidth extension candidate. |
 | custom backend | User-provided backend implementing the package protocol. |
