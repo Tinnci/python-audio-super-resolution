@@ -29,7 +29,15 @@ Also confirm:
 
 ## PyPI Trusted Publishing
 
-Repository setup required in PyPI:
+The release workflow already uses PyPI Trusted Publishing / GitHub OIDC:
+
+- `.github/workflows/release.yml` grants `id-token: write`.
+- The publish job uses the `pypi` GitHub environment.
+- `pypa/gh-action-pypi-publish` is called without a password or API token.
+
+Because the package has not been created on PyPI yet, configure a pending trusted publisher from the PyPI account publishing page before the first release. Do not create a long-lived API token for this repository.
+
+Pending publisher settings:
 
 - Project name: `audio-super-resolution`
 - Publisher: GitHub Actions
@@ -38,7 +46,7 @@ Repository setup required in PyPI:
 - Workflow: `release.yml`
 - Environment: `pypi`
 
-This repository cannot verify the PyPI-side configuration. Confirm it in PyPI before tagging the first public release.
+When the first GitHub release runs successfully, PyPI will create the project from that pending publisher and bind future releases to the trusted publisher. This repository cannot verify the PyPI-side configuration; confirm it in PyPI before tagging the first public release.
 
 ## Records And Artifacts
 
