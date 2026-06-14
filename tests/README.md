@@ -1,39 +1,28 @@
 # Tests
 
-The default test suite is intentionally lightweight and offline:
+The default suite is lightweight, CPU-friendly, and offline:
 
 ```sh
 pixi run test
 ```
 
-It verifies:
+It covers the baseline CLI/API path, backend and model discovery, manifests, quality reports, preprocessing, chunking, weight manifest validation, fake-provider downloads, device discovery, and release example artifacts.
 
-- CLI argument handling and informational commands.
-- Model catalog and backend discovery output.
-- Backend registry and model metadata specs.
-- Weight manifest paths, path safety, spec matching, multi-file SHA256 verification, fake-provider downloads, and local weight store helpers.
-- Lightweight device discovery helpers.
-- JSON manifests for planned and completed jobs.
-- Manifest regression comparison.
-- JSON quality report artifacts.
-- Chunked enhancement and crossfaded chunk writing.
-- Single-file and batch path planning.
-- Baseline `sinc-resample` enhancement.
-- Optional AudioSR backend wiring with a fake in-memory module.
-- Inference configuration validation.
-- Optional low-pass preprocessing.
-- Audio quality reports.
-- Release example artifacts.
+## Policy
 
-The test suite must not download model weights or require GPU access. Model-backed integration tests should stay separate and skipped by default unless the required dependency and weights are present.
+- Do not download real model weights in default tests.
+- Do not require GPU access in default tests.
+- Use generated audio fixtures in temporary directories instead of committing large binary files.
+- Keep provider tests mocked unless they are explicitly gated by an environment variable.
+- Keep optional model inference tests separate from the default suite.
 
-Default download tests use fake providers only. Real provider tests must be gated by an environment variable such as `AUDIO_SUPER_RESOLUTION_RUN_WEIGHT_DOWNLOAD=1`.
+## Optional Integrations
 
-Run the optional real AudioSR integration test only when model inference and upstream checkpoint handling are intended:
+Run real AudioSR integration only when upstream checkpoint handling is expected:
 
 ```sh
 set AUDIO_SUPER_RESOLUTION_RUN_AUDIOSR_INTEGRATION=1
 pixi run pytest tests/test_audiosr_integration.py
 ```
 
-Use generated audio fixtures inside temporary directories instead of committing large binary audio files unless a regression test genuinely needs a fixed reference artifact.
+Real weight download tests should use `AUDIO_SUPER_RESOLUTION_RUN_WEIGHT_DOWNLOAD=1` and remain skipped by default.
