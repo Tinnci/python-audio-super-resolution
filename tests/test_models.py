@@ -15,8 +15,9 @@ def test_list_models_includes_baseline_and_audiosr_models() -> None:
 
 
 def test_list_models_filters_by_backend_or_name() -> None:
-    assert {model.id for model in list_models("speech")} == {"audiosr-speech"}
+    assert {model.id for model in list_models("audiosr-speech")} == {"audiosr-speech"}
     assert {model.id for model in list_models("sinc")} == {"sinc-resample"}
+    assert {model.id for model in list_models("fast-bwe")} == {"lavasr-v2-bwe"}
 
 
 def test_list_models_exposes_backend_metadata() -> None:
@@ -24,13 +25,24 @@ def test_list_models_exposes_backend_metadata() -> None:
 
     assert models["sinc-resample"].implementation == "baseline"
     assert models["sinc-resample"].domain == ("general",)
+    assert models["sinc-resample"].tasks == ("resampling",)
     assert models["sinc-resample"].fixed_target_sr is False
+    assert models["sinc-resample"].supports_array_io is True
+    assert models["sinc-resample"].deterministic is True
     assert models["audiosr-basic"].implementation == "external_package"
     assert models["audiosr-basic"].target_sample_rates == (48000,)
     assert models["audiosr-basic"].fixed_target_sr is True
+    assert models["audiosr-basic"].supports_file_io is True
+    assert models["audiosr-basic"].precision_modes == ("float32", "auto")
+    assert "external-package-downloads" in models["audiosr-basic"].known_limitations
     assert models["lavasr-v2-bwe"].implementation == "self_torch"
+    assert models["lavasr-v2-bwe"].input_sample_rate_range == (8000, 48000)
     assert models["lavasr-v2-bwe"].weight_provider == "huggingface"
     assert models["lavasr-v2-bwe"].weights_license == "Apache-2.0"
+    assert models["lavasr-v2-bwe"].weight_file_count == 2
+    assert models["lavasr-v2-bwe"].weight_size_bytes == 56317117
+    assert models["lavasr-v2-bwe"].supports_cuda is True
+    assert "upstream-parity" in models["lavasr-v2-bwe"].validation
 
 
 def test_backend_registry_exposes_builtin_model_specs() -> None:

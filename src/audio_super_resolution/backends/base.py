@@ -56,6 +56,7 @@ DEFAULT_FILE_BACKEND_CAPABILITY = BackendCapability(
     supports_cpu=True,
     supports_cuda=True,
     supports_mps=True,
+    precision_modes=("float32", "auto"),
 )
 
 

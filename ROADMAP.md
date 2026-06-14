@@ -58,7 +58,7 @@ Goal: plan model expansion after the first compatible inference path has real va
 
 Tracked work:
 
-- `#21` Improve model catalog metadata for backend comparison.
+- `#21` Improve model catalog metadata for backend comparison. Completed: model listings expose task/domain, I/O, accelerator declarations, weight metadata, validation evidence, recommended use, and limitations.
 - `#22` Define model admission criteria and candidate scorecard.
 - `#23` Evaluate next speech SR/BWE compatible backend candidates.
 - `#24` Evaluate general-audio SR candidate backends.

@@ -38,8 +38,12 @@ class ModelSpec:
     implementation: str
     domain: tuple[str, ...]
     target_sample_rates: tuple[int, ...] | None
+    tasks: tuple[str, ...] = ()
+    input_sample_rates: tuple[int, ...] | None = None
+    input_sample_rate_range: tuple[int, int] | None = None
     architecture: str | None = None
     model_name: str | None = None
+    code_license: str | None = None
     weights_license: str | None = None
     weights_source: str | None = None
     weights_hash: str | None = None
@@ -48,6 +52,11 @@ class ModelSpec:
     weight_manifest_url: str | None = None
     default_weight_revision: str | None = None
     requires_weights: bool = False
+    upstream_url: str | None = None
+    recommended_for: tuple[str, ...] = ()
+    known_limitations: tuple[str, ...] = ()
+    validation: tuple[str, ...] = ()
+    attribution_required: bool = False
     maturity: str = "stable"
     capability: BackendCapability | None = None
 

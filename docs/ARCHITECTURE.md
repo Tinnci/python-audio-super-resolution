@@ -47,6 +47,17 @@ If `chunked=True`, the resolver reads overlapping chunks, processes each chunk t
 
 Backends may expose static `ModelSpec` records through `model_specs()`. The catalog uses those specs for `--list-models`, Python discovery, and strict model selection. A backend that owns a `ModelSpec` should pass that spec directly to weight resolution instead of looking itself up through the catalog.
 
+Model specs should describe stable comparison facts without importing heavy runtimes:
+
+- task and domain, such as resampling, speech bandwidth extension, or general audio super-resolution
+- architecture and implementation family, such as baseline, external package, or self-contained torch
+- supported input and target sample-rate metadata
+- managed weight source, provider, file count, size, hash, revision, and license metadata
+- backend capability metadata for array/file I/O, chunking, determinism, CPU/CUDA/MPS support, and precision modes
+- validation evidence, recommended use, and known limitations
+
+Provider-specific accelerator routing belongs below the catalog in the future runtime-provider layer. The catalog may report declared support, but it should not import CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, ONNX Runtime, or other SDKs merely to list models.
+
 ## Weight Management
 
 Default inference is offline. Missing weights should fail with a command that tells the user how to explicitly download and verify the selected model.

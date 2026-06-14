@@ -19,6 +19,7 @@ This project follows semantic versioning once published to PyPI.
 - Added a gated LavaSR upstream parity test that compares `lavasr-compat` with upstream `LavaSR.enhancer.LavaBWE` using the same verified local weights.
 - Added `v0.4.0` planning scope for accelerator capability metadata, runtime providers, gated hardware benchmarks, accelerator install docs, and LavaSR optimized export paths.
 - Replaced the Colab draft with a repository-based LavaSR/GPU validation guide and evidence checklist.
+- Expanded model catalog metadata for backend comparison, including task/domain, input-rate metadata, I/O capabilities, accelerator declarations, weight size/source/license, validation evidence, recommended use, and limitations.
 
 ## 0.1.1
 

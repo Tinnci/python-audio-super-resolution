@@ -112,7 +112,9 @@ Current backend status:
 | --- | --- |
 | `sinc-resample` | Default deterministic baseline. |
 | `audiosr` | Optional external package backend; upstream package owns its checkpoint behavior. |
-| `lavasr-compat` | Experimental self-contained LavaSR v2 BWE path with managed weights. Gated real-weight download and torch smoke validation pass; upstream golden parity is still pending. |
+| `lavasr-compat` | Experimental self-contained LavaSR v2 BWE path with managed weights. Gated real-weight download, torch smoke, and initial upstream parity validation pass. |
+
+Use `audio-super-res --list-models --list-format json` for machine-readable comparison metadata, including task/domain, input and target sample rates, implementation family, I/O capabilities, accelerator declarations, weight source/size/license, validation evidence, recommended use, and known limitations.
 
 Managed downloads are explicit. Normal enhancement only uses local verified files unless `--download-weights` is set:
 

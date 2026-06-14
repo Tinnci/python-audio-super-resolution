@@ -43,15 +43,21 @@ def test_list_models_json(capsys) -> None:
         "lavasr-v2-bwe",
         "sinc-resample",
     }
-    assert next(model for model in models if model["id"] == "lavasr-v2-bwe")["requires_weights"] is True
+    lavasr = next(model for model in models if model["id"] == "lavasr-v2-bwe")
+    assert lavasr["requires_weights"] is True
+    assert lavasr["input_sample_rate_range"] == [8000, 48000]
+    assert lavasr["weight_size_bytes"] == 56317117
+    assert lavasr["supports_cuda"] is True
+    assert "upstream-parity" in lavasr["validation"]
 
 
 def test_list_models_filter(capsys) -> None:
-    assert main(["--list-models", "--list-filter", "speech"]) == 0
+    assert main(["--list-models", "--list-filter", "audiosr-speech"]) == 0
     output = capsys.readouterr().out
 
     assert "audiosr-speech" in output
     assert "audiosr-basic" not in output
+    assert "lavasr-v2-bwe" not in output
 
 
 def test_config_info_uses_cli_options(tmp_path: Path, capsys) -> None:
