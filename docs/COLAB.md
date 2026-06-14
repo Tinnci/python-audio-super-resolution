@@ -47,4 +47,4 @@ files.download("quality.json")
 - Confirm generated output is non-empty and 48000 Hz.
 - Confirm manifest and quality report are valid JSON.
 - Confirm runtime notes mention that AudioSR dependencies are heavier than the baseline package.
-- Mark any `lavasr-compat` path as experimental until real-weight and golden-sample validation pass.
+- Mark any `lavasr-compat` path as experimental until golden-sample and GPU/Colab validation pass.

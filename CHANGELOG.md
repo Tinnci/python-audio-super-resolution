@@ -14,6 +14,8 @@ This project follows semantic versioning once published to PyPI.
 - Added `v0.3.0` planning scope for model admission criteria and future backend candidates.
 - Added environment-gated LavaSR real-weight download verification and torch smoke-test coverage.
 - Added golden-sample comparison helpers, tests, and fixture documentation for compatible backends.
+- Validated `lavasr-compat` real-weight torch smoke locally through the gated integration test.
+- Reworked lightweight golden/preprocessing spectral paths to avoid fragile SciPy stateful filtering/STFT calls in default tests.
 
 ## 0.1.1
 

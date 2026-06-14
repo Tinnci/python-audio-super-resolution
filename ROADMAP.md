@@ -6,6 +6,7 @@ The package has a stable lightweight baseline and is adding model-backed inferen
 
 - `sinc-resample` is the default backend and works without model weights or network access.
 - `audiosr` is available as an optional external-package backend; its checkpoint behavior is upstream-controlled.
+- `lavasr-compat` is available as an experimental self-contained LavaSR v2 BWE backend with managed weights.
 - Managed weight infrastructure is implemented: multi-file manifests, path safety, size/SHA256 verification, explicit Hugging Face downloads, and verified local cache resolution.
 - Regression helpers are implemented: run manifests, manifest comparison, quality reports, preprocessing, chunking, and sample JSON artifacts.
 - Release automation uses GitHub Actions with PyPI Trusted Publishing / OIDC.
@@ -26,10 +27,11 @@ Goal: make the first self-contained compatible model backend useful enough to va
 
 Tracked work:
 
-- `#16` Implement `lavasr-compat` self-contained inference.
+- `#16` Implement `lavasr-compat` self-contained inference. Completed: self-contained torch inference runs with real LavaSR v2 BWE weights.
 - `#17` Add golden-sample validation for compatible backends. Completed: fixture format, metrics, docs, and offline tests are available.
 - `#18` Add gated real-weight model validation. Completed: gated LavaSR download verification and torch smoke tests are available.
 - `#19` Publish validated Colab and GPU documentation.
+- `#25` Add LavaSR upstream golden parity validation.
 
 Current `lavasr-compat` status:
 
@@ -37,10 +39,10 @@ Current `lavasr-compat` status:
 - Local bundle validation checks config metadata and required checkpoint key layout without importing torch.
 - A self-contained torch runtime is wired experimentally: mel features, Vocos-style ConvNeXt backbone, ISTFT head, strict state-dict loading, and low/high-frequency merge.
 - Real LavaSR v2 BWE download and bundle verification has passed through the gated integration test.
+- Real LavaSR v2 BWE torch inference smoke has passed through the gated integration test.
 
 Remaining before marking `lavasr-compat` stable:
 
-- Run the gated torch inference smoke test in an environment with the `lavasr` extra installed.
 - Use the golden fixture framework to compare LavaSR output against upstream LavaSR/Vocos samples.
 - Add exactness tests for any mel/STFT behavior that differs from the reference implementation.
 - Document Colab/GPU usage only after real model validation passes.
@@ -68,7 +70,7 @@ Decision rule:
 | --- | --- |
 | `sinc-resample` | Implemented deterministic baseline. |
 | `audiosr` | Implemented optional external AudioSR wrapper. |
-| `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight execution and LavaSR-specific golden artifacts pending. |
+| `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight download and torch smoke pass, LavaSR-specific golden artifacts pending. |
 | `mossformer-sr-compat` | Future speech super-resolution candidate. |
 | `nuwave` | Future diffusion-based bandwidth extension candidate. |
 | custom backend | User-provided backend implementing the package protocol. |
