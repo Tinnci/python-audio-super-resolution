@@ -1,0 +1,34 @@
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from audio_super_resolution import InferenceConfig
+from audio_super_resolution.backends.lavasr_compat import LavaSRCompatBackend
+
+
+def test_lavasr_availability_depends_on_torch_not_yaml(monkeypatch) -> None:
+    def find_spec(name: str):
+        return object() if name == "torch" else None
+
+    monkeypatch.setattr("audio_super_resolution.backends.lavasr_compat.importlib.util.find_spec", find_spec)
+
+    assert LavaSRCompatBackend.is_available()
+
+
+def test_lavasr_availability_is_false_without_torch(monkeypatch) -> None:
+    monkeypatch.setattr("audio_super_resolution.backends.lavasr_compat.importlib.util.find_spec", lambda name: None)
+
+    assert not LavaSRCompatBackend.is_available()
+
+
+def test_lavasr_backend_rejects_unsupported_precision_before_weight_resolution(tmp_path) -> None:
+    backend = LavaSRCompatBackend(
+        config=InferenceConfig(
+            model_cache_dir=tmp_path / "models",
+            precision="float16",
+        )
+    )
+
+    with pytest.raises(ValueError, match="precision modes"):
+        backend.enhance(np.zeros(100, dtype=np.float32), 16000, 48000)

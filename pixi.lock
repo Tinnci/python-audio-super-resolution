@@ -294,7 +294,7 @@ packages:
 - pypi: ./
   name: audio-super-resolution
   version: 0.1.1
-  sha256: 950f21ce9f1f640e82012040b2bb7f7decfeaf9558c045e75cdd65b8efd7a006
+  sha256: b575b1318dd5227aee39666f6877e4160c6e92c45880b9fc75d6d7d9f23f2f37
   requires_dist:
   - numpy>=1.23.5
   - scipy>=1.11
@@ -304,7 +304,6 @@ packages:
   - safetensors>=0.4 ; extra == 'weights'
   - huggingface-hub>=0.24 ; extra == 'download'
   - torch>=2 ; extra == 'lavasr'
-  - pyyaml>=6 ; extra == 'lavasr'
   requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/bzip2-1.0.8-hda65f42_9.conda
   sha256: 0b75d45f0bba3e95dc693336fa51f40ea28c980131fec438afb7ce6118ed05f6

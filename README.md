@@ -15,7 +15,7 @@ The baseline package stays lightweight: normal inference is offline, model downl
 ## Features
 
 - CLI and Python API for single files, directory batches, dry runs, and recursive path-preserving output.
-- Pluggable backend registry with `sinc-resample`, optional `audiosr`, and LavaSR-compatible managed weight metadata.
+- Pluggable backend registry with `sinc-resample`, optional `audiosr`, and experimental `lavasr-compat`.
 - Shared inference config for device, precision, chunking, preprocessing, seeds, and model cache paths.
 - JSON run manifests, manifest comparison, and quality reports for regression workflows.
 - Explicit local weight resolution with multi-file manifests, size/SHA256 checks, and opt-in Hugging Face downloads.
@@ -44,7 +44,7 @@ Optional extras:
 | `audiosr` | External AudioSR wrapper. Use Python 3.10 because upstream dependencies are older. |
 | `download` | Hugging Face model weight downloads. |
 | `weights` | Optional safetensors loading helpers. |
-| `lavasr` | LavaSR-compatible runtime dependencies. Inference is not implemented yet. |
+| `lavasr` | Torch runtime for the experimental LavaSR-compatible backend. |
 
 Example:
 
@@ -100,7 +100,7 @@ Current backend status:
 | --- | --- |
 | `sinc-resample` | Default deterministic baseline. |
 | `audiosr` | Optional external package backend; upstream package owns its checkpoint behavior. |
-| `lavasr-compat` | LavaSR v2 BWE download and verification are wired; self-contained inference is pending. |
+| `lavasr-compat` | Experimental self-contained LavaSR v2 BWE path with managed weights. Real-weight/golden validation is still pending. |
 
 Managed downloads are explicit. Normal enhancement only uses local verified files unless `--download-weights` is set:
 

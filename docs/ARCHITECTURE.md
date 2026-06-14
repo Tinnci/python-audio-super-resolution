@@ -93,7 +93,7 @@ The first remote provider is Hugging Face through the optional `download` extra.
 
 - `sinc-resample` is the default backend and must run in CI.
 - `audiosr` is optional and imported only when its external backend is selected.
-- `lavasr-compat` can require local verified files, but it must not call Hugging Face or other providers directly.
+- `lavasr-compat` can require local verified files and optional torch runtime, but it must not call Hugging Face or other providers directly.
 - Normal CI and normal inference must not download model weights.
 - Self-contained backends should prefer safetensors or hash-verified trusted state dicts over untrusted pickle-style loading.
 
