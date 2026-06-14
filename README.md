@@ -208,6 +208,7 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 - [CHANGELOG.md](CHANGELOG.md): release history and unreleased changes.
 - [docs/GOLDEN.md](docs/GOLDEN.md): golden-sample fixture format and comparison metrics.
 - [docs/MODEL_ADMISSION.md](docs/MODEL_ADMISSION.md): model candidate gates and scorecard API.
+- [docs/SPEECH_BACKEND_CANDIDATES.md](docs/SPEECH_BACKEND_CANDIDATES.md): speech SR/BWE candidate review.
 - [docs/RELEASE.md](docs/RELEASE.md): release checklist and publishing notes.
 - [docs/COLAB.md](docs/COLAB.md): repository-based Colab/GPU validation guide.
 - [tests/README.md](tests/README.md): default and optional test strategy.

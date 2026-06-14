@@ -21,6 +21,7 @@ This project follows semantic versioning once published to PyPI.
 - Replaced the Colab draft with a repository-based LavaSR/GPU validation guide and evidence checklist.
 - Expanded model catalog metadata for backend comparison, including task/domain, input-rate metadata, I/O capabilities, accelerator declarations, weight size/source/license, validation evidence, recommended use, and limitations.
 - Added model admission criteria documentation and a public scorecard API for catalog and self-contained backend candidates.
+- Added speech SR/BWE candidate review selecting ClearerVoice `MossFormer2_SR_48K` for a feasibility spike before any new backend implementation.
 
 ## 0.1.1
 
