@@ -23,10 +23,10 @@ from .manifest import (
     manifest_comparison_to_dict,
     write_manifest,
 )
+from .model_weights import download_model_weights, verify_model_weights
 from .models import find_model_spec, list_models
 from .quality import format_quality_report, inspect_audio_quality, write_quality_report_bundle
 from .resolver import AudioSuperResolver, EnhancementResult, PlannedEnhancement, available_backends, plan_enhancements
-from .weight_store import download_model_weights, verify_model_weights
 
 
 def build_parser() -> argparse.ArgumentParser:

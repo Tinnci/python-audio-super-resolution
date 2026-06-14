@@ -77,7 +77,7 @@ class LavaSRCompatBackend:
         if self.config.denoise:
             raise ValueError("denoise is reserved but not supported by lavasr-compat yet")
 
-        from ..weight_store import resolve_model_weights
+        from ..weight_store import resolve_weights_for_spec
 
-        resolve_model_weights(self.model_specs()[0], self.config, allow_download=self.config.download_weights)
+        resolve_weights_for_spec(self.model_specs()[0], self.config, allow_download=self.config.download_weights)
         raise RuntimeError("lavasr-compat weight management is available, but inference is not implemented yet.")

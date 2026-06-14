@@ -21,6 +21,12 @@ from .manifest import (
     manifest_comparison_to_dict,
     write_manifest,
 )
+from .model_weights import (
+    download_model_weights,
+    resolve_backend_model_weights,
+    resolve_model_weights,
+    verify_model_weights,
+)
 from .models import ModelInfo, find_model_spec, get_model_spec, list_models
 from .preprocess import DEFAULT_LOWPASS_CUTOFF_HZ, apply_preprocessing, lowpass_filter
 from .quality import (
@@ -45,11 +51,9 @@ from .resolver import (
 from .specs import BackendCapability, ModelSpec, WeightFileSpec
 from .weight_store import (
     ResolvedWeights,
-    download_model_weights,
-    resolve_backend_model_weights,
-    resolve_model_weights,
+    resolve_weights_for_spec,
     validate_weight_manifest_matches_spec,
-    verify_model_weights,
+    verify_weights_for_spec,
 )
 from .weights import (
     WeightFile,
@@ -120,12 +124,14 @@ __all__ = [
     "resolve_device",
     "resolve_manifest_file_paths",
     "resolve_model_weights",
+    "resolve_weights_for_spec",
     "resolve_weight_file_path",
     "resolve_weight_path",
     "sha256_file",
     "validate_weight_file_path",
     "validate_weight_manifest_matches_spec",
     "verify_model_weights",
+    "verify_weights_for_spec",
     "verify_weight_file",
     "verify_weight_manifest",
     "write_manifest",

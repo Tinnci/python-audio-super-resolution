@@ -10,10 +10,11 @@ The package is organized around a stable CLI/API surface and pluggable enhanceme
 - `audio_super_resolution.chunking`: overlapping chunk iteration and crossfaded chunk writing.
 - `audio_super_resolution.config`: shared inference configuration and model cache resolution.
 - `audio_super_resolution.models`: model catalog for CLI and programmatic discovery.
+- `audio_super_resolution.model_weights`: public model-id facade for download, verification, and resolution APIs.
 - `audio_super_resolution.specs`: backend capability and model metadata used by listings and self-contained backends.
 - `audio_super_resolution.weights`: weight manifest, local path, and hash verification helpers.
 - `audio_super_resolution.downloads`: explicit provider-backed model weight downloads.
-- `audio_super_resolution.weight_store`: shared local weight lookup, verification, and opt-in download resolution.
+- `audio_super_resolution.weight_store`: spec-based local weight lookup, verification, and opt-in download resolution.
 - `audio_super_resolution.devices`: lightweight runtime device discovery helpers.
 - `audio_super_resolution.manifest`: JSON manifest generation and regression comparison for planned and completed jobs.
 - `audio_super_resolution.preprocess`: optional input preprocessing before backend enhancement.
@@ -53,10 +54,11 @@ Self-contained model backends should keep responsibilities separated:
 - `specs` defines static model metadata and support boundaries.
 - `weights` parses manifests, resolves relative paths, and verifies size/SHA256.
 - `downloads` talks to remote providers only during explicit download commands.
-- `weight_store` chooses between an explicit manifest, a verified cache entry, or an opt-in download.
+- `weight_store` chooses between an explicit manifest, a verified cache entry, or an opt-in download for a `ModelSpec`.
+- `model_weights` maps user-facing model ids/backend selections to `ModelSpec` and then delegates to `weight_store`.
 - The backend validates architecture/device details and loads only verified local files.
 
-Backends must not call remote providers directly. Downloads are explicit and centralized in `audio_super_resolution.downloads`, while local cache and manifest precedence are centralized in `audio_super_resolution.weight_store`.
+Backends must not call remote providers directly. Downloads are explicit and centralized in `audio_super_resolution.downloads`, while local cache and manifest precedence are centralized in `audio_super_resolution.weight_store`. Backends that already own a `ModelSpec` call the spec-based store directly rather than going back through the model catalog.
 
 ## Weight Management
 
@@ -66,8 +68,10 @@ The API is layered by responsibility:
 
 - `weights` is the low-level manifest layer. It parses JSON, rejects unsafe file paths, resolves manifest-relative files, and verifies size/SHA256.
 - `downloads.download_weights_for_spec()` is the provider-facing layer. It accepts a `ModelSpec`, talks to the provider, writes a temporary cache, and publishes it only after verification.
-- `weight_store.download_model_weights()` is the user-facing download API. It accepts a registered model id or `ModelSpec`.
-- `weight_store.verify_model_weights()` and `weight_store.resolve_model_weights()` bind a verified manifest back to the selected `ModelSpec` before returning `ResolvedWeights`.
+- `weight_store.resolve_weights_for_spec()` and `weight_store.verify_weights_for_spec()` are the backend-facing local store APIs. They accept a `ModelSpec` and never import the model catalog or backend registry.
+- `model_weights.download_model_weights()`, `model_weights.verify_model_weights()`, and `model_weights.resolve_model_weights()` are user-facing facade APIs. They accept a registered model id or `ModelSpec`, bind it to the catalog when needed, then delegate to the spec-based layers.
+
+This direction matters for dependency hygiene. `models` discovers `ModelSpec` records by importing backend registrations, so a lower-level weight store must not import `models` or `backends`. Keeping the store spec-based applies dependency inversion in a small form: inference code depends on a stable metadata object, while catalog lookup remains at the CLI/API edge.
 
 Managed weights use a per-model cache directory:
 

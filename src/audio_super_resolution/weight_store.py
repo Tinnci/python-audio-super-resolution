@@ -5,7 +5,6 @@ from pathlib import Path
 
 from .config import InferenceConfig, default_model_cache_dir
 from .downloads import download_weights_for_spec
-from .models import find_model_spec, get_model_spec
 from .specs import ModelSpec, WeightFileSpec
 from .weights import (
     WeightFile,
@@ -36,16 +35,15 @@ class ResolvedWeights:
             raise KeyError(f"Weight file {safe_path!r} was not resolved. Available files: {choices}") from exc
 
 
-def resolve_model_weights(
-    model: str | ModelSpec,
+def resolve_weights_for_spec(
+    spec: ModelSpec,
     config: InferenceConfig,
     *,
     allow_download: bool = False,
     force_download: bool = False,
 ) -> ResolvedWeights:
-    """Resolve verified model weights from an explicit manifest, cache, or explicit download."""
+    """Resolve verified weights for a model spec from a manifest, cache, or explicit download."""
 
-    spec = get_model_spec(model) if isinstance(model, str) else model
     if config.weights_manifest is not None:
         return _resolve_manifest_path(config.weights_manifest, spec=spec)
 
@@ -70,44 +68,18 @@ def resolve_model_weights(
     )
 
 
-def download_model_weights(
-    model_id: str | ModelSpec,
-    cache_dir: str | Path | None = None,
-    revision: str | None = None,
-    force: bool = False,
-) -> Path:
-    """Download a registered model's weights into the cache directory."""
-
-    spec = get_model_spec(model_id)
-    return download_weights_for_spec(spec, cache_dir or default_model_cache_dir(), revision=revision, force=force)
-
-
-def verify_model_weights(
-    model_id: str | ModelSpec,
+def verify_weights_for_spec(
+    spec: ModelSpec,
     cache_dir: str | Path | None = None,
     manifest_path: str | Path | None = None,
 ) -> ResolvedWeights:
-    """Verify a registered model's local weights."""
+    """Verify local weights for a model spec."""
 
-    spec = get_model_spec(model_id)
     if manifest_path is not None:
         return _resolve_manifest_path(manifest_path, spec=spec)
 
     resolved_cache_dir = Path(cache_dir).expanduser() if cache_dir is not None else default_model_cache_dir()
     return _resolve_manifest_path(resolved_cache_dir / spec.id / "manifest.json", spec=spec)
-
-
-def resolve_backend_model_weights(
-    backend: str,
-    model_name: str | None,
-    config: InferenceConfig,
-    *,
-    allow_download: bool = False,
-) -> ResolvedWeights:
-    """Resolve weights for a backend/model-name pair."""
-
-    spec = find_model_spec(backend=backend, model_name=model_name)
-    return resolve_model_weights(spec, config, allow_download=allow_download)
 
 
 def validate_weight_manifest_matches_spec(manifest: WeightManifest, spec: ModelSpec) -> None:
