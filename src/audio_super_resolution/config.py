@@ -41,12 +41,18 @@ class InferenceConfig:
     preprocess: str = "none"
     lowpass_cutoff_hz: float | None = None
     lowpass_order: int = 8
+    weights_manifest: Path | None = None
+    download_weights: bool = False
+    force_download: bool = False
+    weight_revision: str | None = None
+    denoise: bool = False
 
     def __post_init__(self) -> None:
         device = self.device.lower()
         precision = self.precision.lower()
         preprocess = self.preprocess.lower()
         model_cache_dir = Path(self.model_cache_dir).expanduser()
+        weights_manifest = Path(self.weights_manifest).expanduser() if self.weights_manifest is not None else None
 
         if device not in VALID_DEVICES:
             raise ValueError(f"device must be one of: {', '.join(VALID_DEVICES)}")
@@ -73,6 +79,7 @@ class InferenceConfig:
         object.__setattr__(self, "precision", precision)
         object.__setattr__(self, "preprocess", preprocess)
         object.__setattr__(self, "model_cache_dir", model_cache_dir)
+        object.__setattr__(self, "weights_manifest", weights_manifest)
         object.__setattr__(self, "model_name", self.model_name.lower())
 
     def ensure_model_cache_dir(self) -> Path:
@@ -81,7 +88,7 @@ class InferenceConfig:
         self.model_cache_dir.mkdir(parents=True, exist_ok=True)
         return self.model_cache_dir
 
-    def as_dict(self) -> dict[str, str | float | int | None]:
+    def as_dict(self) -> dict[str, str | float | int | bool | None]:
         """Return a JSON-friendly representation."""
 
         return {
@@ -98,4 +105,9 @@ class InferenceConfig:
             "preprocess": self.preprocess,
             "lowpass_cutoff_hz": self.lowpass_cutoff_hz,
             "lowpass_order": self.lowpass_order,
+            "weights_manifest": None if self.weights_manifest is None else str(self.weights_manifest),
+            "download_weights": self.download_weights,
+            "force_download": self.force_download,
+            "weight_revision": self.weight_revision,
+            "denoise": self.denoise,
         }

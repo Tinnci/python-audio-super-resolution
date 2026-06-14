@@ -3,18 +3,35 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Protocol
 
-import numpy as np
 import soundfile as sf
-from scipy.signal import resample_poly
 
-from .audiosr_backend import AudiosrBackend
+from .backends import (
+    BackendInfo,
+    EnhancementBackend,
+    SincResampleBackend,
+    available_backends,
+    get_backend,
+)
 from .chunking import iter_audio_chunks, write_crossfaded_chunks
 from .config import InferenceConfig
 from .preprocess import apply_preprocessing
 
 DEFAULT_AUDIO_EXTENSIONS = (".wav", ".flac", ".ogg", ".aiff", ".aif")
+
+__all__ = [
+    "DEFAULT_AUDIO_EXTENSIONS",
+    "AudioSuperResolver",
+    "BackendInfo",
+    "EnhancementBackend",
+    "EnhancementResult",
+    "PlannedEnhancement",
+    "SincResampleBackend",
+    "available_backends",
+    "discover_audio_files",
+    "get_backend",
+    "plan_enhancements",
+]
 
 
 @dataclass(frozen=True)
@@ -37,89 +54,6 @@ class PlannedEnhancement:
 
     input_path: Path
     output_path: Path
-
-
-@dataclass(frozen=True)
-class BackendInfo:
-    """User-facing metadata for an enhancement backend."""
-
-    name: str
-    description: str
-    installed: bool
-    optional_dependency: str | None = None
-    package_extra: str | None = None
-
-
-class EnhancementBackend(Protocol):
-    """Interface implemented by audio super-resolution backends."""
-
-    name: str
-    description: str
-    config: InferenceConfig
-
-    def enhance(self, audio: np.ndarray, sample_rate: int, target_sample_rate: int) -> np.ndarray:
-        """Return audio enhanced to target_sample_rate."""
-
-
-class SincResampleBackend:
-    """Deterministic baseline backend using polyphase sinc resampling."""
-
-    name = "sinc-resample"
-    description = "Deterministic polyphase sinc resampling baseline."
-    optional_dependency = None
-    package_extra = None
-
-    def __init__(self, config: InferenceConfig | None = None) -> None:
-        self.config = config or InferenceConfig()
-
-    def enhance(self, audio: np.ndarray, sample_rate: int, target_sample_rate: int) -> np.ndarray:
-        if sample_rate == target_sample_rate:
-            return np.asarray(audio)
-
-        gcd = np.gcd(sample_rate, target_sample_rate)
-        up = target_sample_rate // gcd
-        down = sample_rate // gcd
-        return resample_poly(audio, up, down, axis=0)
-
-
-_BACKENDS: dict[str, type[EnhancementBackend]] = {
-    AudiosrBackend.name: AudiosrBackend,
-    SincResampleBackend.name: SincResampleBackend,
-}
-
-
-def available_backends() -> list[BackendInfo]:
-    """Return the registered enhancement backends."""
-
-    return [
-        BackendInfo(
-            name=name,
-            description=backend.description,
-            installed=_backend_is_available(backend),
-            optional_dependency=getattr(backend, "optional_dependency", None),
-            package_extra=getattr(backend, "package_extra", None),
-        )
-        for name, backend in sorted(_BACKENDS.items(), key=lambda item: item[0])
-    ]
-
-
-def get_backend(name: str, config: InferenceConfig | None = None) -> EnhancementBackend:
-    """Create a backend by name."""
-
-    try:
-        backend_type = _BACKENDS[name]
-    except KeyError as exc:
-        choices = ", ".join(sorted(_BACKENDS))
-        raise ValueError(f"Unknown backend {name!r}. Available backends: {choices}") from exc
-
-    return backend_type(config=config)
-
-
-def _backend_is_available(backend_type: type[EnhancementBackend]) -> bool:
-    checker = getattr(backend_type, "is_available", None)
-    if checker is None:
-        return True
-    return bool(checker())
 
 
 def discover_audio_files(

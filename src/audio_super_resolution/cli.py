@@ -3,11 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import sys
 from dataclasses import asdict
 from pathlib import Path
 
 from . import __version__
-from .audiosr_backend import AUDIOSR_MODEL_NAMES
 from .config import (
     VALID_DEVICES,
     VALID_PRECISIONS,
@@ -23,9 +23,10 @@ from .manifest import (
     manifest_comparison_to_dict,
     write_manifest,
 )
-from .models import list_models
+from .models import find_model_spec, list_models
 from .quality import format_quality_report, inspect_audio_quality, write_quality_report_bundle
 from .resolver import AudioSuperResolver, available_backends, plan_enhancements
+from .weight_store import download_model_weights, verify_model_weights
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -121,11 +122,27 @@ def build_parser() -> argparse.ArgumentParser:
     backend_params.add_argument(
         "--prepare-model-cache", action="store_true", help="Create the model cache directory and exit."
     )
+    backend_params.add_argument("--weights-manifest", type=Path, help="Path to a local weight manifest JSON file.")
+    backend_params.add_argument(
+        "--download-weights",
+        action="store_true",
+        help="Explicitly download model weights for the selected backend/model.",
+    )
+    backend_params.add_argument(
+        "--force-download",
+        action="store_true",
+        help="Replace an existing verified model weight cache during explicit download.",
+    )
+    backend_params.add_argument("--weight-revision", help="Model weight revision for download providers.")
+    backend_params.add_argument(
+        "--verify-weights",
+        action="store_true",
+        help="Verify local weights for the selected backend/model and exit.",
+    )
     backend_params.add_argument(
         "--model-name",
-        choices=AUDIOSR_MODEL_NAMES,
         default="basic",
-        help="Model name for model-backed backends. Defaults to basic.",
+        help="Model name for model-backed backends. Backend-specific validation is applied at runtime.",
     )
     backend_params.add_argument(
         "--ddim-steps", type=int, default=50, help="DDIM sampling steps for diffusion backends."
@@ -149,6 +166,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=8,
         help="Butterworth filter order for --preprocess lowpass. Defaults to 8.",
+    )
+    backend_params.add_argument(
+        "--denoise",
+        action="store_true",
+        help="Enable backend-specific denoising when supported.",
     )
 
     quality_params = parser.add_argument_group("Quality Checks")
@@ -207,20 +229,41 @@ def print_models(filter_text: str | None = None, list_format: str = "pretty") ->
 
     id_width = max(len("Model ID"), *(len(model.id) for model in models))
     backend_width = max(len("Backend"), *(len(model.backend) for model in models))
+    implementation_width = max(len("Implementation"), *(len(model.implementation) for model in models))
+    domain_width = max(len("Domain"), *(len(",".join(model.domain) or "-") for model in models))
     installed_width = len("Installed")
     target_width = len("Target SR")
+    maturity_width = max(len("Maturity"), *(len(model.maturity) for model in models))
 
     print(
         f"{'Model ID':<{id_width}}  {'Backend':<{backend_width}}  "
-        f"{'Installed':<{installed_width}}  {'Target SR':<{target_width}}  Description"
+        f"{'Implementation':<{implementation_width}}  {'Domain':<{domain_width}}  "
+        f"{'Installed':<{installed_width}}  {'Target SR':<{target_width}}  "
+        f"{'Maturity':<{maturity_width}}  Description"
     )
-    print("-" * (id_width + backend_width + installed_width + target_width + 18 + 11))
+    print(
+        "-"
+        * (
+            id_width
+            + backend_width
+            + implementation_width
+            + domain_width
+            + installed_width
+            + target_width
+            + maturity_width
+            + 30
+            + 11
+        )
+    )
     for model in models:
         installed = "yes" if model.installed else "no"
         target = "any" if model.target_sample_rate is None else str(model.target_sample_rate)
+        domain = ",".join(model.domain) or "-"
         print(
             f"{model.id:<{id_width}}  {model.backend:<{backend_width}}  "
-            f"{installed:<{installed_width}}  {target:<{target_width}}  {model.description}"
+            f"{model.implementation:<{implementation_width}}  {domain:<{domain_width}}  "
+            f"{installed:<{installed_width}}  {target:<{target_width}}  "
+            f"{model.maturity:<{maturity_width}}  {model.description}"
         )
 
 
@@ -251,7 +294,35 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.prepare_model_cache:
-        print(config.ensure_model_cache_dir())
+        cache_dir = config.ensure_model_cache_dir()
+        if args.download_weights:
+            try:
+                model_spec = find_model_spec(args.backend, args.model_name)
+                weight_dir = download_model_weights(
+                    model_spec,
+                    cache_dir=cache_dir,
+                    revision=args.weight_revision,
+                    force=args.force_download,
+                )
+            except (OSError, RuntimeError, ValueError) as exc:
+                parser.error(str(exc))
+            print(weight_dir)
+            return 0
+        print(cache_dir)
+        return 0
+
+    if args.verify_weights:
+        try:
+            model_spec = find_model_spec(args.backend, args.model_name)
+            resolved_weights = verify_model_weights(
+                model_spec,
+                cache_dir=config.model_cache_dir,
+                manifest_path=config.weights_manifest,
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Weight verification failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"Verified weights {resolved_weights.manifest_path}")
         return 0
 
     if args.env_info:
@@ -394,6 +465,11 @@ def _build_config(args: argparse.Namespace) -> InferenceConfig:
         preprocess=args.preprocess,
         lowpass_cutoff_hz=args.lowpass_cutoff_hz,
         lowpass_order=args.lowpass_order,
+        weights_manifest=args.weights_manifest,
+        download_weights=args.download_weights,
+        force_download=args.force_download,
+        weight_revision=args.weight_revision,
+        denoise=args.denoise,
     )
 
 
