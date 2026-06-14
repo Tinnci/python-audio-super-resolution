@@ -12,6 +12,7 @@ This project follows semantic versioning once published to PyPI.
 - Removed PyYAML from the `lavasr` extra; the extra now only provides the torch runtime dependency.
 - Updated roadmap and release documentation for the completed `v0.1.x` release flow and active `v0.2.0` work.
 - Added `v0.3.0` planning scope for model admission criteria and future backend candidates.
+- Added environment-gated LavaSR real-weight download verification and torch smoke-test coverage.
 
 ## 0.1.1
 

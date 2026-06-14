@@ -188,6 +188,8 @@ set AUDIO_SUPER_RESOLUTION_RUN_AUDIOSR_INTEGRATION=1
 pixi run pytest tests/test_audiosr_integration.py
 ```
 
+Real LavaSR weight download and torch smoke tests are also gated; see [tests/README.md](tests/README.md).
+
 ## Docker
 
 ```sh
