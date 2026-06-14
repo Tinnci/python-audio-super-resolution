@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 import soundfile as sf
-from scipy.signal import stft
 
 
 @dataclass(frozen=True)
@@ -227,19 +226,11 @@ def _log_mel(audio: np.ndarray, *, sample_rate: int, n_fft: int = 2048, hop_leng
     if audio.size == 0:
         return np.zeros((64, 0))
 
-    segment_length = min(n_fft, audio.size)
-    overlap = max(0, segment_length - hop_length)
-    frequencies, _, spectrum = stft(
-        audio,
-        fs=sample_rate,
-        nperseg=segment_length,
-        noverlap=overlap,
-        boundary=None,
-        padded=False,
-    )
-    magnitude = np.abs(spectrum)
+    frequencies, magnitude = _stft_magnitude(audio, sample_rate=sample_rate, n_fft=n_fft, hop_length=hop_length)
     mel_filters = _mel_filterbank(frequencies, n_mels=64, sample_rate=sample_rate)
-    mel = mel_filters @ magnitude
+    mel = np.empty((mel_filters.shape[0], magnitude.shape[1]), dtype=np.float64)
+    for mel_index, weights in enumerate(mel_filters):
+        mel[mel_index] = np.sum(weights[:, None] * magnitude, axis=0)
     return np.log(np.clip(mel, 1e-8, None))
 
 
@@ -269,17 +260,8 @@ def _high_frequency_energy_ratio(
     if audio.size == 0:
         return 0.0
 
-    segment_length = min(2048, audio.size)
-    overlap = max(0, segment_length - 512)
-    frequencies, _, spectrum = stft(
-        audio,
-        fs=sample_rate,
-        nperseg=segment_length,
-        noverlap=overlap,
-        boundary=None,
-        padded=False,
-    )
-    power = np.square(np.abs(spectrum))
+    frequencies, magnitude = _stft_magnitude(audio, sample_rate=sample_rate, n_fft=2048, hop_length=512)
+    power = np.square(magnitude)
     total_energy = float(np.sum(power))
     if total_energy <= 0:
         return 0.0
@@ -291,6 +273,28 @@ def _mixdown(audio: np.ndarray) -> np.ndarray:
     if audio.ndim == 1:
         return audio
     return np.mean(audio, axis=1)
+
+
+def _stft_magnitude(
+    audio: np.ndarray,
+    *,
+    sample_rate: int,
+    n_fft: int,
+    hop_length: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    segment_length = min(n_fft, audio.size)
+    if segment_length == 0:
+        return np.zeros(0), np.zeros((0, 0))
+
+    frame_starts = list(range(0, max(audio.size - segment_length + 1, 1), hop_length))
+    if not frame_starts:
+        frame_starts = [0]
+
+    window = np.hanning(segment_length)
+    frames = np.stack([audio[start : start + segment_length] * window for start in frame_starts])
+    spectrum = np.fft.rfft(frames, n=segment_length, axis=1)
+    frequencies = np.fft.rfftfreq(segment_length, d=1 / sample_rate)
+    return frequencies, np.abs(spectrum).T
 
 
 def _hz_to_mel(hz: float | np.ndarray) -> float | np.ndarray:

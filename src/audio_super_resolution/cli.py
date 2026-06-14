@@ -164,7 +164,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--lowpass-order",
         type=int,
         default=8,
-        help="Butterworth filter order for --preprocess lowpass. Defaults to 8.",
+        help="Low-pass transition steepness for --preprocess lowpass. Defaults to 8.",
     )
     backend_params.add_argument(
         "--denoise",
