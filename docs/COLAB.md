@@ -1,12 +1,11 @@
 # Colab Plan
 
-This repository should provide a Colab notebook after the optional AudioSR backend is validated with real model weights.
+This is a draft plan for a future notebook. Publish it only after the optional AudioSR backend has been validated with real model weights on a fresh Colab runtime.
 
 ## Notebook Goals
 
 - Install the package from GitHub with the `audiosr` extra.
 - Upload or mount an input audio file.
-- Prepare the model cache.
 - Run `audio-super-res` with the `audiosr` backend.
 - Write a manifest and JSON quality report.
 - Download the enhanced audio and JSON artifacts.
@@ -48,3 +47,4 @@ files.download("quality.json")
 - Confirm generated output is non-empty and 48000 Hz.
 - Confirm manifest and quality report are valid JSON.
 - Confirm runtime notes mention that AudioSR dependencies are heavier than the baseline package.
+- Confirm the notebook does not imply that `lavasr-compat` inference is ready before that backend is implemented.

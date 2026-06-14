@@ -1,30 +1,33 @@
 # Release Checklist
 
-Use this checklist when publishing a new release.
+Use this checklist when publishing a package release.
 
-## Before Release
+## Local Verification
 
-- Confirm `pixi run lint` passes.
-- Confirm `pixi run test` passes.
-- Confirm `pixi run build` produces both sdist and wheel artifacts.
-- Confirm `pixi run python -m pip check` passes.
-- Update `CHANGELOG.md`.
-- Update the version in `pyproject.toml`.
-- Update `src/audio_super_resolution/__init__.py`.
-- Confirm the README examples still match the CLI.
-- Confirm `examples/artifacts/` has current sample JSON artifacts.
-- Confirm the Colab plan in `docs/COLAB.md` matches the current CLI.
+```sh
+pixi run lint
+pixi run test
+pixi run build
+pixi run python -m pip check
+```
 
-## GitHub Release
+Also confirm:
 
-1. Create a tag using the package version, for example `v0.1.0`.
-2. Push the tag to GitHub.
-3. Create a GitHub release from the tag.
-4. The release workflow builds the package with Pixi and publishes to PyPI.
+- `CHANGELOG.md` describes the release.
+- `pyproject.toml` and `src/audio_super_resolution/__init__.py` use the same version.
+- README commands still match the CLI.
+- `examples/artifacts/` still contains current sample JSON artifacts.
+- `docs/COLAB.md` still reflects the current model status.
 
-## PyPI Publishing
+## Publish Flow
 
-The release workflow uses PyPI trusted publishing through `pypa/gh-action-pypi-publish`.
+1. Confirm PyPI trusted publishing is configured for this repository.
+2. Create a version tag such as `v0.1.0`.
+3. Push the tag to GitHub.
+4. Create a GitHub release from the tag.
+5. The release workflow builds with Pixi and publishes through `pypa/gh-action-pypi-publish`.
+
+## PyPI Trusted Publishing
 
 Repository setup required in PyPI:
 
@@ -35,38 +38,10 @@ Repository setup required in PyPI:
 - Workflow: `release.yml`
 - Environment: `pypi`
 
-The repository cannot prove that PyPI trusted publishing has been configured. Confirm this in PyPI before tagging the first public release.
+This repository cannot verify the PyPI-side configuration. Confirm it in PyPI before tagging the first public release.
 
-## Dry Run
+## Records And Artifacts
 
-The current `0.1.0` dry-run record is available at [RELEASE_DRY_RUN_0.1.0.md](RELEASE_DRY_RUN_0.1.0.md).
-
-## Example Artifacts
-
-Release notes can reference the sample artifacts under [examples/artifacts/](../examples/artifacts/):
-
-- `sample-plan-manifest.json`
-- `sample-completed-manifest.json`
-- `sample-quality-report.json`
-
-## Docker
-
-The Dockerfile builds a baseline CPU image with the package installed from source. It is intended for CLI workflows and future model-backed images.
-
-Build locally:
-
-```sh
-docker build -t audio-super-resolution .
-```
-
-Run against the current directory:
-
-```sh
-docker run --rm -v "%cd%":/workdir audio-super-resolution input.wav output.wav --target-sr 48000
-```
-
-On Unix-like shells:
-
-```sh
-docker run --rm -v "$PWD":/workdir audio-super-resolution input.wav output.wav --target-sr 48000
-```
+- Current dry-run record: [RELEASE_DRY_RUN_0.1.0.md](RELEASE_DRY_RUN_0.1.0.md)
+- Sample release artifacts: [examples/artifacts/](../examples/artifacts/)
+- Docker usage: [README.md](../README.md#docker)
