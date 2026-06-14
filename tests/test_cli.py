@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -28,7 +29,7 @@ def test_list_backends_json(capsys) -> None:
     assert main(["--list-backends", "--list-format", "json"]) == 0
     backends = json.loads(capsys.readouterr().out)
 
-    assert {backend["name"] for backend in backends} == {"audiosr", "sinc-resample"}
+    assert {backend["name"] for backend in backends} == {"audiosr", "sinc-resample", "lavasr-compat"}
     assert all("installed" in backend for backend in backends)
 
 
@@ -36,7 +37,13 @@ def test_list_models_json(capsys) -> None:
     assert main(["--list-models", "--list-format", "json"]) == 0
     models = json.loads(capsys.readouterr().out)
 
-    assert {model["id"] for model in models} == {"audiosr-basic", "audiosr-speech", "sinc-resample"}
+    assert {model["id"] for model in models} == {
+        "audiosr-basic",
+        "audiosr-speech",
+        "lavasr-v2-bwe",
+        "sinc-resample",
+    }
+    assert next(model for model in models if model["id"] == "lavasr-v2-bwe")["requires_weights"] is True
 
 
 def test_list_models_filter(capsys) -> None:
@@ -68,6 +75,102 @@ def test_prepare_model_cache_creates_directory(tmp_path: Path, capsys) -> None:
 
     assert str(cache_dir) in output
     assert cache_dir.is_dir()
+
+
+def test_prepare_model_cache_can_download_weights_without_input(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys
+) -> None:
+    cache_dir = tmp_path / "cache"
+    calls: dict[str, object] = {}
+
+    def download_model_weights(model_spec, cache_dir: Path, revision: str | None = None, force: bool = False):
+        calls["model_id"] = model_spec.id
+        calls["cache_dir"] = cache_dir
+        calls["revision"] = revision
+        calls["force"] = force
+        output_dir = cache_dir / model_spec.id
+        output_dir.mkdir(parents=True)
+        return output_dir
+
+    monkeypatch.setattr("audio_super_resolution.cli.download_model_weights", download_model_weights)
+
+    assert (
+        main(
+            [
+                "--backend",
+                "lavasr-compat",
+                "--download-weights",
+                "--prepare-model-cache",
+                "--model-cache-dir",
+                str(cache_dir),
+                "--weight-revision",
+                "test-revision",
+                "--force-download",
+            ]
+        )
+        == 0
+    )
+
+    assert calls == {
+        "model_id": "lavasr-v2-bwe",
+        "cache_dir": cache_dir,
+        "revision": "test-revision",
+        "force": True,
+    }
+    assert str(cache_dir / "lavasr-v2-bwe") in capsys.readouterr().out
+
+
+def test_cli_verifies_explicit_weight_manifest(tmp_path: Path, capsys) -> None:
+    weight_path = tmp_path / "weights.bin"
+    weight_path.write_bytes(b"weights")
+    digest = hashlib.sha256(b"weights").hexdigest()
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "id": "demo",
+                "files": [{"path": "weights.bin", "sha256": digest, "size": len(b"weights")}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "--backend",
+                "lavasr-compat",
+                "--verify-weights",
+                "--weights-manifest",
+                str(manifest_path),
+            ]
+        )
+        == 0
+    )
+    assert "Verified weights" in capsys.readouterr().out
+
+
+def test_cli_verify_weights_returns_one_for_invalid_manifest(tmp_path: Path, capsys) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps({"schema_version": 1, "id": "demo", "files": [{"path": "missing.bin"}]}),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "--backend",
+                "lavasr-compat",
+                "--verify-weights",
+                "--weights-manifest",
+                str(manifest_path),
+            ]
+        )
+        == 1
+    )
+    assert "Weight verification failed" in capsys.readouterr().err
 
 
 def test_dry_run_for_file_uses_default_output_path(tmp_path: Path, capsys) -> None:
@@ -108,6 +211,46 @@ def test_cli_reports_missing_input_without_traceback(tmp_path: Path, capsys) -> 
         main([str(tmp_path / "missing.wav")])
 
     assert "missing.wav" in capsys.readouterr().err
+
+
+def test_cli_reports_missing_lavasr_weights_with_download_hint(tmp_path: Path, capsys) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    sf.write(input_path, np.zeros(1000), 1000)
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                str(input_path),
+                str(output_path),
+                "--backend",
+                "lavasr-compat",
+                "--model-cache-dir",
+                str(tmp_path / "models"),
+            ]
+        )
+
+    error = capsys.readouterr().err
+    assert "--download-weights --prepare-model-cache" in error
+
+
+def test_cli_reports_lavasr_denoise_as_reserved(tmp_path: Path, capsys) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    sf.write(input_path, np.zeros(1000), 1000)
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                str(input_path),
+                str(output_path),
+                "--backend",
+                "lavasr-compat",
+                "--denoise",
+            ]
+        )
+
+    assert "denoise is reserved" in capsys.readouterr().err
 
 
 def test_cli_processes_single_file(tmp_path: Path) -> None:

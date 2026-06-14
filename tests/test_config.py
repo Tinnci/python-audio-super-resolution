@@ -19,6 +19,25 @@ def test_inference_config_normalizes_device_precision_and_cache_path(tmp_path: P
     assert config.model_name == "basic"
 
 
+def test_inference_config_normalizes_weight_options(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    config = InferenceConfig(
+        model_cache_dir=tmp_path / "models",
+        weights_manifest=manifest_path,
+        download_weights=True,
+        force_download=True,
+        weight_revision="abc123",
+        denoise=True,
+    )
+
+    assert config.weights_manifest == manifest_path
+    assert config.as_dict()["weights_manifest"] == str(manifest_path)
+    assert config.as_dict()["download_weights"] is True
+    assert config.as_dict()["force_download"] is True
+    assert config.as_dict()["weight_revision"] == "abc123"
+    assert config.as_dict()["denoise"] is True
+
+
 def test_inference_config_creates_model_cache_dir(tmp_path: Path) -> None:
     config = InferenceConfig(model_cache_dir=tmp_path / "models")
 
