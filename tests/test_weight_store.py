@@ -8,6 +8,7 @@ import pytest
 from audio_super_resolution import (
     InferenceConfig,
     ModelSpec,
+    ResolvedWeights,
     WeightFile,
     WeightFileSpec,
     WeightManifest,
@@ -15,14 +16,15 @@ from audio_super_resolution import (
     register_weight_provider,
     resolve_model_weights,
     sha256_file,
+    validate_weight_manifest_matches_spec,
     verify_model_weights,
     write_weight_manifest,
 )
 
 
 def test_resolve_model_weights_prefers_explicit_manifest(tmp_path: Path) -> None:
-    manifest_path = _write_manifest(tmp_path / "explicit", b"explicit")
-    cache_manifest_path = _write_manifest(tmp_path / "cache" / "demo-model", b"cache")
+    manifest_path = _write_manifest(tmp_path / "explicit", b"weights")
+    cache_manifest_path = _write_manifest(tmp_path / "cache" / "demo-model", b"weights")
     (cache_manifest_path.parent / ".complete").write_text("ok\n", encoding="utf-8")
     spec = _spec()
     config = InferenceConfig(model_cache_dir=tmp_path / "cache", weights_manifest=manifest_path)
@@ -30,11 +32,12 @@ def test_resolve_model_weights_prefers_explicit_manifest(tmp_path: Path) -> None
     resolved = resolve_model_weights(spec, config)
 
     assert resolved.manifest_path == manifest_path
-    assert resolved.files["weights.bin"].read_bytes() == b"explicit"
+    assert resolved.files["weights.bin"].read_bytes() == b"weights"
+    assert resolved.path_for("weights.bin").read_bytes() == b"weights"
 
 
 def test_resolve_model_weights_uses_verified_cache_manifest(tmp_path: Path) -> None:
-    manifest_path = _write_manifest(tmp_path / "cache" / "demo-model", b"cache")
+    manifest_path = _write_manifest(tmp_path / "cache" / "demo-model", b"weights")
     (manifest_path.parent / ".complete").write_text("ok\n", encoding="utf-8")
     spec = _spec()
     config = InferenceConfig(model_cache_dir=tmp_path / "cache")
@@ -50,6 +53,26 @@ def test_resolve_model_weights_missing_cache_does_not_download_by_default(tmp_pa
 
     with pytest.raises(RuntimeError, match="--download-weights"):
         resolve_model_weights(spec, config)
+
+
+def test_resolve_model_weights_rejects_manifest_for_wrong_model(tmp_path: Path) -> None:
+    manifest_path = _write_manifest(tmp_path / "explicit", b"weights", model_id="other-model")
+    spec = _spec()
+    config = InferenceConfig(model_cache_dir=tmp_path / "cache", weights_manifest=manifest_path)
+
+    with pytest.raises(ValueError, match="weight manifest id mismatch"):
+        resolve_model_weights(spec, config)
+
+
+def test_validate_weight_manifest_matches_spec_requires_declared_file_metadata() -> None:
+    spec = _spec()
+    manifest = WeightManifest(
+        id=spec.id,
+        files=(WeightFile(path="weights.bin", sha256="0" * 64, size=len(b"weights")),),
+    )
+
+    with pytest.raises(ValueError, match="sha256 mismatch"):
+        validate_weight_manifest_matches_spec(manifest, spec)
 
 
 def test_download_model_weights_uses_provider_temp_dir_and_verified_cache(tmp_path: Path) -> None:
@@ -77,6 +100,16 @@ def test_download_model_weights_cleans_temp_and_preserves_existing_cache_on_fail
 
     assert (output_dir / "sentinel.txt").read_text(encoding="utf-8") == "keep"
     assert not (tmp_path / "cache" / ".demo-model.download.tmp").exists()
+
+
+def test_resolved_weights_path_for_rejects_unknown_file(tmp_path: Path) -> None:
+    manifest_path = _write_manifest(tmp_path / "cache" / "demo-model", b"weights")
+    resolved = verify_model_weights(_spec(), cache_dir=tmp_path / "cache")
+
+    assert isinstance(resolved, ResolvedWeights)
+    assert resolved.manifest_path == manifest_path
+    with pytest.raises(KeyError, match="not resolved"):
+        resolved.path_for("missing.bin")
 
 
 class FakeProvider:
@@ -123,7 +156,7 @@ def _spec() -> ModelSpec:
     )
 
 
-def _write_manifest(directory: Path, content: bytes) -> Path:
+def _write_manifest(directory: Path, content: bytes, *, model_id: str = "demo-model") -> Path:
     directory.mkdir(parents=True)
     weight_path = directory / "weights.bin"
     weight_path.write_bytes(content)
@@ -131,7 +164,7 @@ def _write_manifest(directory: Path, content: bytes) -> Path:
     write_weight_manifest(
         manifest_path,
         WeightManifest(
-            id="demo-model",
+            id=model_id,
             files=(WeightFile(path="weights.bin", sha256=sha256_file(weight_path), size=len(content)),),
         ),
     )

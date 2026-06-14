@@ -7,7 +7,13 @@ from pathlib import Path
 from typing import Protocol
 
 from .specs import ModelSpec
-from .weights import WeightFile, WeightManifest, verify_weight_manifest_files, write_weight_manifest
+from .weights import (
+    WeightFile,
+    WeightManifest,
+    resolve_weight_file_path,
+    verify_weight_manifest_files,
+    write_weight_manifest,
+)
 
 ProviderFactory = Callable[[str], "WeightProvider"]
 
@@ -78,7 +84,7 @@ def register_weight_provider(name: str, factory: ProviderFactory, *, replace: bo
     _PROVIDER_FACTORIES[name] = factory
 
 
-def download_model_weights(
+def download_weights_for_spec(
     model_spec: ModelSpec,
     cache_dir: str | Path,
     *,
@@ -113,7 +119,11 @@ def download_model_weights(
         provider = _build_provider(model_spec)
         manifest = provider.fetch_manifest(model_spec, revision=revision)
         for file_entry in manifest.file_entries:
-            provider.download_file(file_entry.path, temp_dir / file_entry.path, revision=manifest.revision)
+            provider.download_file(
+                file_entry.path,
+                resolve_weight_file_path(temp_dir, file_entry.path),
+                revision=manifest.revision,
+            )
 
         verify_weight_manifest_files(manifest, temp_dir)
         write_weight_manifest(temp_dir / "manifest.json", manifest)
@@ -133,6 +143,18 @@ def download_model_weights(
         lock_handle.close()
         if lock_path.exists():
             lock_path.unlink()
+
+
+def download_model_weights(
+    model_spec: ModelSpec,
+    cache_dir: str | Path,
+    *,
+    revision: str | None = None,
+    force: bool = False,
+) -> Path:
+    """Backward-compatible alias for download_weights_for_spec()."""
+
+    return download_weights_for_spec(model_spec, cache_dir, revision=revision, force=force)
 
 
 def _build_provider(model_spec: ModelSpec) -> WeightProvider:

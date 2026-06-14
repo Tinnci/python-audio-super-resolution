@@ -129,7 +129,7 @@ def test_cli_verifies_explicit_weight_manifest(tmp_path: Path, capsys) -> None:
         json.dumps(
             {
                 "schema_version": 1,
-                "id": "demo",
+                "id": "sinc-resample",
                 "files": [{"path": "weights.bin", "sha256": digest, "size": len(b"weights")}],
             }
         ),
@@ -140,7 +140,7 @@ def test_cli_verifies_explicit_weight_manifest(tmp_path: Path, capsys) -> None:
         main(
             [
                 "--backend",
-                "lavasr-compat",
+                "sinc-resample",
                 "--verify-weights",
                 "--weights-manifest",
                 str(manifest_path),

@@ -7,8 +7,10 @@ from audio_super_resolution import (
     WeightManifest,
     read_weight_manifest,
     resolve_manifest_file_paths,
+    resolve_weight_file_path,
     resolve_weight_path,
     sha256_file,
+    validate_weight_file_path,
     verify_weight_file,
     verify_weight_manifest,
     write_weight_manifest,
@@ -88,3 +90,27 @@ def test_verify_weight_file_rejects_size_mismatch(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="weight size mismatch"):
         verify_weight_file(weight_path, expected_sha256=None, expected_size=999)
+
+
+@pytest.mark.parametrize(
+    "unsafe_path",
+    [
+        "",
+        ".",
+        "../weights.bin",
+        "enhancer_v2/../../weights.bin",
+        "/tmp/weights.bin",
+        "C:\\tmp\\weights.bin",
+    ],
+)
+def test_weight_file_rejects_paths_that_escape_manifest_directory(unsafe_path: str) -> None:
+    with pytest.raises(ValueError, match="weight file path"):
+        WeightFile(path=unsafe_path)
+
+
+def test_weight_file_path_normalizes_backslashes() -> None:
+    assert validate_weight_file_path("enhancer_v2\\config.yaml") == "enhancer_v2/config.yaml"
+
+
+def test_resolve_weight_file_path_stays_under_base_dir(tmp_path: Path) -> None:
+    assert resolve_weight_file_path(tmp_path, "enhancer_v2/config.yaml") == tmp_path / "enhancer_v2" / "config.yaml"

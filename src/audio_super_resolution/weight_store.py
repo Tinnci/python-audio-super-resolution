@@ -4,12 +4,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .config import InferenceConfig, default_model_cache_dir
-from .downloads import download_model_weights as _download_model_weights
+from .downloads import download_weights_for_spec
 from .models import find_model_spec, get_model_spec
 from .specs import ModelSpec
 from .weights import (
     WeightManifest,
     resolve_manifest_file_paths,
+    validate_weight_file_path,
     verify_weight_manifest,
 )
 
@@ -23,6 +24,16 @@ class ResolvedWeights:
     root_dir: Path
     files: dict[str, Path]
 
+    def path_for(self, file_path: str) -> Path:
+        """Return a verified local path by manifest-relative file path."""
+
+        safe_path = validate_weight_file_path(file_path)
+        try:
+            return self.files[safe_path]
+        except KeyError as exc:
+            choices = ", ".join(sorted(self.files))
+            raise KeyError(f"Weight file {safe_path!r} was not resolved. Available files: {choices}") from exc
+
 
 def resolve_model_weights(
     model: str | ModelSpec,
@@ -35,21 +46,21 @@ def resolve_model_weights(
 
     spec = get_model_spec(model) if isinstance(model, str) else model
     if config.weights_manifest is not None:
-        return _resolve_manifest_path(config.weights_manifest)
+        return _resolve_manifest_path(config.weights_manifest, spec=spec)
 
     cache_manifest_path = Path(config.model_cache_dir).expanduser() / spec.id / "manifest.json"
     if cache_manifest_path.is_file() and (cache_manifest_path.parent / ".complete").is_file():
-        return _resolve_manifest_path(cache_manifest_path)
+        return _resolve_manifest_path(cache_manifest_path, spec=spec)
 
     should_download = allow_download or config.download_weights
     if should_download:
-        downloaded_dir = _download_model_weights(
+        downloaded_dir = download_weights_for_spec(
             spec,
             config.model_cache_dir,
             revision=config.weight_revision,
             force=force_download or config.force_download,
         )
-        return _resolve_manifest_path(downloaded_dir / "manifest.json")
+        return _resolve_manifest_path(downloaded_dir / "manifest.json", spec=spec)
 
     raise RuntimeError(
         f"Weights for model {spec.id!r} were not found. Provide --weights-manifest or run "
@@ -67,7 +78,7 @@ def download_model_weights(
     """Download a registered model's weights into the cache directory."""
 
     spec = get_model_spec(model_id)
-    return _download_model_weights(spec, cache_dir or default_model_cache_dir(), revision=revision, force=force)
+    return download_weights_for_spec(spec, cache_dir or default_model_cache_dir(), revision=revision, force=force)
 
 
 def verify_model_weights(
@@ -77,12 +88,12 @@ def verify_model_weights(
 ) -> ResolvedWeights:
     """Verify a registered model's local weights."""
 
-    if manifest_path is not None:
-        return _resolve_manifest_path(manifest_path)
-
     spec = get_model_spec(model_id)
+    if manifest_path is not None:
+        return _resolve_manifest_path(manifest_path, spec=spec)
+
     resolved_cache_dir = Path(cache_dir).expanduser() if cache_dir is not None else default_model_cache_dir()
-    return _resolve_manifest_path(resolved_cache_dir / spec.id / "manifest.json")
+    return _resolve_manifest_path(resolved_cache_dir / spec.id / "manifest.json", spec=spec)
 
 
 def resolve_backend_model_weights(
@@ -98,12 +109,59 @@ def resolve_backend_model_weights(
     return resolve_model_weights(spec, config, allow_download=allow_download)
 
 
-def _resolve_manifest_path(path: str | Path) -> ResolvedWeights:
+def validate_weight_manifest_matches_spec(manifest: WeightManifest, spec: ModelSpec) -> None:
+    """Validate that a verified manifest belongs to the requested model spec."""
+
+    if manifest.id != spec.id:
+        raise ValueError(f"weight manifest id mismatch: expected {spec.id!r}, got {manifest.id!r}")
+
+    _validate_optional_match("provider", manifest.provider, spec.weight_provider)
+    _validate_optional_match("source", manifest.source, spec.weights_source)
+    _validate_optional_match("architecture", manifest.architecture, spec.architecture)
+    _validate_optional_match("target_sample_rate", manifest.target_sample_rate, spec.target_sample_rate)
+
+    expected_files = {validate_weight_file_path(file_spec.path): file_spec for file_spec in spec.weight_files}
+    if not expected_files:
+        return
+
+    actual_files = {file_entry.path: file_entry for file_entry in manifest.file_entries}
+    missing = sorted(set(expected_files) - set(actual_files))
+    if missing:
+        raise ValueError(f"weight manifest is missing required files for {spec.id!r}: {', '.join(missing)}")
+
+    for file_path, expected_file in expected_files.items():
+        actual_file = actual_files[file_path]
+        if expected_file.sha256 is not None:
+            if actual_file.sha256 is None:
+                raise ValueError(f"weight manifest is missing sha256 for required file {file_path!r}")
+            if actual_file.sha256.lower() != expected_file.sha256.lower():
+                raise ValueError(
+                    f"weight manifest sha256 mismatch for {file_path!r}: "
+                    f"expected {expected_file.sha256}, got {actual_file.sha256}"
+                )
+        if expected_file.size is not None:
+            if actual_file.size is None:
+                raise ValueError(f"weight manifest is missing size for required file {file_path!r}")
+            if actual_file.size != expected_file.size:
+                raise ValueError(
+                    f"weight manifest size mismatch for {file_path!r}: "
+                    f"expected {expected_file.size}, got {actual_file.size}"
+                )
+
+
+def _resolve_manifest_path(path: str | Path, *, spec: ModelSpec | None = None) -> ResolvedWeights:
     manifest_path = Path(path).expanduser()
     manifest = verify_weight_manifest(manifest_path)
+    if spec is not None:
+        validate_weight_manifest_matches_spec(manifest, spec)
     return ResolvedWeights(
         manifest=manifest,
         manifest_path=manifest_path,
         root_dir=manifest_path.parent,
         files=resolve_manifest_file_paths(manifest_path, manifest),
     )
+
+
+def _validate_optional_match(field: str, actual: object | None, expected: object | None) -> None:
+    if actual is not None and expected is not None and actual != expected:
+        raise ValueError(f"weight manifest {field} mismatch: expected {expected!r}, got {actual!r}")

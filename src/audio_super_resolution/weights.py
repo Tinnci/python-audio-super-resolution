@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 
@@ -14,6 +14,11 @@ class WeightFile:
     path: str
     sha256: str | None = None
     size: int | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "path", validate_weight_file_path(self.path))
+        if self.size is not None and self.size < 0:
+            raise ValueError("weight file size cannot be negative")
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> WeightFile:
@@ -150,7 +155,10 @@ def resolve_manifest_file_paths(manifest_path: str | Path, manifest: WeightManif
     """Return every manifest file path resolved relative to the manifest location."""
 
     base_dir = Path(manifest_path).expanduser().parent
-    return {file_entry.path: base_dir / file_entry.path for file_entry in manifest.file_entries}
+    return {
+        file_entry.path: resolve_weight_file_path(base_dir, file_entry.path)
+        for file_entry in manifest.file_entries
+    }
 
 
 def verify_weight_manifest(path: str | Path) -> WeightManifest:
@@ -167,10 +175,51 @@ def verify_weight_manifest_files(manifest: WeightManifest, base_dir: str | Path)
 
     for file_entry in manifest.file_entries:
         verify_weight_file(
-            Path(base_dir).expanduser() / file_entry.path,
+            resolve_weight_file_path(base_dir, file_entry.path),
             expected_sha256=file_entry.sha256,
             expected_size=file_entry.size,
         )
+
+
+def validate_weight_file_path(path: str | Path) -> str:
+    """Return a normalized safe relative manifest path.
+
+    Weight manifests describe files inside a model cache directory. Absolute paths,
+    Windows drive paths, and parent-directory traversal would let a manifest point
+    outside that directory, so they are rejected before any filesystem access.
+    """
+
+    raw_path = str(path)
+    normalized = raw_path.replace("\\", "/")
+    windows_path = PureWindowsPath(raw_path)
+    posix_path = PurePosixPath(normalized)
+    if (
+        normalized in {"", "."}
+        or windows_path.is_absolute()
+        or posix_path.is_absolute()
+        or windows_path.drive
+        or windows_path.root
+        or posix_path.root
+    ):
+        raise ValueError(f"weight file path must be relative to the manifest directory: {raw_path!r}")
+
+    parts = posix_path.parts
+    if not parts or any(part == ".." for part in parts):
+        raise ValueError(f"weight file path cannot escape the manifest directory: {raw_path!r}")
+    return str(posix_path)
+
+
+def resolve_weight_file_path(base_dir: str | Path, file_path: str | Path) -> Path:
+    """Resolve a manifest file path under base_dir and reject directory escape."""
+
+    safe_path = validate_weight_file_path(file_path)
+    root = Path(base_dir).expanduser()
+    resolved = root.joinpath(*PurePosixPath(safe_path).parts)
+    try:
+        resolved.resolve(strict=False).relative_to(root.resolve(strict=False))
+    except ValueError as exc:
+        raise ValueError(f"weight file path escapes the manifest directory: {file_path!r}") from exc
+    return resolved
 
 
 def sha256_file(path: str | Path, chunk_size: int = 1024 * 1024) -> str:

@@ -4,8 +4,13 @@ from .audiosr_backend import AUDIOSR_MODEL_NAMES, AUDIOSR_SAMPLE_RATE, AudiosrBa
 from .backends import register_backend, registered_backend_types
 from .config import InferenceConfig, default_model_cache_dir
 from .devices import DeviceInfo, available_devices, resolve_device
-from .downloads import download_model_weights as download_model_weights_for_spec
-from .downloads import register_weight_provider
+from .downloads import (
+    download_model_weights as download_model_weights_for_spec,
+)
+from .downloads import (
+    download_weights_for_spec,
+    register_weight_provider,
+)
 from .manifest import (
     ManifestComparison,
     ManifestDifference,
@@ -43,6 +48,7 @@ from .weight_store import (
     download_model_weights,
     resolve_backend_model_weights,
     resolve_model_weights,
+    validate_weight_manifest_matches_spec,
     verify_model_weights,
 )
 from .weights import (
@@ -51,8 +57,10 @@ from .weights import (
     load_safetensors,
     read_weight_manifest,
     resolve_manifest_file_paths,
+    resolve_weight_file_path,
     resolve_weight_path,
     sha256_file,
+    validate_weight_file_path,
     verify_weight_file,
     verify_weight_manifest,
     write_weight_manifest,
@@ -89,6 +97,7 @@ __all__ = [
     "discover_audio_files",
     "download_model_weights",
     "download_model_weights_for_spec",
+    "download_weights_for_spec",
     "default_model_cache_dir",
     "find_model_spec",
     "format_manifest_comparison",
@@ -110,8 +119,11 @@ __all__ = [
     "resolve_device",
     "resolve_manifest_file_paths",
     "resolve_model_weights",
+    "resolve_weight_file_path",
     "resolve_weight_path",
     "sha256_file",
+    "validate_weight_file_path",
+    "validate_weight_manifest_matches_spec",
     "verify_model_weights",
     "verify_weight_manifest",
     "verify_weight_file",
