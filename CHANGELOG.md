@@ -11,6 +11,7 @@ This project follows semantic versioning once published to PyPI.
 - Wired `lavasr-compat` past verified local weights into the experimental runtime while keeping provider downloads outside backend inference.
 - Removed PyYAML from the `lavasr` extra; the extra now only provides the torch runtime dependency.
 - Updated roadmap and release documentation for the completed `v0.1.x` release flow and active `v0.2.0` work.
+- Added `v0.3.0` planning scope for model admission criteria and future backend candidates.
 
 ## 0.1.1
 

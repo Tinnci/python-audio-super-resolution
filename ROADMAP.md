@@ -44,6 +44,23 @@ Remaining before marking `lavasr-compat` stable:
 - Add exactness tests for any mel/STFT behavior that differs from the reference implementation.
 - Document Colab/GPU usage only after real model validation passes.
 
+## Next: v0.3.0
+
+Goal: plan model expansion after the first compatible inference path has real validation evidence.
+
+Tracked work:
+
+- `#21` Improve model catalog metadata for backend comparison.
+- `#22` Define model admission criteria and candidate scorecard.
+- `#23` Evaluate next speech SR/BWE compatible backend candidates.
+- `#24` Evaluate general-audio SR candidate backends.
+
+Decision rule:
+
+- `v0.2.0` is for inference framework hardening and validation.
+- `v0.3.0` is for choosing what to add next and how to compare candidates.
+- New candidate backends should not move into implementation until their weight format, license, preprocessing, I/O shape, and validation path are clear.
+
 ## Candidate Backends
 
 | Backend | Role |
