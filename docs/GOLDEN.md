@@ -57,3 +57,17 @@ For stochastic models, use spectral statistics and relaxed thresholds instead of
 6. Store the fixture JSON and small artifacts, or document the external cache location if artifacts are too large.
 
 Real checkpoint generation must remain gated. For LavaSR, use the environment variables documented in [tests/README.md](../tests/README.md) before regenerating or validating reference artifacts.
+
+## LavaSR Upstream Parity
+
+`tests/test_lavasr_upstream_parity.py` provides the gated LavaSR v2 BWE parity harness. It compares this package's self-contained `lavasr-compat` runtime against upstream `LavaSR.enhancer.LavaBWE` while using the same verified local `enhancer_v2` weights.
+
+This test is not part of the default suite because it imports upstream LavaSR and Vocos dependencies. Run it only after installing the upstream package and preparing the LavaSR cache:
+
+```sh
+pixi run python -m pip install "git+https://github.com/ysharma3501/LavaSR.git"
+set AUDIO_SUPER_RESOLUTION_RUN_WEIGHT_DOWNLOAD=1
+set AUDIO_SUPER_RESOLUTION_RUN_LAVASR_UPSTREAM_PARITY=1
+set AUDIO_SUPER_RESOLUTION_LAVASR_CACHE=C:\path\to\models
+pixi run pytest tests/test_lavasr_upstream_parity.py
+```

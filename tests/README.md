@@ -47,3 +47,14 @@ Set both `AUDIO_SUPER_RESOLUTION_RUN_WEIGHT_DOWNLOAD=1` and `AUDIO_SUPER_RESOLUT
 - `AUDIO_SUPER_RESOLUTION_LAVASR_DEVICE=cpu`
 - `AUDIO_SUPER_RESOLUTION_LAVASR_SMOKE_SECONDS=0.05`
 - `AUDIO_SUPER_RESOLUTION_LAVASR_SMOKE_SR=16000`
+
+Run LavaSR upstream parity only when upstream LavaSR/Vocos dependencies are intentionally installed:
+
+```sh
+pixi run python -m pip install "git+https://github.com/ysharma3501/LavaSR.git"
+set AUDIO_SUPER_RESOLUTION_RUN_LAVASR_UPSTREAM_PARITY=1
+set AUDIO_SUPER_RESOLUTION_LAVASR_CACHE=C:\path\to\models
+pixi run pytest tests/test_lavasr_upstream_parity.py
+```
+
+The parity test compares the self-contained `lavasr-compat` runtime with upstream `LavaSR.enhancer.LavaBWE` using the same verified local `enhancer_v2` weights. It remains out of the default suite because it requires upstream project dependencies.

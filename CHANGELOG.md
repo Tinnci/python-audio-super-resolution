@@ -16,6 +16,8 @@ This project follows semantic versioning once published to PyPI.
 - Added golden-sample comparison helpers, tests, and fixture documentation for compatible backends.
 - Validated `lavasr-compat` real-weight torch smoke locally through the gated integration test.
 - Reworked lightweight golden/preprocessing spectral paths to avoid fragile SciPy stateful filtering/STFT calls in default tests.
+- Added a gated LavaSR upstream parity test that compares `lavasr-compat` with upstream `LavaSR.enhancer.LavaBWE` using the same verified local weights.
+- Added `v0.4.0` planning scope for accelerator capability metadata, runtime providers, gated hardware benchmarks, accelerator install docs, and LavaSR optimized export paths.
 
 ## 0.1.1
 

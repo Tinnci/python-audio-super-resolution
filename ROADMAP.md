@@ -31,7 +31,7 @@ Tracked work:
 - `#17` Add golden-sample validation for compatible backends. Completed: fixture format, metrics, docs, and offline tests are available.
 - `#18` Add gated real-weight model validation. Completed: gated LavaSR download verification and torch smoke tests are available.
 - `#19` Publish validated Colab and GPU documentation.
-- `#25` Add LavaSR upstream golden parity validation.
+- `#25` Add LavaSR upstream golden parity validation. Completed: gated upstream LavaSR/Vocos parity harness passed locally with the same verified weights.
 
 Current `lavasr-compat` status:
 
@@ -40,12 +40,17 @@ Current `lavasr-compat` status:
 - A self-contained torch runtime is wired experimentally: mel features, Vocos-style ConvNeXt backbone, ISTFT head, strict state-dict loading, and low/high-frequency merge.
 - Real LavaSR v2 BWE download and bundle verification has passed through the gated integration test.
 - Real LavaSR v2 BWE torch inference smoke has passed through the gated integration test.
+- Upstream LavaSR/Vocos parity has passed through the gated parity test for a fixed synthetic fixture and shared local weights.
+
+Remaining before closing `v0.2.0`:
+
+- Publish validated Colab/GPU usage docs in `#19`.
 
 Remaining before marking `lavasr-compat` stable:
 
-- Use the golden fixture framework to compare LavaSR output against upstream LavaSR/Vocos samples.
-- Add exactness tests for any mel/STFT behavior that differs from the reference implementation.
-- Document Colab/GPU usage only after real model validation passes.
+- Broaden fixture coverage beyond the initial parity sample.
+- Add stricter mel/STFT exactness tests if future changes touch `lavasr_torch`.
+- Keep default installs and default tests CPU/offline.
 
 ## Next: v0.3.0
 
@@ -62,7 +67,26 @@ Decision rule:
 
 - `v0.2.0` is for inference framework hardening and validation.
 - `v0.3.0` is for choosing what to add next and how to compare candidates.
+- `v0.4.0` is for hardware acceleration and runtime-provider work after the model/backend abstractions are clear.
 - New candidate backends should not move into implementation until their weight format, license, preprocessing, I/O shape, and validation path are clear.
+
+## Later: v0.4.0
+
+Goal: optimize execution across hardware and external runtimes without making the baseline install heavy.
+
+Tracked work:
+
+- `#26` Define accelerator capability model and fallback policy.
+- `#27` Add runtime provider abstraction for optimized execution.
+- `#28` Add gated accelerator validation and benchmark matrix.
+- `#29` Document accelerator install strategy and optional extras.
+- `#30` Evaluate LavaSR optimized runtime and export paths.
+
+Decision rule:
+
+- Accelerator support is a runtime layer, not a model-selection layer.
+- Backend code should request capabilities from a runtime/provider abstraction instead of hard-coding CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, or ONNX Runtime checks.
+- GPU/SDK-specific tests must remain gated and should produce JSON evidence before they become release gates.
 
 ## Candidate Backends
 
@@ -70,7 +94,7 @@ Decision rule:
 | --- | --- |
 | `sinc-resample` | Implemented deterministic baseline. |
 | `audiosr` | Implemented optional external AudioSR wrapper. |
-| `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight download and torch smoke pass, LavaSR-specific golden artifacts pending. |
+| `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight download, torch smoke, and initial upstream parity pass. |
 | `mossformer-sr-compat` | Future speech super-resolution candidate. |
 | `nuwave` | Future diffusion-based bandwidth extension candidate. |
 | custom backend | User-provided backend implementing the package protocol. |
