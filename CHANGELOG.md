@@ -22,7 +22,8 @@ This project follows semantic versioning once published to PyPI.
 - Expanded model catalog metadata for backend comparison, including task/domain, input-rate metadata, I/O capabilities, accelerator declarations, weight size/source/license, validation evidence, recommended use, and limitations.
 - Added model admission criteria documentation and a public scorecard API for catalog and self-contained backend candidates.
 - Added speech SR/BWE candidate review selecting ClearerVoice `MossFormer2_SR_48K` for a feasibility spike before any new backend implementation.
-- Added general-audio SR candidate review keeping AudioSR as the external baseline and deferring new self-contained general-audio work.
+- Added general-audio SR candidate review keeping AudioSR as the external baseline, tracking FlowHigh as a feasibility candidate, and deferring new self-contained general-audio work until reproducibility is proven.
+- Added Resemble Enhance to the speech enhancement/BWE feasibility track while keeping ClearerVoice as the next speech SR candidate.
 
 ## 0.1.1
 

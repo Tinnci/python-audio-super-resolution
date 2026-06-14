@@ -61,8 +61,10 @@ Tracked work:
 - `#21` Improve model catalog metadata for backend comparison. Completed: model listings expose task/domain, I/O, accelerator declarations, weight metadata, validation evidence, recommended use, and limitations.
 - `#22` Define model admission criteria and candidate scorecard. Completed: documentation and scorecard API are available.
 - `#23` Evaluate next speech SR/BWE compatible backend candidates. Completed: ClearerVoice `MossFormer2_SR_48K` is the next feasibility target.
-- `#24` Evaluate general-audio SR candidate backends. Completed: keep AudioSR external and defer new general-audio self-contained work until a reproducible candidate is available.
+- `#24` Evaluate general-audio SR candidate backends. Completed: keep AudioSR external, track FlowHigh as a feasibility candidate, and defer new general-audio self-contained work until reproducibility is proven.
 - `#31` Map ClearerVoice `MossFormer2_SR_48K` compatibility feasibility.
+- `#32` Map FlowHigh compatibility feasibility.
+- `#33` Map Resemble Enhance compatibility feasibility.
 
 Decision rule:
 
@@ -97,6 +99,8 @@ Decision rule:
 | `audiosr` | Implemented optional external AudioSR wrapper. |
 | `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight download, torch smoke, and initial upstream parity pass. |
 | `mossformer-sr-compat` | Future speech super-resolution candidate. |
+| `flowhigh-compat` | Future general-audio feasibility candidate; no backend implementation until checkpoint and vocoder boundaries are proven. |
+| `resemble-enhance` | Future speech enhancement/BWE feasibility candidate; no backend implementation until dependency and 44.1 kHz target behavior are proven. |
 | `nuwave` | Future diffusion-based bandwidth extension candidate. |
 | custom backend | User-provided backend implementing the package protocol. |
 
