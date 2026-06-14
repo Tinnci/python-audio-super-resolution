@@ -280,6 +280,21 @@ models = list_models(filter_text="audiosr")
 manifest = build_manifest("dry-run", jobs, InferenceConfig(), backend="sinc-resample", target_sample_rate=48000)
 ```
 
+Managed weights:
+
+```python
+from audio_super_resolution import InferenceConfig, download_model_weights, resolve_model_weights, verify_model_weights
+
+download_model_weights("lavasr-v2-bwe")
+verified = verify_model_weights("lavasr-v2-bwe")
+
+config = InferenceConfig(model_cache_dir=verified.root_dir.parent)
+weights = resolve_model_weights("lavasr-v2-bwe", config)
+model_path = weights.path_for("enhancer_v2/pytorch_model.bin")
+```
+
+Use `download_weights_for_spec()` only when implementing a provider-facing extension that already has a `ModelSpec`.
+
 ### Inference Configuration
 
 ```python

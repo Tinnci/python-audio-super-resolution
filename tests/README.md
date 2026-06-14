@@ -11,7 +11,7 @@ It verifies:
 - CLI argument handling and informational commands.
 - Model catalog and backend discovery output.
 - Backend registry and model metadata specs.
-- Weight manifest paths, multi-file SHA256 verification, fake-provider downloads, and local weight store helpers.
+- Weight manifest paths, path safety, spec matching, multi-file SHA256 verification, fake-provider downloads, and local weight store helpers.
 - Lightweight device discovery helpers.
 - JSON manifests for planned and completed jobs.
 - Manifest regression comparison.

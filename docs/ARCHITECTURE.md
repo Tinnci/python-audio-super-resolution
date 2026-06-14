@@ -60,6 +60,13 @@ Backends must not call remote providers directly. Downloads are explicit and cen
 
 The default inference path is offline. Missing weights should produce a clear message with the matching `--download-weights --prepare-model-cache` command.
 
+The API is layered by responsibility:
+
+- `weights` is the low-level manifest layer. It parses JSON, rejects unsafe file paths, resolves manifest-relative files, and verifies size/SHA256.
+- `downloads.download_weights_for_spec()` is the provider-facing layer. It accepts a `ModelSpec`, talks to the provider, writes a temporary cache, and publishes it only after verification.
+- `weight_store.download_model_weights()` is the user-facing download API. It accepts a registered model id or `ModelSpec`.
+- `weight_store.verify_model_weights()` and `weight_store.resolve_model_weights()` bind a verified manifest back to the selected `ModelSpec` before returning `ResolvedWeights`.
+
 Managed weights use a per-model cache directory:
 
 ```text
@@ -70,6 +77,8 @@ Managed weights use a per-model cache directory:
 ```
 
 Downloads are written to a temporary directory first. The final cache directory is replaced only after every required file passes verification. Failed downloads remove the temporary directory and must not delete an existing verified cache.
+
+Manifest file paths must be relative to the manifest directory. Absolute paths, Windows drive paths, and `..` traversal are rejected before any file access. A manifest must also match the selected `ModelSpec`: the model id must match, optional provider/source/architecture/target sample rate metadata cannot conflict, and every file declared by the spec must be present with matching size/hash metadata.
 
 The first provider is Hugging Face through the optional `download` extra. Additional providers should implement the same provider interface without changing backend code.
 
