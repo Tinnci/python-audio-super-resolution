@@ -187,6 +187,8 @@ Current backend status:
 - `audiosr`: optional external package backend; upstream package owns its checkpoint behavior.
 - `lavasr-compat`: LavaSR v2 BWE weight download and verification are wired; self-contained inference is still pending.
 
+Single-model backends can omit `--model-name`. Multi-model backends, such as `audiosr`, should pass the desired model explicitly.
+
 Run the optional AudioSR model backend:
 
 ```sh

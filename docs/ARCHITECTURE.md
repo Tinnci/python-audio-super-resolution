@@ -46,6 +46,8 @@ If `chunked=True`, `AudioSuperResolver.enhance()` reads overlapping chunks, appl
 
 Backends can expose static `ModelSpec` records through `model_specs()`. The model catalog converts those specs into `ModelInfo` records for `--list-models` and the Python API. This keeps model metadata close to the backend that owns validation and inference behavior.
 
+Model selection is strict when a model name is provided. `find_model_spec()` returns the only model for a single-model backend when no model name is provided, but an explicitly provided unknown name fails even for single-model backends. This keeps typos from silently selecting the wrong checkpoint.
+
 Self-contained model backends should keep responsibilities separated:
 
 - `specs` defines static model metadata and support boundaries.
