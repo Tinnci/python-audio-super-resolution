@@ -12,7 +12,7 @@
 
 Audio Super Resolution is a Python package for improving low-resolution audio by increasing sample rate and reconstructing high-frequency detail with pluggable enhancement backends.
 
-The initial package provides a clean CLI, Python API, and Pixi-managed development environment for AudioSR-style workflows. Model backends can be added behind the same interface without changing downstream scripts.
+The package provides a clean CLI, Python API, and Pixi-managed development environment for AudioSR-style workflows. Model backends can be added behind the same interface without changing downstream scripts.
 
 <details>
 <summary align="center"><b>Table of Contents</b></summary>
@@ -43,19 +43,12 @@ The initial package provides a clean CLI, Python API, and Pixi-managed developme
 
 ## Features
 
-- Enhance audio to a target sample rate from the command line.
-- Process a single file or batch process directories.
-- Recursively scan audio folders while preserving relative output paths.
-- Supports common audio formats handled by libsndfile, including WAV, FLAC, and OGG.
-- Provides a Python API for batch processing and integration into larger pipelines.
-- Exposes shared inference configuration for device, precision, chunking, seed, and model cache.
-- Can process long files in overlapping chunks when explicitly enabled.
-- Supports optional low-pass preprocessing before model inference.
-- Includes objective audio quality checks for sample rate, duration drift, clipping, and peak level.
-- Writes standalone JSON quality report artifacts.
-- Writes and compares JSON manifests for regression checks.
-- Uses a backend abstraction so model-based AudioSR implementations can be added cleanly.
-- Managed with Pixi for reproducible development tasks and dependencies.
+- CLI and Python API for single files, directory batches, and recursive path-preserving runs.
+- Pluggable backend registry with a deterministic `sinc-resample` baseline, optional external AudioSR support, and managed LavaSR-compatible weight metadata.
+- Shared inference configuration for device, precision, chunking, seeds, preprocessing, and model cache paths.
+- JSON run manifests, manifest comparison, and standalone quality reports for regression workflows.
+- Explicit managed-weight resolution with local manifests, SHA256 verification, and opt-in Hugging Face downloads.
+- Pixi-managed development tasks for reproducible test, lint, format, and build commands.
 
 ## Installation
 
@@ -73,11 +66,16 @@ cd python-audio-super-resolution
 pixi install
 ```
 
-AudioSR model inference is optional because it pulls in heavy ML dependencies:
+Optional model and weight features are split into extras so the baseline package stays lightweight:
 
 ```sh
 pip install "audio-super-resolution[audiosr] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
+pip install "audio-super-resolution[weights] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
+pip install "audio-super-resolution[download] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
+pip install "audio-super-resolution[lavasr,download] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
 ```
+
+Use `audiosr` for the external AudioSR wrapper, `download` for Hugging Face weight downloads, `weights` for optional safetensors support, and `lavasr` for the self-contained LavaSR-compatible runtime path.
 
 For local development with the optional AudioSR backend:
 
@@ -157,6 +155,38 @@ audio-super-res --list-models
 audio-super-res --list-models --list-filter speech --list-format json
 ```
 
+Model listings include implementation type, domain, target sample rate, maturity, and weight metadata when the backend exposes it.
+
+Managed weight downloads are explicit. Normal enhancement uses local verified files only unless `--download-weights` is provided:
+
+```sh
+audio-super-res \
+  --backend lavasr-compat \
+  --model-name lavasr-v2-bwe \
+  --download-weights \
+  --prepare-model-cache
+
+audio-super-res \
+  --backend lavasr-compat \
+  --model-name lavasr-v2-bwe \
+  --verify-weights
+```
+
+You can also point to an existing manifest:
+
+```sh
+audio-super-res input.wav output.wav \
+  --backend lavasr-compat \
+  --target-sr 48000 \
+  --weights-manifest C:\path\to\lavasr-v2-bwe\manifest.json
+```
+
+Current backend status:
+
+- `sinc-resample`: default deterministic baseline.
+- `audiosr`: optional external package backend; upstream package owns its checkpoint behavior.
+- `lavasr-compat`: LavaSR v2 BWE weight download and verification are wired; self-contained inference is still pending.
+
 Run the optional AudioSR model backend:
 
 ```sh
@@ -169,7 +199,7 @@ audio-super-res input.wav output.wav \
   --guidance-scale 3.5
 ```
 
-The AudioSR backend currently writes 48000 Hz audio and supports `basic` and `speech` models. Checkpoints are downloaded through Hugging Face into the configured model cache path.
+The AudioSR backend writes 48000 Hz audio and supports `basic` and `speech` models.
 
 Apply optional low-pass preprocessing before enhancement:
 
@@ -362,13 +392,11 @@ docker run --rm -v "$PWD":/workdir audio-super-resolution input.wav output.wav -
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the staged plan. The short version:
+See [ROADMAP.md](ROADMAP.md) for the current implementation plan. The active work is:
 
-- Stabilize the CLI/API contract around files, directories, and backend selection.
-- Add model-backed AudioSR inference behind the existing backend interface.
-- Add model discovery, objective quality metrics, batch manifests, and JSON quality artifacts.
-- Add manifest regression checks and optional preprocessing for model-backed runs.
-- Publish release artifacts once the first model backend is usable.
+- Complete LavaSR-compatible self-contained inference on top of the managed weight store.
+- Add golden-sample validation against source implementations for compatible backends.
+- Validate optional real-weight integrations before release-facing notebooks and GPU images.
 
 ## Development
 
@@ -392,7 +420,7 @@ Build the package:
 pixi run build
 ```
 
-Run optional real AudioSR integration tests only when you explicitly want model inference and possible weight downloads:
+Run optional real AudioSR integration tests only when you explicitly want model inference and upstream checkpoint handling:
 
 ```sh
 set AUDIO_SUPER_RESOLUTION_RUN_AUDIOSR_INTEGRATION=1
