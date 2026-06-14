@@ -4,9 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows semantic versioning once published to PyPI.
 
+## Unreleased
+
+- Added offline LavaSR v2 bundle validation with optional PyYAML fallback parsing.
+- Added an experimental self-contained LavaSR-compatible torch runtime with Vocos-style modules and strict checkpoint loading.
+- Wired `lavasr-compat` past verified local weights into the experimental runtime while keeping provider downloads outside backend inference.
+- Removed PyYAML from the `lavasr` extra; the extra now only provides the torch runtime dependency.
+- Updated roadmap and release documentation for the completed `v0.1.x` release flow and active `v0.2.0` work.
+
 ## 0.1.1
 
 - Fixed Python 3.10 import compatibility by replacing Python 3.11-only `datetime.UTC` usage.
+- Superseded the yanked `0.1.0` PyPI files as the current public alpha baseline.
 
 ## 0.1.0
 

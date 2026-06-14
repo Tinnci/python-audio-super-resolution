@@ -24,7 +24,7 @@ Also confirm:
 Trigger a GitHub Release only after the matching milestone gates in [ROADMAP.md](../ROADMAP.md) are satisfied.
 
 1. Confirm PyPI trusted publishing is configured for this repository.
-2. Create a version tag such as `v0.1.0`.
+2. Create a version tag such as `v0.2.0`.
 3. Push the tag to GitHub.
 4. Create a GitHub release from the tag.
 5. The release workflow builds with Pixi and publishes through `pypa/gh-action-pypi-publish`.
@@ -37,9 +37,9 @@ The release workflow already uses PyPI Trusted Publishing / GitHub OIDC:
 - The publish job uses the `pypi` GitHub environment.
 - `pypa/gh-action-pypi-publish` is called without a password or API token.
 
-Because the package has not been created on PyPI yet, configure a pending trusted publisher from the PyPI account publishing page before the first release. Do not create a long-lived API token for this repository.
+The first public package has already been created on PyPI, so this repository should keep using the active trusted publisher rather than adding a long-lived API token.
 
-Pending publisher settings:
+Expected publisher settings:
 
 - Project name: `audio-super-resolution`
 - Publisher: GitHub Actions
@@ -48,10 +48,11 @@ Pending publisher settings:
 - Workflow: `release.yml`
 - Environment: `pypi`
 
-When the first GitHub release runs successfully, PyPI will create the project from that pending publisher and bind future releases to the trusted publisher. This repository cannot verify the PyPI-side configuration; confirm it in PyPI before tagging the first public release.
+Confirm these settings in PyPI before tagging if the release workflow, repository owner, repository name, or publishing environment changes.
 
 ## Records And Artifacts
 
-- Current dry-run record: [RELEASE_DRY_RUN_0.1.0.md](RELEASE_DRY_RUN_0.1.0.md)
+- Historical first-release dry-run record: [RELEASE_DRY_RUN_0.1.0.md](RELEASE_DRY_RUN_0.1.0.md)
+- Current release scope and milestone gates: [ROADMAP.md](../ROADMAP.md)
 - Sample release artifacts: [examples/artifacts/](../examples/artifacts/)
 - Docker usage: [README.md](../README.md#docker)

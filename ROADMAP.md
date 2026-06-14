@@ -1,52 +1,48 @@
 # Roadmap
 
-The package is already usable through the deterministic `sinc-resample` backend. Model-backed inference is being added behind the same CLI/API surface so baseline workflows stay lightweight, offline, and testable.
+The package has a stable lightweight baseline and is adding model-backed inference behind the same CLI/API surface. The default path must remain offline, deterministic, and small.
 
-## Implemented
+## Current Baseline
 
-- CLI and Python API for single-file runs, recursive batches, dry runs, and output planning.
-- Backend registry, model metadata specs, backend/model listing, and strict model selection.
-- Baseline `sinc-resample` backend and optional external `audiosr` wrapper.
-- Managed weight infrastructure: multi-file manifests, path safety, size/SHA256 verification, explicit Hugging Face downloads, and local cache resolution.
-- Regression helpers: manifests, manifest comparison, quality reports, low-pass preprocessing, and chunked processing.
-- Maintenance infrastructure: Pixi tasks, CPU Dockerfile, GitHub workflows, release notes, architecture docs, and sample JSON artifacts.
+- `sinc-resample` is the default backend and works without model weights or network access.
+- `audiosr` is available as an optional external-package backend; its checkpoint behavior is upstream-controlled.
+- Managed weight infrastructure is implemented: multi-file manifests, path safety, size/SHA256 verification, explicit Hugging Face downloads, and verified local cache resolution.
+- Regression helpers are implemented: run manifests, manifest comparison, quality reports, preprocessing, chunking, and sample JSON artifacts.
+- Release automation uses GitHub Actions with PyPI Trusted Publishing / OIDC.
 
-## v0.1.0 Milestone
+## Completed: v0.1.x
 
-Goal: publish the first public alpha package with the lightweight baseline workflow and verified release automation.
+`v0.1.0` shipped the first public alpha baseline. Its PyPI files were yanked after `v0.1.1` replaced it with Python 3.10-compatible metadata/code.
 
-Release scope:
+`v0.1.1` is the current published baseline:
 
-- Ship the `sinc-resample` baseline CLI/API path.
-- Ship optional external AudioSR wiring as an opt-in backend.
-- Ship managed weight metadata, verification, and explicit download plumbing.
-- Publish through PyPI Trusted Publishing / GitHub OIDC.
-- Document known limitations clearly: `lavasr-compat` can manage weights, but self-contained inference is not implemented yet.
+- PyPI install and CLI smoke test were validated on Python 3.10.
+- The `v0.1.0` milestone is closed.
+- First-release dry-run notes remain in [docs/RELEASE_DRY_RUN_0.1.0.md](docs/RELEASE_DRY_RUN_0.1.0.md) as historical release evidence.
 
-Release gates:
+## Active: v0.2.0
 
-- `pixi run lint`, `pixi run test`, `pixi run build`, and `pixi run python -m pip check` pass locally and in CI where applicable.
-- PyPI pending trusted publisher is configured for `audio-super-resolution`.
-- GitHub `pypi` environment exists and is intentionally allowed to publish.
-- README, changelog, release checklist, and sample artifacts match the package behavior.
-- After release, `pip install audio-super-resolution` works from PyPI and the default CLI smoke test runs.
+Goal: make the first self-contained compatible model backend useful enough to validate with real weights.
 
-Non-goals for `v0.1.0`:
+Tracked work:
 
-- Self-contained LavaSR inference.
-- Real-weight LavaSR smoke tests.
-- Published Colab notebook.
-- CUDA/GPU Docker image.
+- `#16` Implement `lavasr-compat` self-contained inference.
+- `#17` Add golden-sample validation for compatible backends.
+- `#18` Add gated real-weight model validation.
+- `#19` Publish validated Colab and GPU documentation.
 
-## Post-v0.1.0 Work
+Current `lavasr-compat` status:
 
-Tracked under the `v0.2.0` milestone:
+- LavaSR v2 BWE model spec and managed weight metadata are implemented.
+- Local bundle validation checks config metadata and required checkpoint key layout without importing torch.
+- A self-contained torch runtime is wired experimentally: mel features, Vocos-style ConvNeXt backbone, ISTFT head, strict state-dict loading, and low/high-frequency merge.
 
-1. Implement `lavasr-compat` self-contained inference using the verified LavaSR v2 BWE files.
-2. Add golden-sample checks against source implementations for compatible self-contained backends.
-3. Validate optional real-weight AudioSR and LavaSR paths on suitable hardware.
-4. Convert the Colab plan into an executable notebook after real model validation.
-5. Add GPU Docker documentation only after a CUDA image has been tested.
+Remaining before marking `lavasr-compat` stable:
+
+- Run gated real-weight download/load/inference smoke tests.
+- Compare output against upstream LavaSR/Vocos on golden samples.
+- Add exactness tests for any mel/STFT behavior that differs from the reference implementation.
+- Document Colab/GPU usage only after real model validation passes.
 
 ## Candidate Backends
 
@@ -54,7 +50,7 @@ Tracked under the `v0.2.0` milestone:
 | --- | --- |
 | `sinc-resample` | Implemented deterministic baseline. |
 | `audiosr` | Implemented optional external AudioSR wrapper. |
-| `lavasr-compat` | Next self-contained speech BWE target; weights are managed, inference pending. |
+| `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight/golden validation pending. |
 | `mossformer-sr-compat` | Future speech super-resolution candidate. |
 | `nuwave` | Future diffusion-based bandwidth extension candidate. |
 | custom backend | User-provided backend implementing the package protocol. |

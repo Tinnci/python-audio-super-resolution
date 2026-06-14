@@ -2,6 +2,8 @@
 
 Date: 2026-06-14
 
+Status: historical first-release record. `0.1.0` was published, then both PyPI files were yanked after `0.1.1` superseded it with Python 3.10-compatible code.
+
 ## Local Checks
 
 - `pixi run lint`: passed
@@ -36,4 +38,4 @@ PyPI pending trusted publisher was confirmed by the project owner before the fir
 - Workflow: `release.yml`
 - Environment: `pypi`
 
-The GitHub `pypi` environment exists and is intentionally unprotected for the first alpha publish. The release workflow uses GitHub OIDC and does not require a PyPI API token.
+The GitHub `pypi` environment existed and was intentionally unprotected for the first alpha publish. The release workflow uses GitHub OIDC and does not require a PyPI API token. After the first successful publish, the pending publisher became the active PyPI trusted publisher for the project.
