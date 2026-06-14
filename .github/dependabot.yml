@@ -4,8 +4,58 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "docker"
+    groups:
+      docker:
+        patterns:
+          - "*"
+
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    versioning-strategy: "increase-if-necessary"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      runtime-dependencies:
+        patterns:
+          - "numpy"
+          - "scipy"
+          - "soundfile"
+          - "tqdm"
+          - "audiosr"
+          - "safetensors"
+          - "huggingface-hub"
+          - "torch"
+      packaging-and-dev:
+        patterns:
+          - "hatchling"
+          - "pytest"
+          - "pytest-cov"
+          - "ruff"
