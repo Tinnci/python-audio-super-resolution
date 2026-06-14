@@ -22,5 +22,8 @@ This project follows semantic versioning once published to PyPI.
 - Added JSON manifests for dry-run plans and completed enhancement runs.
 - Added manifest regression comparison through `--compare-manifests`.
 - Added optional low-pass preprocessing for model-backed enhancement runs.
+- Added managed weight manifests, local cache verification, and explicit Hugging Face download plumbing.
+- Added LavaSR-compatible managed weight metadata while keeping self-contained LavaSR inference marked as pending.
+- Added PyPI Trusted Publishing / GitHub OIDC release workflow configuration.
 - Added release dry-run notes, a Colab plan, and sample JSON artifacts.
 - Added GitHub issue templates, Dependabot configuration, CodeQL security workflow, and architecture/test documentation.

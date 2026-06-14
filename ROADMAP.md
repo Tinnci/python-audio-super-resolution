@@ -38,14 +38,15 @@ Non-goals for `v0.1.0`:
 - Published Colab notebook.
 - CUDA/GPU Docker image.
 
-## Active Work
+## Post-v0.1.0 Work
+
+Tracked under the `v0.2.0` milestone:
 
 1. Implement `lavasr-compat` self-contained inference using the verified LavaSR v2 BWE files.
 2. Add golden-sample checks against source implementations for compatible self-contained backends.
 3. Validate optional real-weight AudioSR and LavaSR paths on suitable hardware.
 4. Convert the Colab plan into an executable notebook after real model validation.
 5. Add GPU Docker documentation only after a CUDA image has been tested.
-6. Confirm PyPI trusted publishing before the first public release tag.
 
 ## Candidate Backends
 

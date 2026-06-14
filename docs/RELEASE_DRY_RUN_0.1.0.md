@@ -13,6 +13,10 @@ Date: 2026-06-14
 
 - CI workflow on `main`: passed
 - Security workflow on `main`: passed
+- Latest checked remote workflow commit before this release-prep update: `a2e1350`
+- Latest checked remote workflows:
+  - CI: https://github.com/Tinnci/python-audio-super-resolution/actions/runs/27491044239
+  - Security: https://github.com/Tinnci/python-audio-super-resolution/actions/runs/27491044218
 
 ## Artifacts
 
@@ -24,7 +28,7 @@ Date: 2026-06-14
 
 ## External Release Setup
 
-PyPI trusted publishing must be confirmed in PyPI by a project owner before the first public publish:
+PyPI pending trusted publisher was confirmed by the project owner before the first public publish:
 
 - Project name: `audio-super-resolution`
 - Owner: `Tinnci`
@@ -32,4 +36,4 @@ PyPI trusted publishing must be confirmed in PyPI by a project owner before the 
 - Workflow: `release.yml`
 - Environment: `pypi`
 
-This cannot be verified from the repository alone.
+The GitHub `pypi` environment exists and is intentionally unprotected for the first alpha publish. The release workflow uses GitHub OIDC and does not require a PyPI API token.
