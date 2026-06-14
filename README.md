@@ -207,8 +207,9 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 - [ROADMAP.md](ROADMAP.md): current status and next implementation work.
 - [CHANGELOG.md](CHANGELOG.md): release history and unreleased changes.
 - [docs/GOLDEN.md](docs/GOLDEN.md): golden-sample fixture format and comparison metrics.
+- [docs/MODEL_ADMISSION.md](docs/MODEL_ADMISSION.md): model candidate gates and scorecard API.
 - [docs/RELEASE.md](docs/RELEASE.md): release checklist and publishing notes.
-- [docs/COLAB.md](docs/COLAB.md): draft notebook plan gated on real model validation.
+- [docs/COLAB.md](docs/COLAB.md): repository-based Colab/GPU validation guide.
 - [tests/README.md](tests/README.md): default and optional test strategy.
 - [examples/](examples/): Python examples and sample JSON artifacts.
 

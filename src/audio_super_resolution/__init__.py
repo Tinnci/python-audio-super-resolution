@@ -1,5 +1,11 @@
 """Audio super-resolution tools for Python."""
 
+from .admission import (
+    ModelAdmissionCriterion,
+    ModelAdmissionReport,
+    evaluate_model_admission,
+    model_admission_report_to_dict,
+)
 from .audiosr_backend import AUDIOSR_MODEL_NAMES, AUDIOSR_SAMPLE_RATE, AudiosrBackend
 from .backends import register_backend, registered_backend_types
 from .config import InferenceConfig, default_model_cache_dir
@@ -100,6 +106,8 @@ __all__ = [
     "ManifestComparison",
     "ManifestDifference",
     "ModelInfo",
+    "ModelAdmissionCriterion",
+    "ModelAdmissionReport",
     "ModelSpec",
     "PlannedEnhancement",
     "ResolvedWeights",
@@ -119,6 +127,7 @@ __all__ = [
     "download_model_weights",
     "download_model_weights_for_spec",
     "download_weights_for_spec",
+    "evaluate_model_admission",
     "find_model_spec",
     "format_manifest_comparison",
     "format_quality_report",
@@ -132,6 +141,7 @@ __all__ = [
     "load_safetensors",
     "lowpass_filter",
     "manifest_comparison_to_dict",
+    "model_admission_report_to_dict",
     "plan_enhancements",
     "quality_report_to_dict",
     "golden_report_to_dict",

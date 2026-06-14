@@ -58,6 +58,8 @@ Model specs should describe stable comparison facts without importing heavy runt
 
 Provider-specific accelerator routing belongs below the catalog in the future runtime-provider layer. The catalog may report declared support, but it should not import CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, ONNX Runtime, or other SDKs merely to list models.
 
+Candidate admission rules and scorecard usage live in [MODEL_ADMISSION.md](MODEL_ADMISSION.md).
+
 ## Weight Management
 
 Default inference is offline. Missing weights should fail with a command that tells the user how to explicitly download and verify the selected model.

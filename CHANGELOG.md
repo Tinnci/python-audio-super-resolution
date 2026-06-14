@@ -20,6 +20,7 @@ This project follows semantic versioning once published to PyPI.
 - Added `v0.4.0` planning scope for accelerator capability metadata, runtime providers, gated hardware benchmarks, accelerator install docs, and LavaSR optimized export paths.
 - Replaced the Colab draft with a repository-based LavaSR/GPU validation guide and evidence checklist.
 - Expanded model catalog metadata for backend comparison, including task/domain, input-rate metadata, I/O capabilities, accelerator declarations, weight size/source/license, validation evidence, recommended use, and limitations.
+- Added model admission criteria documentation and a public scorecard API for catalog and self-contained backend candidates.
 
 ## 0.1.1
 
