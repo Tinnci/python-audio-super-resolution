@@ -36,10 +36,11 @@ Current `lavasr-compat` status:
 - LavaSR v2 BWE model spec and managed weight metadata are implemented.
 - Local bundle validation checks config metadata and required checkpoint key layout without importing torch.
 - A self-contained torch runtime is wired experimentally: mel features, Vocos-style ConvNeXt backbone, ISTFT head, strict state-dict loading, and low/high-frequency merge.
+- Real LavaSR v2 BWE download and bundle verification has passed through the gated integration test.
 
 Remaining before marking `lavasr-compat` stable:
 
-- Run the gated real-weight download/load/inference tests in an environment with `download` and `lavasr` extras installed.
+- Run the gated torch inference smoke test in an environment with the `lavasr` extra installed.
 - Use the golden fixture framework to compare LavaSR output against upstream LavaSR/Vocos samples.
 - Add exactness tests for any mel/STFT behavior that differs from the reference implementation.
 - Document Colab/GPU usage only after real model validation passes.
