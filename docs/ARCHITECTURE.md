@@ -117,6 +117,7 @@ Key weight commands:
 ## Maintenance Policy
 
 - Default tests must stay lightweight, CPU-friendly, and offline. See [tests/README.md](../tests/README.md).
+- Model maturity and milestone state live in [ROADMAP.md](../ROADMAP.md); this document owns architecture boundaries.
 - Release steps live in [RELEASE.md](RELEASE.md).
 - User-facing commands and examples live in [README.md](../README.md) and [examples/](../examples/).
 - Future notebooks and GPU images should be documented only after real model validation.

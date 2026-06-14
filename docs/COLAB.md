@@ -1,6 +1,6 @@
-# Colab Plan
+# Colab Draft
 
-This is a draft plan for a future notebook. Publish it only after the optional AudioSR backend has been validated with real model weights on a fresh Colab runtime.
+This is not a published notebook. Keep it as a short implementation draft until the relevant [roadmap](../ROADMAP.md) validation gates pass on a fresh Colab runtime.
 
 ## Notebook Goals
 
@@ -47,4 +47,4 @@ files.download("quality.json")
 - Confirm generated output is non-empty and 48000 Hz.
 - Confirm manifest and quality report are valid JSON.
 - Confirm runtime notes mention that AudioSR dependencies are heavier than the baseline package.
-- Confirm any `lavasr-compat` notebook path is marked experimental until real-weight and golden-sample validation pass.
+- Mark any `lavasr-compat` path as experimental until real-weight and golden-sample validation pass.

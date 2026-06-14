@@ -6,7 +6,7 @@ The default suite is lightweight, CPU-friendly, and offline:
 pixi run test
 ```
 
-It covers the baseline CLI/API path, backend and model discovery, manifests, quality reports, preprocessing, chunking, weight manifest validation, fake-provider downloads, device discovery, and release example artifacts.
+It covers the baseline CLI/API path, backend and model discovery, manifests, quality reports, preprocessing, chunking, weight manifest validation, fake-provider downloads, LavaSR metadata validation, device discovery, and release example artifacts.
 
 ## Policy
 
@@ -15,6 +15,7 @@ It covers the baseline CLI/API path, backend and model discovery, manifests, qua
 - Use generated audio fixtures in temporary directories instead of committing large binary files.
 - Keep provider tests mocked unless they are explicitly gated by an environment variable.
 - Keep optional model inference tests separate from the default suite.
+- Keep torch-dependent LavaSR runtime tests skipped unless torch is installed.
 
 ## Optional Integrations
 

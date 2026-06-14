@@ -23,10 +23,22 @@ The baseline package stays lightweight: normal inference is offline, model downl
 
 ## Installation
 
-Install from GitHub:
+Install from PyPI:
 
 ```sh
-pip install git+https://github.com/Tinnci/python-audio-super-resolution.git
+pip install audio-super-resolution
+```
+
+Install optional model/runtime extras only when needed:
+
+```sh
+pip install "audio-super-resolution[lavasr,download]"
+```
+
+Install the unreleased repository version from GitHub:
+
+```sh
+pip install "audio-super-resolution @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
 ```
 
 For local development:
@@ -46,7 +58,7 @@ Optional extras:
 | `weights` | Optional safetensors loading helpers. |
 | `lavasr` | Torch runtime for the experimental LavaSR-compatible backend. |
 
-Example:
+GitHub install with optional extras:
 
 ```sh
 pip install "audio-super-resolution[lavasr,download] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
@@ -189,7 +201,9 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): package layers, backend contract, and weight-management boundaries.
 - [ROADMAP.md](ROADMAP.md): current status and next implementation work.
+- [CHANGELOG.md](CHANGELOG.md): release history and unreleased changes.
 - [docs/RELEASE.md](docs/RELEASE.md): release checklist and publishing notes.
+- [docs/COLAB.md](docs/COLAB.md): draft notebook plan gated on real model validation.
 - [tests/README.md](tests/README.md): default and optional test strategy.
 - [examples/](examples/): Python examples and sample JSON artifacts.
 
