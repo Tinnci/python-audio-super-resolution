@@ -30,7 +30,7 @@ Tracked work:
 - `#16` Implement `lavasr-compat` self-contained inference. Completed: self-contained torch inference runs with real LavaSR v2 BWE weights.
 - `#17` Add golden-sample validation for compatible backends. Completed: fixture format, metrics, docs, and offline tests are available.
 - `#18` Add gated real-weight model validation. Completed: gated LavaSR download verification and torch smoke tests are available.
-- `#19` Publish validated Colab and GPU documentation.
+- `#19` Publish validated Colab and GPU documentation. In progress: repository-based Colab/GPU validation guide is available.
 - `#25` Add LavaSR upstream golden parity validation. Completed: gated upstream LavaSR/Vocos parity harness passed locally with the same verified weights.
 
 Current `lavasr-compat` status:
@@ -44,7 +44,7 @@ Current `lavasr-compat` status:
 
 Remaining before closing `v0.2.0`:
 
-- Publish validated Colab/GPU usage docs in `#19`.
+- Record a fresh Colab or GPU runtime validation result in `#19`.
 
 Remaining before marking `lavasr-compat` stable:
 
