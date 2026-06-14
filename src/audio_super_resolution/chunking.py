@@ -50,22 +50,10 @@ def write_crossfaded_chunks(
     writer: sf.SoundFile | None = None
 
     try:
-        for chunk in chunks:
-            chunk = _ensure_2d_audio(chunk)
-            if writer is None:
-                writer = sf.SoundFile(output, mode="w", samplerate=sample_rate, channels=chunk.shape[1])
-            elif chunk.shape[1] != writer.channels:
-                raise ValueError("all enhanced chunks must have the same channel count")
-
-            if overlap_frames == 0:
-                writer.write(chunk)
-                continue
-
-            if pending is None:
-                pending = _write_all_but_tail(writer, chunk, overlap_frames)
-                continue
-
-            pending = _write_with_crossfade(writer, pending, chunk, overlap_frames)
+        for raw_chunk in chunks:
+            chunk = _ensure_2d_audio(raw_chunk)
+            writer = _open_or_validate_writer(writer, output, sample_rate, chunk)
+            pending = _write_next_chunk(writer, pending, chunk, overlap_frames)
 
         if writer is None:
             raise ValueError("no chunks were produced")
@@ -76,6 +64,33 @@ def write_crossfaded_chunks(
             writer.close()
 
     return output
+
+
+def _open_or_validate_writer(
+    writer: sf.SoundFile | None,
+    output_path: Path,
+    sample_rate: int,
+    chunk: np.ndarray,
+) -> sf.SoundFile:
+    if writer is None:
+        return sf.SoundFile(output_path, mode="w", samplerate=sample_rate, channels=chunk.shape[1])
+    if chunk.shape[1] != writer.channels:
+        raise ValueError("all enhanced chunks must have the same channel count")
+    return writer
+
+
+def _write_next_chunk(
+    writer: sf.SoundFile,
+    pending: np.ndarray | None,
+    chunk: np.ndarray,
+    overlap_frames: int,
+) -> np.ndarray | None:
+    if overlap_frames == 0:
+        writer.write(chunk)
+        return pending
+    if pending is None:
+        return _write_all_but_tail(writer, chunk, overlap_frames)
+    return _write_with_crossfade(writer, pending, chunk, overlap_frames)
 
 
 def validate_chunking_options(chunk_seconds: float, overlap_seconds: float) -> None:
@@ -137,4 +152,4 @@ def _ensure_2d_audio(audio: np.ndarray) -> np.ndarray:
 
 
 def _seconds_to_frames(seconds: float, sample_rate: int) -> int:
-    return max(1, int(round(seconds * sample_rate)))
+    return max(1, round(seconds * sample_rate))

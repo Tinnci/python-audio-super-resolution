@@ -54,26 +54,14 @@ class InferenceConfig:
         model_cache_dir = Path(self.model_cache_dir).expanduser()
         weights_manifest = Path(self.weights_manifest).expanduser() if self.weights_manifest is not None else None
 
-        if device not in VALID_DEVICES:
-            raise ValueError(f"device must be one of: {', '.join(VALID_DEVICES)}")
-        if precision not in VALID_PRECISIONS:
-            raise ValueError(f"precision must be one of: {', '.join(VALID_PRECISIONS)}")
-        if preprocess not in VALID_PREPROCESSING_MODES:
-            raise ValueError(f"preprocess must be one of: {', '.join(VALID_PREPROCESSING_MODES)}")
-        if self.chunk_seconds <= 0:
-            raise ValueError("chunk_seconds must be greater than zero")
-        if self.overlap_seconds < 0:
-            raise ValueError("overlap_seconds must be greater than or equal to zero")
-        if self.overlap_seconds >= self.chunk_seconds:
-            raise ValueError("overlap_seconds must be less than chunk_seconds")
-        if self.ddim_steps <= 0:
-            raise ValueError("ddim_steps must be greater than zero")
-        if self.guidance_scale <= 0:
-            raise ValueError("guidance_scale must be greater than zero")
-        if self.lowpass_cutoff_hz is not None and self.lowpass_cutoff_hz <= 0:
-            raise ValueError("lowpass_cutoff_hz must be greater than zero")
-        if self.lowpass_order <= 0:
-            raise ValueError("lowpass_order must be greater than zero")
+        _validate_choice("device", device, VALID_DEVICES)
+        _validate_choice("precision", precision, VALID_PRECISIONS)
+        _validate_choice("preprocess", preprocess, VALID_PREPROCESSING_MODES)
+        _validate_chunk_options(self.chunk_seconds, self.overlap_seconds)
+        _validate_positive("ddim_steps", self.ddim_steps)
+        _validate_positive("guidance_scale", self.guidance_scale)
+        _validate_optional_positive("lowpass_cutoff_hz", self.lowpass_cutoff_hz)
+        _validate_positive("lowpass_order", self.lowpass_order)
 
         object.__setattr__(self, "device", device)
         object.__setattr__(self, "precision", precision)
@@ -111,3 +99,27 @@ class InferenceConfig:
             "weight_revision": self.weight_revision,
             "denoise": self.denoise,
         }
+
+
+def _validate_choice(name: str, value: str, choices: tuple[str, ...]) -> None:
+    if value not in choices:
+        raise ValueError(f"{name} must be one of: {', '.join(choices)}")
+
+
+def _validate_chunk_options(chunk_seconds: float, overlap_seconds: float) -> None:
+    if chunk_seconds <= 0:
+        raise ValueError("chunk_seconds must be greater than zero")
+    if overlap_seconds < 0:
+        raise ValueError("overlap_seconds must be greater than or equal to zero")
+    if overlap_seconds >= chunk_seconds:
+        raise ValueError("overlap_seconds must be less than chunk_seconds")
+
+
+def _validate_positive(name: str, value: float | int) -> None:
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than zero")
+
+
+def _validate_optional_positive(name: str, value: float | None) -> None:
+    if value is not None:
+        _validate_positive(name, value)

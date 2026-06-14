@@ -95,7 +95,7 @@ def test_download_model_weights_cleans_temp_and_preserves_existing_cache_on_fail
     (output_dir / "sentinel.txt").write_text("keep", encoding="utf-8")
 
     register_weight_provider("fake", BadProvider, replace=True)
-    with pytest.raises(ValueError, match="weight (hash|size) mismatch"):
+    with pytest.raises(ValueError, match=r"weight (hash|size) mismatch"):
         download_model_weights(spec, cache_dir=tmp_path / "cache", force=True)
 
     assert (output_dir / "sentinel.txt").read_text(encoding="utf-8") == "keep"

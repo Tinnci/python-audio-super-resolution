@@ -6,8 +6,9 @@ from pathlib import Path
 from .config import InferenceConfig, default_model_cache_dir
 from .downloads import download_weights_for_spec
 from .models import find_model_spec, get_model_spec
-from .specs import ModelSpec
+from .specs import ModelSpec, WeightFileSpec
 from .weights import (
+    WeightFile,
     WeightManifest,
     resolve_manifest_file_paths,
     validate_weight_file_path,
@@ -115,11 +116,18 @@ def validate_weight_manifest_matches_spec(manifest: WeightManifest, spec: ModelS
     if manifest.id != spec.id:
         raise ValueError(f"weight manifest id mismatch: expected {spec.id!r}, got {manifest.id!r}")
 
+    _validate_manifest_metadata(manifest, spec)
+    _validate_manifest_files(manifest, spec)
+
+
+def _validate_manifest_metadata(manifest: WeightManifest, spec: ModelSpec) -> None:
     _validate_optional_match("provider", manifest.provider, spec.weight_provider)
     _validate_optional_match("source", manifest.source, spec.weights_source)
     _validate_optional_match("architecture", manifest.architecture, spec.architecture)
     _validate_optional_match("target_sample_rate", manifest.target_sample_rate, spec.target_sample_rate)
 
+
+def _validate_manifest_files(manifest: WeightManifest, spec: ModelSpec) -> None:
     expected_files = {validate_weight_file_path(file_spec.path): file_spec for file_spec in spec.weight_files}
     if not expected_files:
         return
@@ -130,23 +138,32 @@ def validate_weight_manifest_matches_spec(manifest: WeightManifest, spec: ModelS
         raise ValueError(f"weight manifest is missing required files for {spec.id!r}: {', '.join(missing)}")
 
     for file_path, expected_file in expected_files.items():
-        actual_file = actual_files[file_path]
-        if expected_file.sha256 is not None:
-            if actual_file.sha256 is None:
-                raise ValueError(f"weight manifest is missing sha256 for required file {file_path!r}")
-            if actual_file.sha256.lower() != expected_file.sha256.lower():
-                raise ValueError(
-                    f"weight manifest sha256 mismatch for {file_path!r}: "
-                    f"expected {expected_file.sha256}, got {actual_file.sha256}"
-                )
-        if expected_file.size is not None:
-            if actual_file.size is None:
-                raise ValueError(f"weight manifest is missing size for required file {file_path!r}")
-            if actual_file.size != expected_file.size:
-                raise ValueError(
-                    f"weight manifest size mismatch for {file_path!r}: "
-                    f"expected {expected_file.size}, got {actual_file.size}"
-                )
+        _validate_manifest_file_metadata(file_path, expected_file, actual_files[file_path])
+
+
+def _validate_manifest_file_metadata(file_path: str, expected_file: WeightFileSpec, actual_file: WeightFile) -> None:
+    if expected_file.sha256 is not None:
+        _validate_required_sha256(file_path, expected_file.sha256, actual_file.sha256)
+    if expected_file.size is not None:
+        _validate_required_size(file_path, expected_file.size, actual_file.size)
+
+
+def _validate_required_sha256(file_path: str, expected_sha256: str, actual_sha256: str | None) -> None:
+    if actual_sha256 is None:
+        raise ValueError(f"weight manifest is missing sha256 for required file {file_path!r}")
+    if actual_sha256.lower() != expected_sha256.lower():
+        raise ValueError(
+            f"weight manifest sha256 mismatch for {file_path!r}: expected {expected_sha256}, got {actual_sha256}"
+        )
+
+
+def _validate_required_size(file_path: str, expected_size: int, actual_size: int | None) -> None:
+    if actual_size is None:
+        raise ValueError(f"weight manifest is missing size for required file {file_path!r}")
+    if actual_size != expected_size:
+        raise ValueError(
+            f"weight manifest size mismatch for {file_path!r}: expected {expected_size}, got {actual_size}"
+        )
 
 
 def _resolve_manifest_path(path: str | Path, *, spec: ModelSpec | None = None) -> ResolvedWeights:

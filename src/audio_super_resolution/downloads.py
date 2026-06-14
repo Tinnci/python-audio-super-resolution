@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -93,19 +94,12 @@ def download_weights_for_spec(
 ) -> Path:
     """Download and verify model weights into the model cache directory."""
 
-    if not model_spec.requires_weights:
-        raise ValueError(f"Model {model_spec.id!r} does not require managed weights")
-    if model_spec.weight_provider is None:
-        raise ValueError(f"Model {model_spec.id!r} does not declare a weight provider")
-    if model_spec.weights_source is None:
-        raise ValueError(f"Model {model_spec.id!r} does not declare a weight source")
+    _validate_downloadable_model(model_spec)
 
     cache_root = Path(cache_dir).expanduser()
     cache_root.mkdir(parents=True, exist_ok=True)
     target_dir = cache_root / model_spec.id
-    manifest_path = target_dir / "manifest.json"
-    if manifest_path.is_file() and (target_dir / ".complete").is_file() and not force:
-        verify_weight_manifest_files(WeightManifest.from_dict(_read_json_manifest(manifest_path)), target_dir)
+    if _verified_cache_exists(target_dir, force=force):
         return target_dir
 
     lock_path = cache_root / f".{model_spec.id}.download.lock"
@@ -118,22 +112,9 @@ def download_weights_for_spec(
 
         provider = _build_provider(model_spec)
         manifest = provider.fetch_manifest(model_spec, revision=revision)
-        for file_entry in manifest.file_entries:
-            provider.download_file(
-                file_entry.path,
-                resolve_weight_file_path(temp_dir, file_entry.path),
-                revision=manifest.revision,
-            )
-
-        verify_weight_manifest_files(manifest, temp_dir)
-        write_weight_manifest(temp_dir / "manifest.json", manifest)
-        (temp_dir / ".complete").write_text("ok\n", encoding="utf-8")
-
-        if target_dir.exists():
-            if not force:
-                raise FileExistsError(f"weight cache already exists: {target_dir}")
-            shutil.rmtree(target_dir)
-        temp_dir.rename(target_dir)
+        _download_manifest_files(provider, manifest, temp_dir)
+        _write_verified_cache_manifest(temp_dir, manifest)
+        _publish_verified_cache(temp_dir, target_dir, force=force)
         return target_dir
     except Exception:
         if temp_dir.exists():
@@ -143,6 +124,46 @@ def download_weights_for_spec(
         lock_handle.close()
         if lock_path.exists():
             lock_path.unlink()
+
+
+def _validate_downloadable_model(model_spec: ModelSpec) -> None:
+    if not model_spec.requires_weights:
+        raise ValueError(f"Model {model_spec.id!r} does not require managed weights")
+    if model_spec.weight_provider is None:
+        raise ValueError(f"Model {model_spec.id!r} does not declare a weight provider")
+    if model_spec.weights_source is None:
+        raise ValueError(f"Model {model_spec.id!r} does not declare a weight source")
+
+
+def _verified_cache_exists(target_dir: Path, *, force: bool) -> bool:
+    manifest_path = target_dir / "manifest.json"
+    if not manifest_path.is_file() or not (target_dir / ".complete").is_file() or force:
+        return False
+    verify_weight_manifest_files(WeightManifest.from_dict(_read_json_manifest(manifest_path)), target_dir)
+    return True
+
+
+def _download_manifest_files(provider: WeightProvider, manifest: WeightManifest, temp_dir: Path) -> None:
+    for file_entry in manifest.file_entries:
+        provider.download_file(
+            file_entry.path,
+            resolve_weight_file_path(temp_dir, file_entry.path),
+            revision=manifest.revision,
+        )
+
+
+def _write_verified_cache_manifest(temp_dir: Path, manifest: WeightManifest) -> None:
+    verify_weight_manifest_files(manifest, temp_dir)
+    write_weight_manifest(temp_dir / "manifest.json", manifest)
+    (temp_dir / ".complete").write_text("ok\n", encoding="utf-8")
+
+
+def _publish_verified_cache(temp_dir: Path, target_dir: Path, *, force: bool) -> None:
+    if target_dir.exists():
+        if not force:
+            raise FileExistsError(f"weight cache already exists: {target_dir}")
+        shutil.rmtree(target_dir)
+    temp_dir.rename(target_dir)
 
 
 def download_model_weights(
@@ -173,8 +194,6 @@ def _acquire_lock(path: Path):
 
 
 def _read_json_manifest(path: Path) -> dict[str, object]:
-    import json
-
     loaded = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(loaded, dict):
         raise ValueError("weight manifest root must be a JSON object")

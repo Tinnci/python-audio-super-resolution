@@ -122,7 +122,7 @@ def _waveform_to_audio_array(waveform) -> np.ndarray:
         audio = audio.T
     if audio.ndim == 2 and audio.shape[1] == 1:
         audio = audio[:, 0]
-    if audio.ndim != 1 and audio.ndim != 2:
+    if audio.ndim not in {1, 2}:
         raise ValueError(f"Unsupported AudioSR waveform shape: {audio.shape}")
 
     return audio

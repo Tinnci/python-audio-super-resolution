@@ -156,8 +156,7 @@ def resolve_manifest_file_paths(manifest_path: str | Path, manifest: WeightManif
 
     base_dir = Path(manifest_path).expanduser().parent
     return {
-        file_entry.path: resolve_weight_file_path(base_dir, file_entry.path)
-        for file_entry in manifest.file_entries
+        file_entry.path: resolve_weight_file_path(base_dir, file_entry.path) for file_entry in manifest.file_entries
     }
 
 
@@ -251,9 +250,7 @@ def verify_weight_file(
     if expected_sha256 is not None:
         actual_sha256 = sha256_file(weight_path)
         if actual_sha256.lower() != expected_sha256.lower():
-            raise ValueError(
-                f"weight hash mismatch for {weight_path}: expected {expected_sha256}, got {actual_sha256}"
-            )
+            raise ValueError(f"weight hash mismatch for {weight_path}: expected {expected_sha256}, got {actual_sha256}")
     return weight_path
 
 

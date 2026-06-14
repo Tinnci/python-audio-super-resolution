@@ -19,7 +19,8 @@ def available_devices() -> list[DeviceInfo]:
     devices = [DeviceInfo(name="cpu", available=True)]
     torch = _import_torch()
     if torch is None:
-        return devices + [
+        return [
+            *devices,
             DeviceInfo(name="cuda", available=False, reason="torch is not installed"),
             DeviceInfo(name="mps", available=False, reason="torch is not installed"),
         ]

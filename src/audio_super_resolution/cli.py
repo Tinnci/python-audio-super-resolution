@@ -25,7 +25,7 @@ from .manifest import (
 )
 from .models import find_model_spec, list_models
 from .quality import format_quality_report, inspect_audio_quality, write_quality_report_bundle
-from .resolver import AudioSuperResolver, available_backends, plan_enhancements
+from .resolver import AudioSuperResolver, EnhancementResult, PlannedEnhancement, available_backends, plan_enhancements
 from .weight_store import download_model_weights, verify_model_weights
 
 
@@ -280,72 +280,13 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         parser.error(str(exc))
 
-    if args.list_backends:
-        print_backends(args.list_format)
-        return 0
+    return _run_command(args, parser, config)
 
-    if args.list_models:
-        print_models(filter_text=args.list_filter, list_format=args.list_format)
-        return 0
 
-    if args.config_info:
-        print_config(config)
-        return 0
-
-    if args.prepare_model_cache:
-        cache_dir = config.ensure_model_cache_dir()
-        if args.download_weights:
-            try:
-                model_spec = find_model_spec(args.backend, args.model_name)
-                weight_dir = download_model_weights(
-                    model_spec,
-                    cache_dir=cache_dir,
-                    revision=args.weight_revision,
-                    force=args.force_download,
-                )
-            except (OSError, RuntimeError, ValueError) as exc:
-                parser.error(str(exc))
-            print(weight_dir)
-            return 0
-        print(cache_dir)
-        return 0
-
-    if args.verify_weights:
-        try:
-            model_spec = find_model_spec(args.backend, args.model_name)
-            resolved_weights = verify_model_weights(
-                model_spec,
-                cache_dir=config.model_cache_dir,
-                manifest_path=config.weights_manifest,
-            )
-        except (OSError, RuntimeError, ValueError) as exc:
-            print(f"Weight verification failed: {exc}", file=sys.stderr)
-            return 1
-        print(f"Verified weights {resolved_weights.manifest_path}")
-        return 0
-
-    if args.env_info:
-        print_env_info(config)
-        return 0
-
-    if args.compare_manifests:
-        try:
-            expected_manifest = load_manifest(args.compare_manifests[0])
-            actual_manifest = load_manifest(args.compare_manifests[1])
-            comparison = compare_manifests(
-                expected_manifest,
-                actual_manifest,
-                duration_tolerance_seconds=args.duration_tolerance_seconds,
-                check_output_files=args.check_output_files,
-            )
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
-            parser.error(str(exc))
-
-        if args.compare_format == "json":
-            print(json.dumps(manifest_comparison_to_dict(comparison), indent=2))
-        else:
-            print(format_manifest_comparison(comparison))
-        return 0 if comparison.passed else 1
+def _run_command(args: argparse.Namespace, parser: argparse.ArgumentParser, config: InferenceConfig) -> int:
+    info_result = _handle_info_command(args, parser, config)
+    if info_result is not None:
+        return info_result
 
     if args.input is None:
         parser.error("input is required unless an informational flag is used")
@@ -353,6 +294,100 @@ def main(argv: list[str] | None = None) -> int:
     if args.target_sr <= 0:
         parser.error("--target-sr must be greater than zero")
 
+    jobs = _plan_cli_jobs(args, parser)
+
+    if args.dry_run:
+        return _handle_dry_run(args, config, jobs)
+
+    return _handle_enhancement(args, parser, config, jobs)
+
+
+def _handle_info_command(
+    args: argparse.Namespace,
+    parser: argparse.ArgumentParser,
+    config: InferenceConfig,
+) -> int | None:
+    result = None
+    if args.list_backends:
+        print_backends(args.list_format)
+        result = 0
+    elif args.list_models:
+        print_models(filter_text=args.list_filter, list_format=args.list_format)
+        result = 0
+    elif args.config_info:
+        print_config(config)
+        result = 0
+    elif args.prepare_model_cache:
+        result = _handle_prepare_model_cache(args, parser, config)
+    elif args.verify_weights:
+        result = _handle_verify_weights(args, config)
+    elif args.env_info:
+        print_env_info(config)
+        result = 0
+    elif args.compare_manifests:
+        result = _handle_compare_manifests(args, parser)
+    return result
+
+
+def _handle_prepare_model_cache(
+    args: argparse.Namespace,
+    parser: argparse.ArgumentParser,
+    config: InferenceConfig,
+) -> int:
+    cache_dir = config.ensure_model_cache_dir()
+    if args.download_weights:
+        try:
+            model_spec = find_model_spec(args.backend, args.model_name)
+            weight_dir = download_model_weights(
+                model_spec,
+                cache_dir=cache_dir,
+                revision=args.weight_revision,
+                force=args.force_download,
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            parser.error(str(exc))
+        print(weight_dir)
+        return 0
+    print(cache_dir)
+    return 0
+
+
+def _handle_verify_weights(args: argparse.Namespace, config: InferenceConfig) -> int:
+    try:
+        model_spec = find_model_spec(args.backend, args.model_name)
+        resolved_weights = verify_model_weights(
+            model_spec,
+            cache_dir=config.model_cache_dir,
+            manifest_path=config.weights_manifest,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"Weight verification failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"Verified weights {resolved_weights.manifest_path}")
+    return 0
+
+
+def _handle_compare_manifests(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        expected_manifest = load_manifest(args.compare_manifests[0])
+        actual_manifest = load_manifest(args.compare_manifests[1])
+        comparison = compare_manifests(
+            expected_manifest,
+            actual_manifest,
+            duration_tolerance_seconds=args.duration_tolerance_seconds,
+            check_output_files=args.check_output_files,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        parser.error(str(exc))
+
+    if args.compare_format == "json":
+        print(json.dumps(manifest_comparison_to_dict(comparison), indent=2))
+    else:
+        print(format_manifest_comparison(comparison))
+    return 0 if comparison.passed else 1
+
+
+def _plan_cli_jobs(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[PlannedEnhancement]:
     extensions = tuple(args.extensions) if args.extensions else None
     try:
         jobs = plan_enhancements(
@@ -369,23 +404,33 @@ def main(argv: list[str] | None = None) -> int:
     if not jobs:
         parser.error("no supported audio files found")
 
-    if args.dry_run:
-        for job in jobs:
-            print(f"{job.input_path} -> {job.output_path}")
-        if args.manifest:
-            manifest_path = write_manifest(
-                args.manifest,
-                build_manifest(
-                    mode="dry-run",
-                    jobs=jobs,
-                    config=config,
-                    backend=args.backend,
-                    target_sample_rate=args.target_sr,
-                ),
-            )
-            print(f"Wrote manifest {manifest_path}")
-        return 0
+    return jobs
 
+
+def _handle_dry_run(args: argparse.Namespace, config: InferenceConfig, jobs: list[PlannedEnhancement]) -> int:
+    for job in jobs:
+        print(f"{job.input_path} -> {job.output_path}")
+    if args.manifest:
+        manifest_path = write_manifest(
+            args.manifest,
+            build_manifest(
+                mode="dry-run",
+                jobs=jobs,
+                config=config,
+                backend=args.backend,
+                target_sample_rate=args.target_sr,
+            ),
+        )
+        print(f"Wrote manifest {manifest_path}")
+    return 0
+
+
+def _handle_enhancement(
+    args: argparse.Namespace,
+    parser: argparse.ArgumentParser,
+    config: InferenceConfig,
+    jobs: list[PlannedEnhancement],
+) -> int:
     resolver = AudioSuperResolver(target_sr=args.target_sr, backend=args.backend, config=config)
     try:
         results = [
@@ -405,23 +450,7 @@ def main(argv: list[str] | None = None) -> int:
             f"from {result.input_sample_rate} Hz using {result.backend}"
         )
 
-    reports = []
-    if args.quality_report or args.quality_report_json or args.fail_on_quality_issue:
-        reports = [
-            inspect_audio_quality(
-                result.output_path,
-                expected_sample_rate=result.sample_rate,
-                expected_duration_seconds=result.input_duration_seconds,
-            )
-            for result in results
-        ]
-        if args.quality_report:
-            for report in reports:
-                print(format_quality_report(report))
-
-        if args.quality_report_json:
-            quality_report_path = write_quality_report_bundle(args.quality_report_json, reports)
-            print(f"Wrote quality report {quality_report_path}")
+    reports = _handle_quality_reports(args, results)
 
     if args.manifest:
         manifest_path = write_manifest(
@@ -442,6 +471,28 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     return 0
+
+
+def _handle_quality_reports(args: argparse.Namespace, results: list[EnhancementResult]):
+    if not (args.quality_report or args.quality_report_json or args.fail_on_quality_issue):
+        return []
+
+    reports = [
+        inspect_audio_quality(
+            result.output_path,
+            expected_sample_rate=result.sample_rate,
+            expected_duration_seconds=result.input_duration_seconds,
+        )
+        for result in results
+    ]
+    if args.quality_report:
+        for report in reports:
+            print(format_quality_report(report))
+
+    if args.quality_report_json:
+        quality_report_path = write_quality_report_bundle(args.quality_report_json, reports)
+        print(f"Wrote quality report {quality_report_path}")
+    return reports
 
 
 def _backend_names() -> list[str]:
