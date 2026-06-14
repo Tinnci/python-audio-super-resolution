@@ -11,6 +11,33 @@ The package is already usable through the deterministic `sinc-resample` backend.
 - Regression helpers: manifests, manifest comparison, quality reports, low-pass preprocessing, and chunked processing.
 - Maintenance infrastructure: Pixi tasks, CPU Dockerfile, GitHub workflows, release notes, architecture docs, and sample JSON artifacts.
 
+## v0.1.0 Milestone
+
+Goal: publish the first public alpha package with the lightweight baseline workflow and verified release automation.
+
+Release scope:
+
+- Ship the `sinc-resample` baseline CLI/API path.
+- Ship optional external AudioSR wiring as an opt-in backend.
+- Ship managed weight metadata, verification, and explicit download plumbing.
+- Publish through PyPI Trusted Publishing / GitHub OIDC.
+- Document known limitations clearly: `lavasr-compat` can manage weights, but self-contained inference is not implemented yet.
+
+Release gates:
+
+- `pixi run lint`, `pixi run test`, `pixi run build`, and `pixi run python -m pip check` pass locally and in CI where applicable.
+- PyPI pending trusted publisher is configured for `audio-super-resolution`.
+- GitHub `pypi` environment exists and is intentionally allowed to publish.
+- README, changelog, release checklist, and sample artifacts match the package behavior.
+- After release, `pip install audio-super-resolution` works from PyPI and the default CLI smoke test runs.
+
+Non-goals for `v0.1.0`:
+
+- Self-contained LavaSR inference.
+- Real-weight LavaSR smoke tests.
+- Published Colab notebook.
+- CUDA/GPU Docker image.
+
 ## Active Work
 
 1. Implement `lavasr-compat` self-contained inference using the verified LavaSR v2 BWE files.

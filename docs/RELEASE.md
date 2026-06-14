@@ -21,6 +21,8 @@ Also confirm:
 
 ## Publish Flow
 
+Trigger a GitHub Release only after the matching milestone gates in [ROADMAP.md](../ROADMAP.md) are satisfied.
+
 1. Confirm PyPI trusted publishing is configured for this repository.
 2. Create a version tag such as `v0.1.0`.
 3. Push the tag to GitHub.
