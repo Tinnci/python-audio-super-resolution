@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import pickle
 import zipfile
 from pathlib import Path
@@ -60,6 +61,32 @@ def test_read_lavasr_config_parses_v2_metadata(tmp_path: Path) -> None:
     assert config.feature_extractor.sample_rate == 44100
     assert config.backbone.num_layers == 8
     assert config.head.n_fft == 2048
+
+
+def test_read_lavasr_config_without_pyyaml_uses_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(LAVASR_V2_CONFIG, encoding="utf-8")
+    original_import = builtins.__import__
+
+    def raise_for_yaml(
+        name: str,
+        globals_: object | None = None,
+        locals_: object | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> object:
+        if name == "yaml":
+            raise ImportError("yaml unavailable")
+        return original_import(name, globals_, locals_, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", raise_for_yaml)
+
+    config = read_lavasr_config(config_path)
+
+    validate_lavasr_v2_config(config)
 
 
 def test_lavasr_config_rejects_unexpected_architecture(tmp_path: Path) -> None:

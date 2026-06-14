@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pickletools
+import re
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +17,7 @@ BACKBONE_CLASS = "vocos.models.VocosBackbone"
 HEAD_CLASS = "vocos.heads.ISTFTHead"
 
 STATE_KEY_SUFFIXES = (".weight", ".bias", ".gamma", ".window", ".fb")
+INTEGER_PATTERN = re.compile(r"-?\d+")
 
 
 @dataclass(frozen=True)
@@ -78,21 +80,73 @@ def validate_lavasr_v2_weight_bundle(resolved_weights: ResolvedWeights) -> LavaS
 def read_lavasr_config(path: str | Path) -> LavaSRConfig:
     """Read and normalize a LavaSR/Vocos YAML config file."""
 
-    try:
-        import yaml
-    except ImportError as exc:
-        message = "Reading LavaSR config files requires PyYAML; install audio-super-resolution[lavasr]."
-        raise RuntimeError(message) from exc
-
-    loaded = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(loaded, dict):
-        raise ValueError("LavaSR config root must be a mapping")
-
+    loaded = _load_lavasr_yaml_mapping(Path(path))
     return LavaSRConfig(
         feature_extractor=_read_feature_config(_section(loaded, "feature_extractor")),
         backbone=_read_backbone_config(_section(loaded, "backbone")),
         head=_read_head_config(_section(loaded, "head")),
     )
+
+
+def _load_lavasr_yaml_mapping(path: Path) -> dict[str, object]:
+    content = path.read_text(encoding="utf-8")
+    try:
+        import yaml
+    except ImportError:
+        loaded = _parse_simple_lavasr_yaml(content)
+    else:
+        loaded = yaml.safe_load(content)
+
+    if not isinstance(loaded, dict):
+        raise ValueError("LavaSR config root must be a mapping")
+    return loaded
+
+
+def _parse_simple_lavasr_yaml(content: str) -> dict[str, object]:
+    root: dict[str, object] = {}
+    stack: list[tuple[int, dict[str, object]]] = [(-1, root)]
+
+    for line_number, raw_line in enumerate(content.splitlines(), start=1):
+        if "\t" in raw_line:
+            raise ValueError(f"LavaSR config line {line_number} uses tabs, which are unsupported")
+
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        indent = len(raw_line) - len(raw_line.lstrip(" "))
+        while indent <= stack[-1][0]:
+            stack.pop()
+
+        if ":" not in stripped:
+            raise ValueError(f"LavaSR config line {line_number} must contain a key-value separator")
+
+        key, raw_value = stripped.split(":", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError(f"LavaSR config line {line_number} has an empty key")
+
+        parent = stack[-1][1]
+        value = raw_value.strip()
+        if not value:
+            child: dict[str, object] = {}
+            parent[key] = child
+            stack.append((indent, child))
+            continue
+
+        parent[key] = _parse_simple_lavasr_scalar(value)
+
+    return root
+
+
+def _parse_simple_lavasr_scalar(value: str) -> int | str:
+    if INTEGER_PATTERN.fullmatch(value):
+        return int(value)
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    if value.startswith(("[", "{")):
+        raise ValueError("LavaSR fallback config parser only supports scalar values and mappings")
+    return value
 
 
 def validate_lavasr_v2_config(config: LavaSRConfig) -> None:
