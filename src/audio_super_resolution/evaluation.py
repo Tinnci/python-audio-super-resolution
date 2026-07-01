@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import random
+import shutil
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -64,6 +66,19 @@ SUPPORTED_DOWNSTREAM_EVALUATORS = (
     "speaker-similarity",
     "vad-endpoint",
     "keyword-spotting",
+)
+SUPPORTED_LISTENING_PROTOCOLS = ("mushra", "ab", "abx")
+LISTENING_DIMENSIONS = (
+    "clarity",
+    "naturalness",
+    "high_frequency_harshness",
+    "metallic_artifacts",
+    "noise",
+    "intelligibility",
+    "speaker_fidelity",
+    "music_environment_artifacts",
+    "latency",
+    "stability",
 )
 PLANNED_NO_REFERENCE_ADAPTERS = (
     {
@@ -287,6 +302,57 @@ def run_downstream_eval(
     return manifest
 
 
+def run_listening_export(
+    *,
+    manifest_paths: list[str | Path],
+    output_dir: str | Path,
+    protocol: str = "mushra",
+    seed: int = 0,
+) -> dict[str, object]:
+    """Export a browser/runtime-neutral listening-test bundle from eval manifests."""
+
+    protocol = protocol.lower()
+    if protocol not in SUPPORTED_LISTENING_PROTOCOLS:
+        choices = ", ".join(SUPPORTED_LISTENING_PROTOCOLS)
+        raise ValueError(f"Unsupported listening protocol {protocol!r}. Choices: {choices}")
+    if not manifest_paths:
+        raise ValueError("at least one eval manifest is required for listening export")
+
+    output_path = Path(output_dir)
+    stimuli_dir = output_path / "stimuli"
+    stimuli_dir.mkdir(parents=True, exist_ok=True)
+
+    loaded_manifests = [(Path(path), load_eval_manifest(path)) for path in manifest_paths]
+    trials, answer_key_trials = _listening_trials(
+        loaded_manifests,
+        stimuli_dir=stimuli_dir,
+        protocol=protocol,
+        seed=seed,
+    )
+    public_manifest = build_listening_manifest(
+        protocol=protocol,
+        output_dir=output_path,
+        manifest_paths=[path for path, _manifest in loaded_manifests],
+        trials=trials,
+        seed=seed,
+    )
+    answer_key = {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "protocol": protocol,
+        "seed": seed,
+        "trials": answer_key_trials,
+    }
+    write_eval_manifest(output_path / "listening_manifest.json", public_manifest)
+    write_eval_manifest(output_path / "answer_key.json", answer_key)
+    return {
+        "manifest_path": str(output_path / "listening_manifest.json"),
+        "answer_key_path": str(output_path / "answer_key.json"),
+        "manifest": public_manifest,
+        "answer_key": answer_key,
+    }
+
+
 def build_no_reference_manifest(
     *,
     input_path: Path,
@@ -362,6 +428,42 @@ def build_downstream_manifest(
         "planned_adapters": list(PLANNED_DOWNSTREAM_ADAPTERS),
         "records": records,
         "results": records,
+    }
+
+
+def build_listening_manifest(
+    *,
+    protocol: str,
+    output_dir: Path,
+    manifest_paths: list[Path],
+    trials: list[dict[str, object]],
+    seed: int,
+) -> dict[str, object]:
+    """Build the public, blind listening-test manifest."""
+
+    return {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "evaluation_type": "listening_export",
+        "protocol": protocol,
+        "seed": seed,
+        "source_manifests": [str(path) for path in manifest_paths],
+        "stimuli_dir": str(output_dir / "stimuli"),
+        "answer_key_external": True,
+        "rating_dimensions": list(LISTENING_DIMENSIONS),
+        "guidance": {
+            "do_not_ask_only_which_is_better": True,
+            "combine_with": [
+                "full_reference_metrics",
+                "no_reference_screening",
+                "downstream_eval",
+                "engineering_performance",
+                "stability",
+                "governance",
+            ],
+        },
+        "trial_count": len(trials),
+        "trials": trials,
     }
 
 
@@ -696,6 +798,109 @@ def _unsupported_downstream_evaluator_message(evaluator: str) -> str:
         )
     choices = ", ".join(SUPPORTED_DOWNSTREAM_EVALUATORS)
     return f"Unsupported downstream evaluator {evaluator!r}. Choices: {choices}"
+
+
+def _listening_trials(
+    loaded_manifests: list[tuple[Path, dict[str, object]]],
+    *,
+    stimuli_dir: Path,
+    protocol: str,
+    seed: int,
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    grouped_results: dict[str, list[tuple[Path, dict[str, object]]]] = {}
+    for manifest_path, manifest in loaded_manifests:
+        for result in _manifest_results(manifest):
+            grouped_results.setdefault(str(result.get("id")), []).append((manifest_path, result))
+
+    trials: list[dict[str, object]] = []
+    answer_key_trials: list[dict[str, object]] = []
+    rng = random.Random(seed)
+    for trial_index, item_id in enumerate(sorted(grouped_results), start=1):
+        sources = _listening_sources(grouped_results[item_id])
+        rng.shuffle(sources)
+        public_stimuli: list[dict[str, object]] = []
+        answer_stimuli: list[dict[str, object]] = []
+        for stimulus_index, source in enumerate(sources, start=1):
+            blind_id = f"t{trial_index:03d}_s{stimulus_index:02d}"
+            source_path = Path(str(source["path"]))
+            if not source_path.is_file():
+                raise FileNotFoundError(source_path)
+            stimulus_path = stimuli_dir / f"{blind_id}{source_path.suffix.lower() or '.wav'}"
+            shutil.copy2(source_path, stimulus_path)
+            public_stimuli.append(
+                {
+                    "blind_id": blind_id,
+                    "path": str(stimulus_path),
+                }
+            )
+            answer_stimuli.append(
+                {
+                    "blind_id": blind_id,
+                    "path": str(stimulus_path),
+                    "source_path": str(source_path),
+                    "source_manifest": source["source_manifest"],
+                    "item_id": item_id,
+                    "role": source["role"],
+                    "backend": source["backend"],
+                }
+            )
+        trials.append(
+            {
+                "id": item_id,
+                "protocol": protocol,
+                "stimuli": public_stimuli,
+                "rating_dimensions": list(LISTENING_DIMENSIONS),
+            }
+        )
+        answer_key_trials.append({"id": item_id, "stimuli": answer_stimuli})
+    return trials, answer_key_trials
+
+
+def _manifest_results(manifest: dict[str, object]) -> list[dict[str, object]]:
+    results = manifest.get("results")
+    if not isinstance(results, list):
+        return []
+    return [result for result in results if isinstance(result, dict)]
+
+
+def _listening_sources(results: list[tuple[Path, dict[str, object]]]) -> list[dict[str, object]]:
+    sources: list[dict[str, object]] = []
+    first_manifest_path, first_result = results[0]
+    reference_path = first_result.get("reference_path")
+    if isinstance(reference_path, str):
+        sources.append(
+            {
+                "path": reference_path,
+                "source_manifest": str(first_manifest_path),
+                "role": "reference",
+                "backend": None,
+            }
+        )
+    degraded_path = first_result.get("degraded_path") or first_result.get("input_path")
+    if isinstance(degraded_path, str):
+        sources.append(
+            {
+                "path": degraded_path,
+                "source_manifest": str(first_manifest_path),
+                "role": "anchor",
+                "backend": "degraded_input",
+            }
+        )
+    for manifest_path, result in results:
+        enhanced_path = result.get("enhanced_path")
+        if not isinstance(enhanced_path, str):
+            continue
+        sources.append(
+            {
+                "path": enhanced_path,
+                "source_manifest": str(manifest_path),
+                "role": "system",
+                "backend": result.get("backend"),
+            }
+        )
+    if len(sources) < 2:
+        raise ValueError("listening export requires at least two stimuli per trial")
+    return sources
 
 
 def _word_tokens(text: str) -> list[str]:

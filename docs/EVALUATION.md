@@ -47,6 +47,17 @@ audio-super-res eval downstream \
   --output runs/downstream-asr.json
 ```
 
+For human listening tests, export a runtime-neutral blind bundle:
+
+```sh
+audio-super-res eval listening-export \
+  --manifest runs/sinc.json \
+  --manifest runs/lavasr.json \
+  --output-dir runs/listening-mushra \
+  --protocol mushra \
+  --seed 0
+```
+
 Regression thresholds can be repeated. The comparator infers metric direction: SI-SDR/PESQ/STOI
 drops fail, while LSD/high-band LSD/RTF/peak RSS increases fail.
 
@@ -205,6 +216,46 @@ Speaker similarity, VAD/endpoint accuracy, and keyword spotting are represented 
 adapters in the manifest. They must remain gated until their models, labels, licenses, and runtime
 requirements are explicit.
 
+## Listening-Test Export
+
+Listening export creates files for AB, ABX, or MUSHRA-style studies without requiring a browser,
+survey platform, or web runtime in the default package.
+
+Bundle layout:
+
+```text
+runs/listening-mushra/
+  listening_manifest.json   # public blind manifest for the listening tool
+  answer_key.json           # machine-readable mapping; keep away from listeners
+  stimuli/
+    t001_s01.wav
+    t001_s02.wav
+    t001_s03.wav
+```
+
+The public manifest contains protocol, source manifest paths, deterministic seed, blind stimuli,
+and rating dimensions. It intentionally omits backend names and source roles from each stimulus.
+The answer key maps each blind id back to source manifest, item id, role (`reference`, `anchor`, or
+`system`), backend, and original path.
+
+Rating dimensions are explicit:
+
+- clarity
+- naturalness
+- high-frequency harshness
+- metallic artifacts
+- noise
+- intelligibility
+- speaker fidelity
+- music/environment artifacts
+- latency
+- stability
+
+Do not ask only "which sample sounds better". Listening evidence should be reviewed with objective
+quality, no-reference screening, downstream task impact, engineering performance, stability, and
+governance tables. A model that sounds impressive but increases WER, changes speaker identity, clips,
+or has unclear weight licensing is not automatically a better backend.
+
 ## Manifest Shape
 
 Each result contains:
@@ -302,8 +353,5 @@ generated audio fixtures only.
 
 ## Future Work
 
-The remaining `v0.5.0` issues add:
-
-- AB/ABX/MUSHRA listening-test exports
-- richer memory/load-time profiling, dependency-footprint, and governance tables
-- threshold-based regression policies for release gates
+The first `v0.5.0` harness keeps richer memory/load-time profiling, expanded optional evaluator
+adapters, and stricter release threshold policies as future work.

@@ -11,6 +11,7 @@ from audio_super_resolution.evaluation import (
     compare_eval_manifests,
     run_downstream_eval,
     run_eval_dataset,
+    run_listening_export,
     run_no_reference_eval,
     transcript_error_rates,
 )
@@ -328,6 +329,81 @@ def test_cli_eval_downstream(tmp_path: Path) -> None:
     manifest = json.loads(output_path.read_text(encoding="utf-8"))
     assert manifest["evaluation_type"] == "downstream"
     assert manifest["results"][0]["delta"]["wer"] == -0.5
+
+
+def test_run_listening_export_writes_blind_bundle(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+    eval_manifest_path = tmp_path / "runs" / "sinc.json"
+    run_eval_dataset(
+        dataset_dir=dataset,
+        backend="sinc-resample",
+        output_path=eval_manifest_path,
+        work_dir=tmp_path / "work",
+    )
+
+    bundle = run_listening_export(
+        manifest_paths=[eval_manifest_path],
+        output_dir=tmp_path / "listening",
+        protocol="mushra",
+        seed=123,
+    )
+
+    public_manifest = bundle["manifest"]
+    answer_key = bundle["answer_key"]
+    assert Path(bundle["manifest_path"]).is_file()
+    assert Path(bundle["answer_key_path"]).is_file()
+    assert public_manifest["evaluation_type"] == "listening_export"
+    assert public_manifest["answer_key_external"] is True
+    assert "clarity" in public_manifest["rating_dimensions"]
+    assert len(public_manifest["trials"][0]["stimuli"]) == 3
+    assert "backend" not in public_manifest["trials"][0]["stimuli"][0]
+    assert {stimulus["role"] for stimulus in answer_key["trials"][0]["stimuli"]} == {
+        "anchor",
+        "reference",
+        "system",
+    }
+    for stimulus in public_manifest["trials"][0]["stimuli"]:
+        assert Path(stimulus["path"]).is_file()
+
+
+def test_cli_eval_listening_export(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+    eval_manifest_path = tmp_path / "runs" / "sinc.json"
+    output_dir = tmp_path / "listening"
+    run_eval_dataset(
+        dataset_dir=dataset,
+        backend="sinc-resample",
+        output_path=eval_manifest_path,
+        work_dir=tmp_path / "work",
+    )
+
+    assert (
+        main(
+            [
+                "eval",
+                "listening-export",
+                "--manifest",
+                str(eval_manifest_path),
+                "--output-dir",
+                str(output_dir),
+                "--protocol",
+                "abx",
+                "--seed",
+                "7",
+            ]
+        )
+        == 0
+    )
+
+    manifest = json.loads((output_dir / "listening_manifest.json").read_text(encoding="utf-8"))
+    answer_key = json.loads((output_dir / "answer_key.json").read_text(encoding="utf-8"))
+    assert manifest["protocol"] == "abx"
+    assert manifest["seed"] == 7
+    assert answer_key["trials"][0]["stimuli"][0]["blind_id"].startswith("t001_s")
 
 
 def test_run_eval_dataset_records_backend_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

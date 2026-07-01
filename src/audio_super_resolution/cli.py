@@ -21,11 +21,13 @@ from .config import (
 from .evaluation import (
     SUPPORTED_DEGRADERS,
     SUPPORTED_DOWNSTREAM_EVALUATORS,
+    SUPPORTED_LISTENING_PROTOCOLS,
     SUPPORTED_NO_REFERENCE_EVALUATORS,
     compare_eval_manifests,
     load_eval_manifest,
     run_downstream_eval,
     run_eval_dataset,
+    run_listening_export,
     run_no_reference_eval,
     write_eval_manifest,
 )
@@ -276,6 +278,23 @@ def build_eval_parser() -> argparse.ArgumentParser:
         help="Downstream evaluator. Heavy evaluators are documented but gated. Defaults to transcript-error-rate.",
     )
 
+    listening_parser = subparsers.add_parser("listening-export", help="Export a blind listening-test bundle.")
+    listening_parser.add_argument(
+        "--manifest",
+        action="append",
+        type=Path,
+        required=True,
+        help="Eval manifest JSON to include. Repeat for multiple backend runs.",
+    )
+    listening_parser.add_argument("--output-dir", type=Path, required=True, help="Output bundle directory.")
+    listening_parser.add_argument(
+        "--protocol",
+        choices=SUPPORTED_LISTENING_PROTOCOLS,
+        default="mushra",
+        help="Listening protocol metadata to write. Defaults to mushra.",
+    )
+    listening_parser.add_argument("--seed", type=int, default=0, help="Deterministic blind ordering seed.")
+
     compare_parser = subparsers.add_parser("compare", help="Compare two evaluation manifests.")
     compare_parser.add_argument("baseline", type=Path, help="Baseline eval manifest JSON path.")
     compare_parser.add_argument("candidate", type=Path, help="Candidate eval manifest JSON path.")
@@ -456,6 +475,16 @@ def _run_eval_command(argv: list[str]) -> int:
             results = manifest.get("results")
             result_count = len(results) if isinstance(results, list) else 0
             print(f"Wrote downstream eval manifest {args.output} ({result_count} result(s))")
+            return 0
+        if args.eval_command == "listening-export":
+            bundle = run_listening_export(
+                manifest_paths=args.manifest,
+                output_dir=args.output_dir,
+                protocol=args.protocol,
+                seed=args.seed,
+            )
+            print(f"Wrote listening manifest {bundle['manifest_path']}")
+            print(f"Wrote listening answer key {bundle['answer_key_path']}")
             return 0
         if args.eval_command == "compare":
             comparison = compare_eval_manifests(

@@ -105,7 +105,9 @@ Tracked work:
 - `#40` Add downstream task evaluation workflows. Completed: `audio-super-res eval downstream`,
   builtin transcript WER/CER delta evaluation from precomputed ASR outputs, and gated
   speaker/VAD/KWS adapter schema.
-- `#41` Add perceptual listening-test export workflow.
+- `#41` Add perceptual listening-test export workflow. Completed: `audio-super-res eval
+  listening-export` writes AB/ABX/MUSHRA-ready blind stimuli, public manifest, external answer key,
+  and rating dimensions without requiring a browser/survey runtime.
 - `#42` Add engineering performance and stability evaluation. Completed: eval manifests include
   elapsed time, RTF, peak RSS strategy/fallbacks, sample-rate checks, duration drift, clipping,
   per-result failure status, lightweight failure-case classification, and backend
