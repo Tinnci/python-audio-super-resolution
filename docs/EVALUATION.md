@@ -30,6 +30,15 @@ audio-super-res eval run \
 audio-super-res eval compare runs/sinc.json runs/lavasr.json --output runs/comparison.json
 ```
 
+For real recordings without a clean reference, run lightweight no-reference screening:
+
+```sh
+audio-super-res eval no-reference \
+  --input recordings/real_world \
+  --output runs/no-reference.json \
+  --recursive
+```
+
 Regression thresholds can be repeated. The comparator infers metric direction: SI-SDR/PESQ/STOI
 drops fail, while LSD/high-band LSD/RTF/peak RSS increases fail.
 
@@ -85,6 +94,52 @@ Optional metrics must write `null` or an explicit skipped reason when unavailabl
 change the meaning of the lightweight schema, and they must not be folded into a single aggregate
 score.
 
+## No-Reference Screening
+
+No-reference scores are screening signals for recordings without a clean reference. They are not
+absolute truth and should not override full-reference, downstream, or listening evidence.
+
+The default implemented evaluator is `signal-stats`. It is CPU/offline and uses only default
+dependencies:
+
+```json
+{
+  "evaluation_type": "no_reference",
+  "evaluator": {
+    "name": "signal-stats",
+    "version": "builtin",
+    "score_fields": ["rms_dbfs", "peak_level", "clipped_fraction", "silence_fraction", "dc_offset"],
+    "absolute_truth": false
+  },
+  "records": [
+    {
+      "id": "sample",
+      "input_path": "recordings/sample.wav",
+      "status": "passed",
+      "scores": {
+        "rms_dbfs": -18.2,
+        "peak_level": 0.42,
+        "clipped_fraction": 0.0,
+        "silence_fraction": 0.03,
+        "dc_offset": 0.0001
+      },
+      "metadata": {
+        "sample_rate": 48000,
+        "duration_seconds": 4.2,
+        "channels": 1
+      },
+      "error": null,
+      "install_guidance": null
+    }
+  ]
+}
+```
+
+DNSMOS, NISQA, UTMOS, and ViSQOL are documented as planned optional adapters. They must remain
+explicit opt-ins because they introduce heavyweight dependencies, model downloads or external
+binaries, and license/runtime obligations. Invoking one from the default install returns actionable
+guidance instead of silently downloading assets.
+
 ## Manifest Shape
 
 Each result contains:
@@ -106,6 +161,7 @@ checks, failed quality checks, or threshold violations are reported as regressio
 The comparison JSON keeps raw `metric_summary` data and also groups it into `tables`:
 
 - `audio_quality`: full-reference and optional objective metrics
+- `no_reference`: no-reference screening scores
 - `downstream`: WER/CER/speaker/VAD/KWS metrics when optional adapters add them
 - `engineering`: RTF, elapsed time, init time, and peak RSS
 - `stability`: drift/clipping metrics plus candidate status and failure-case counts
@@ -183,7 +239,6 @@ generated audio fixtures only.
 
 The remaining `v0.5.0` issues add:
 
-- no-reference objective adapters
 - downstream ASR/speaker/VAD/KWS evaluation
 - AB/ABX/MUSHRA listening-test exports
 - richer memory/load-time profiling, dependency-footprint, and governance tables

@@ -16,7 +16,7 @@ from .config import InferenceConfig
 from .models import find_model_spec
 from .preprocess import lowpass_filter
 from .quality import inspect_audio_quality, quality_report_to_dict
-from .resolver import AudioSuperResolver
+from .resolver import AudioSuperResolver, discover_audio_files
 from .runtime_stats import peak_rss_snapshot
 from .specs import BackendCapability, ModelSpec
 
@@ -51,6 +51,52 @@ ENGINEERING_METRICS = (
     "peak_rss_delta_mb",
 )
 STABILITY_METRICS = ("duration_drift_seconds", "clipped_fraction")
+SIGNAL_STATS_NO_REFERENCE_METRICS = (
+    "rms_dbfs",
+    "peak_level",
+    "clipped_fraction",
+    "silence_fraction",
+    "dc_offset",
+)
+SUPPORTED_NO_REFERENCE_EVALUATORS = ("signal-stats", "dnsmos", "nisqa", "utmos", "visqol")
+PLANNED_NO_REFERENCE_ADAPTERS = (
+    {
+        "name": "dnsmos",
+        "status": "planned_optional",
+        "expected_scores": ["ovrl_mos", "sig_mos", "bak_mos", "p808_mos"],
+        "model_source": "Microsoft DNSMOS ONNX models",
+        "license_status": "requires review before redistribution",
+        "runtime_requirements": ["onnxruntime", "model weights"],
+        "install_guidance": "Install a future optional no-reference extra and provide explicit DNSMOS model paths.",
+    },
+    {
+        "name": "nisqa",
+        "status": "planned_optional",
+        "expected_scores": ["mos", "noisiness", "coloration", "discontinuity", "loudness"],
+        "model_source": "NISQA upstream checkpoints",
+        "license_status": "requires review before redistribution",
+        "runtime_requirements": ["torch", "model weights"],
+        "install_guidance": "Install a future optional no-reference extra and provide explicit NISQA checkpoint paths.",
+    },
+    {
+        "name": "utmos",
+        "status": "planned_optional",
+        "expected_scores": ["mos"],
+        "model_source": "UTMOS upstream checkpoints",
+        "license_status": "requires review before redistribution",
+        "runtime_requirements": ["torch", "model weights"],
+        "install_guidance": "Install a future optional no-reference extra and provide explicit UTMOS checkpoint paths.",
+    },
+    {
+        "name": "visqol",
+        "status": "planned_optional",
+        "expected_scores": ["mos_lqo"],
+        "model_source": "ViSQOL upstream binary/models",
+        "license_status": "requires review before redistribution",
+        "runtime_requirements": ["visqol binary or Python binding"],
+        "install_guidance": "Install ViSQOL separately and configure a future adapter with the binary/model path.",
+    },
+)
 LOWER_IS_BETTER_METRICS = {
     "lsd_db",
     "mcd",
@@ -133,6 +179,86 @@ def run_eval_dataset(
     )
     write_eval_manifest(output, manifest)
     return manifest
+
+
+def run_no_reference_eval(
+    *,
+    input_path: str | Path,
+    output_path: str | Path,
+    recursive: bool = False,
+    evaluator: str = "signal-stats",
+    limit: int | None = None,
+) -> dict[str, object]:
+    """Run no-reference objective screening over one file or a directory."""
+
+    evaluator = evaluator.lower()
+    if evaluator != "signal-stats":
+        raise ValueError(_unsupported_no_reference_evaluator_message(evaluator))
+
+    audio_paths = discover_audio_files(input_path, recursive=recursive)
+    if limit is not None:
+        if limit <= 0:
+            raise ValueError("limit must be greater than zero")
+        audio_paths = audio_paths[:limit]
+    if not audio_paths:
+        raise ValueError(f"No supported audio files found in {Path(input_path)}")
+
+    records = [_signal_stats_no_reference_record(path, root=Path(input_path)) for path in audio_paths]
+    manifest = build_no_reference_manifest(
+        input_path=Path(input_path),
+        evaluator=evaluator,
+        records=records,
+    )
+    write_eval_manifest(output_path, manifest)
+    return manifest
+
+
+def build_no_reference_manifest(
+    *,
+    input_path: Path,
+    evaluator: str,
+    records: list[dict[str, object]],
+) -> dict[str, object]:
+    """Build a JSON-serializable no-reference eval manifest."""
+
+    status_counts = _status_counts(records)
+    return {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "evaluation_type": "no_reference",
+        "passed": all(record.get("status") == "passed" for record in records),
+        "input": str(input_path),
+        "evaluator": _no_reference_evaluator_info(evaluator),
+        "metric_groups": {
+            "no_reference": list(SIGNAL_STATS_NO_REFERENCE_METRICS),
+            "planned_optional_no_reference": [adapter["name"] for adapter in PLANNED_NO_REFERENCE_ADAPTERS],
+        },
+        "result_count": len(records),
+        "status_counts": status_counts,
+        "planned_adapters": list(PLANNED_NO_REFERENCE_ADAPTERS),
+        "records": records,
+        "results": records,
+    }
+
+
+def no_reference_signal_stats(path: str | Path) -> dict[str, float]:
+    """Compute lightweight no-reference signal screening metrics for one audio file."""
+
+    audio, _sample_rate = sf.read(path, always_2d=True)
+    absolute = np.abs(audio)
+    peak_level = float(absolute.max()) if absolute.size else 0.0
+    clipped_samples = int(np.count_nonzero(absolute >= 0.999))
+    clipped_fraction = clipped_samples / absolute.size if absolute.size else 0.0
+    silence_fraction = int(np.count_nonzero(absolute <= 1e-4)) / absolute.size if absolute.size else 0.0
+    dc_offset = float(np.mean(audio)) if audio.size else 0.0
+    rms = _rms(audio)
+    return {
+        "rms_dbfs": float(20 * np.log10(max(rms, 1e-12))),
+        "peak_level": peak_level,
+        "clipped_fraction": clipped_fraction,
+        "silence_fraction": silence_fraction,
+        "dc_offset": dc_offset,
+    }
 
 
 def build_eval_manifest(
@@ -293,6 +419,69 @@ def build_backend_profile(backend: str, *, config: InferenceConfig) -> dict[str,
         "known_limitations": list(spec.known_limitations),
         "validation": list(spec.validation),
     }
+
+
+def _signal_stats_no_reference_record(path: Path, *, root: Path) -> dict[str, object]:
+    audio_info = sf.info(path)
+    root_path = root if root.is_dir() else root.parent
+    try:
+        item_id = path.relative_to(root_path).with_suffix("").as_posix()
+    except ValueError:
+        item_id = path.with_suffix("").name
+    return {
+        "id": item_id,
+        "input_path": str(path),
+        "evaluator": _no_reference_evaluator_info("signal-stats"),
+        "status": "passed",
+        "scores": no_reference_signal_stats(path),
+        "metadata": {
+            "sample_rate": audio_info.samplerate,
+            "duration_seconds": audio_info.frames / audio_info.samplerate,
+            "channels": audio_info.channels,
+            "frames": audio_info.frames,
+        },
+        "error": None,
+        "install_guidance": None,
+    }
+
+
+def _no_reference_evaluator_info(evaluator: str) -> dict[str, object]:
+    if evaluator == "signal-stats":
+        return {
+            "name": "signal-stats",
+            "version": "builtin",
+            "status": "implemented",
+            "score_fields": list(SIGNAL_STATS_NO_REFERENCE_METRICS),
+            "model_source": None,
+            "license_status": "project-license",
+            "runtime_requirements": ["numpy", "soundfile"],
+            "screening_signal": True,
+            "absolute_truth": False,
+        }
+    for adapter in PLANNED_NO_REFERENCE_ADAPTERS:
+        if adapter["name"] == evaluator:
+            return dict(adapter)
+    return {
+        "name": evaluator,
+        "status": "unsupported",
+        "score_fields": [],
+        "model_source": None,
+        "license_status": None,
+        "runtime_requirements": [],
+        "screening_signal": True,
+        "absolute_truth": False,
+    }
+
+
+def _unsupported_no_reference_evaluator_message(evaluator: str) -> str:
+    evaluator_info = _no_reference_evaluator_info(evaluator)
+    if evaluator_info.get("status") == "planned_optional":
+        return (
+            f"No-reference evaluator {evaluator!r} is documented but not enabled in the default install. "
+            f"{evaluator_info['install_guidance']} Heavy no-reference evaluators must remain opt-in."
+        )
+    choices = ", ".join(SUPPORTED_NO_REFERENCE_EVALUATORS)
+    return f"Unsupported no-reference evaluator {evaluator!r}. Choices: {choices}"
 
 
 def write_eval_manifest(path: str | Path, manifest: dict[str, object]) -> Path:
@@ -870,6 +1059,7 @@ def _comparison_tables(
             metric_summary,
             set(FULL_REFERENCE_METRICS) | set(OPTIONAL_FULL_REFERENCE_METRICS),
         ),
+        "no_reference": _summary_subset(metric_summary, set(SIGNAL_STATS_NO_REFERENCE_METRICS)),
         "downstream": _summary_subset(metric_summary, set(DOWNSTREAM_METRICS)),
         "engineering": _summary_subset(metric_summary, set(ENGINEERING_METRICS)),
         "stability": {
@@ -930,6 +1120,7 @@ def _eval_regressions(
 
 def _numeric_eval_values(record: dict[str, object]) -> dict[str, float]:
     values = _numeric_metrics(record)
+    values.update(_numeric_scores(record))
     values.update(_numeric_nested_values(record.get("performance"), ENGINEERING_METRICS))
     quality_values = _numeric_nested_values(record.get("quality"), STABILITY_METRICS)
     stability_values = _numeric_nested_values(record.get("stability"), STABILITY_METRICS)
@@ -945,6 +1136,17 @@ def _numeric_metrics(record: dict[str, object]) -> dict[str, float]:
     return {
         str(name): float(value)
         for name, value in metrics.items()
+        if isinstance(value, int | float) and not isinstance(value, bool)
+    }
+
+
+def _numeric_scores(record: dict[str, object]) -> dict[str, float]:
+    scores = record.get("scores")
+    if not isinstance(scores, dict):
+        return {}
+    return {
+        str(name): float(value)
+        for name, value in scores.items()
         if isinstance(value, int | float) and not isinstance(value, bool)
     }
 

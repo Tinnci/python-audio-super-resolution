@@ -99,7 +99,9 @@ Tracked work:
 - `#38` Add full-reference objective evaluation metrics. Completed: controlled degraders,
   SI-SDR/SDR, LSD, high-band LSD, spectral convergence, optional metric adapter requirements, and
   JSON eval manifests.
-- `#39` Add no-reference objective evaluation adapters.
+- `#39` Add no-reference objective evaluation adapters. Completed: `audio-super-res eval
+  no-reference`, builtin CPU/offline `signal-stats` records, stable no-reference JSON shape, and
+  gated DNSMOS/NISQA/UTMOS/ViSQOL integration requirements.
 - `#40` Add downstream task evaluation workflows.
 - `#41` Add perceptual listening-test export workflow.
 - `#42` Add engineering performance and stability evaluation. Completed: eval manifests include

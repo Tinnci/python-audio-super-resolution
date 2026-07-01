@@ -7,7 +7,7 @@ import pytest
 import soundfile as sf
 
 from audio_super_resolution.cli import main
-from audio_super_resolution.evaluation import compare_eval_manifests, run_eval_dataset
+from audio_super_resolution.evaluation import compare_eval_manifests, run_eval_dataset, run_no_reference_eval
 from audio_super_resolution.resolver import EnhancementResult
 
 
@@ -195,6 +195,52 @@ def test_cli_eval_run_from_console_argv(monkeypatch: pytest.MonkeyPatch, tmp_pat
 
     assert main() == 0
     assert json.loads(output_path.read_text(encoding="utf-8"))["results"]
+
+
+def test_run_no_reference_eval_writes_signal_stats_manifest(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+    output_path = tmp_path / "runs" / "no-reference.json"
+
+    manifest = run_no_reference_eval(input_path=dataset, output_path=output_path)
+
+    assert output_path.is_file()
+    assert manifest["evaluation_type"] == "no_reference"
+    assert manifest["passed"] is True
+    assert manifest["evaluator"]["name"] == "signal-stats"
+    assert manifest["evaluator"]["absolute_truth"] is False
+    assert manifest["planned_adapters"][0]["name"] == "dnsmos"
+    record = manifest["records"][0]
+    assert record["status"] == "passed"
+    assert record["scores"]["rms_dbfs"] < 0
+    assert 0 <= record["scores"]["clipped_fraction"] <= 1
+    assert record["metadata"]["sample_rate"] == 48000
+
+    comparison = compare_eval_manifests(manifest, manifest)
+    assert comparison["passed"] is True
+    assert "rms_dbfs" in comparison["tables"]["no_reference"]
+
+
+def test_run_no_reference_eval_rejects_gated_heavy_evaluator(tmp_path: Path) -> None:
+    sample = tmp_path / "sample.wav"
+    _write_reference(sample)
+
+    with pytest.raises(ValueError, match="Heavy no-reference evaluators must remain opt-in"):
+        run_no_reference_eval(input_path=sample, output_path=tmp_path / "dnsmos.json", evaluator="dnsmos")
+
+
+def test_cli_eval_no_reference(tmp_path: Path) -> None:
+    input_path = tmp_path / "sample.wav"
+    output_path = tmp_path / "no-reference.json"
+    _write_reference(input_path)
+
+    assert main(["eval", "no-reference", "--input", str(input_path), "--output", str(output_path)]) == 0
+
+    manifest = json.loads(output_path.read_text(encoding="utf-8"))
+    assert manifest["evaluation_type"] == "no_reference"
+    assert manifest["results"][0]["evaluator"]["name"] == "signal-stats"
+    assert "silence_fraction" in manifest["results"][0]["scores"]
 
 
 def test_run_eval_dataset_records_backend_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -20,9 +20,11 @@ from .config import (
 )
 from .evaluation import (
     SUPPORTED_DEGRADERS,
+    SUPPORTED_NO_REFERENCE_EVALUATORS,
     compare_eval_manifests,
     load_eval_manifest,
     run_eval_dataset,
+    run_no_reference_eval,
     write_eval_manifest,
 )
 from .manifest import (
@@ -243,6 +245,18 @@ def build_eval_parser() -> argparse.ArgumentParser:
         help="Directory for model weights and metadata.",
     )
 
+    no_reference_parser = subparsers.add_parser("no-reference", help="Run no-reference screening metrics.")
+    no_reference_parser.add_argument("--input", type=Path, required=True, help="Audio file or directory to evaluate.")
+    no_reference_parser.add_argument("--output", type=Path, required=True, help="Output eval manifest JSON path.")
+    no_reference_parser.add_argument("--recursive", action="store_true", help="Scan input directories recursively.")
+    no_reference_parser.add_argument("--limit", type=int, help="Limit the number of audio files for smoke runs.")
+    no_reference_parser.add_argument(
+        "--evaluator",
+        choices=SUPPORTED_NO_REFERENCE_EVALUATORS,
+        default="signal-stats",
+        help="No-reference evaluator. Heavy evaluators are documented but gated. Defaults to signal-stats.",
+    )
+
     compare_parser = subparsers.add_parser("compare", help="Compare two evaluation manifests.")
     compare_parser.add_argument("baseline", type=Path, help="Baseline eval manifest JSON path.")
     compare_parser.add_argument("candidate", type=Path, help="Candidate eval manifest JSON path.")
@@ -399,6 +413,18 @@ def _run_eval_command(argv: list[str]) -> int:
             results = manifest.get("results")
             result_count = len(results) if isinstance(results, list) else 0
             print(f"Wrote eval manifest {args.output} ({result_count} result(s))")
+            return 0
+        if args.eval_command == "no-reference":
+            manifest = run_no_reference_eval(
+                input_path=args.input,
+                output_path=args.output,
+                recursive=args.recursive,
+                evaluator=args.evaluator,
+                limit=args.limit,
+            )
+            results = manifest.get("results")
+            result_count = len(results) if isinstance(results, list) else 0
+            print(f"Wrote no-reference eval manifest {args.output} ({result_count} result(s))")
             return 0
         if args.eval_command == "compare":
             comparison = compare_eval_manifests(

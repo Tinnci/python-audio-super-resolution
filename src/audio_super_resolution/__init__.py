@@ -21,11 +21,14 @@ from .downloads import (
 from .evaluation import (
     DegradedAudio,
     build_eval_manifest,
+    build_no_reference_manifest,
     compare_eval_manifests,
     degrade_audio,
     full_reference_metrics,
     load_eval_manifest,
+    no_reference_signal_stats,
     run_eval_dataset,
+    run_no_reference_eval,
     write_eval_manifest,
 )
 from .golden import (
@@ -132,6 +135,7 @@ __all__ = [
     "available_backends",
     "available_devices",
     "build_eval_manifest",
+    "build_no_reference_manifest",
     "build_manifest",
     "build_benchmark_report",
     "build_quality_report_bundle",
@@ -163,6 +167,7 @@ __all__ = [
     "lowpass_filter",
     "manifest_comparison_to_dict",
     "model_admission_report_to_dict",
+    "no_reference_signal_stats",
     "plan_enhancements",
     "quality_report_to_dict",
     "golden_report_to_dict",
@@ -185,6 +190,7 @@ __all__ = [
     "verify_weights_for_spec",
     "runtime_provider_info",
     "run_eval_dataset",
+    "run_no_reference_eval",
     "verify_weight_file",
     "verify_weight_manifest",
     "write_manifest",
