@@ -6,9 +6,10 @@ This document records the `v0.3.0` general-audio super-resolution candidate revi
 
 Do not start a new self-contained general-audio backend yet.
 
-Keep AudioSR as the external high-quality baseline. Move FlowHigh into a feasibility spike because
-it has an official implementation repository and a permissive code license, but do not implement it
-until checkpoint distribution, vocoder boundaries, and validation mechanics are proven.
+Keep AudioSR as the external high-quality baseline. The FlowHigh feasibility pass found an official
+implementation repository and a Hugging Face checkpoint repository, but FlowHigh should remain
+deferred until CPU/offline validation, checkpoint licensing, and provider-neutral runtime behavior
+are proven.
 
 Rationale:
 
@@ -23,7 +24,7 @@ Rationale:
 | --- | --- | --- |
 | AudioSR `basic` | External package | Keep as existing external backend and high-quality baseline. Do not rewrite now. |
 | AudioSR `speech` | External package | Keep as external baseline; speech-specific work should continue through LavaSR/ClearerVoice instead. |
-| FlowHigh | Feasibility candidate | Open `#32` to verify checkpoints, BigVGAN/vocoder boundaries, CPU/offline validation, and managed-weight suitability. |
+| FlowHigh | Feasibility candidate | Deferred. HF files and hashes are now known, but current code is CUDA-first and checkpoint license/provider guarantees are not strong enough for implementation. |
 | SAGA-SR | Research/watchlist | Watch only until an official implementation, weight source, and license are identified. |
 | Latent Bridge Models | Research/watchlist | Watch only until implementation-grade artifacts are available. |
 | FlashSR | Research/watchlist | Promising direction because it targets faster AudioSR-style inference, but no official implementation-grade repo/weights were identified in this pass. |
@@ -67,12 +68,33 @@ Source facts:
 
 - Repository: <https://github.com/resemble-ai/flowhigh>
 - License: MIT
+- Source revision inspected: `resemble-ai/flowhigh@ce73b7a3701b16e86f69050729c41dfc2b24a35b`
 - Upstream describes it as an ICASSP 2025 single-step flow-matching audio
   super-resolution model.
 - Public usage exposes `FlowHighSR.from_pretrained(...).generate(wav, sr_in, target_sr)`.
 - Target sample rate is 48 kHz.
 - The implementation includes transformer and BigVGAN/vocoder components.
-- Public README references pretrained checkpoints distributed through Google Drive links.
+- Public README references pretrained checkpoints distributed through Google Drive links, but the
+  current package code downloads `ResembleAI/FlowHigh` from Hugging Face.
+- Hugging Face model revision inspected: `ResembleAI/FlowHigh@4281fe4119e5f3d209a9a893218fed85af2e5bbe`.
+
+Known Hugging Face files:
+
+| File | Size | SHA256 |
+| --- | ---: | --- |
+| `FLowHigh_basic_400k.json` | 1264 | n/a |
+| `FLowHigh_basic_400k.pt` | 481490826 | `84688e90d09b6f0788aeabc351ebc5f8d86463adb7ecf7ca3ef9c548e3825b8f` |
+| `bigvgan_48khz_256band.json` | 1012 | n/a |
+| `bigvgan_48khz_256band.pt` | 56105238 | `40c9fbe33e8d9f4090b988733996984e899c2ba69e475435e49704c8378c14bb` |
+
+Model config facts:
+
+- 48 kHz target.
+- STFT/mel: `n_fft=2048`, `hop_length=480`, `win_length=2048`, `n_mel_channels=256`,
+  `mel_fmin=20`, `mel_fmax=24000`.
+- Flow model: transformer, `dim=1024`, `n_layers=2`, `n_heads=16`, `dim_head=64`,
+  `cfm_path=basic_cfm`, `sigma=1e-4`.
+- Vocoder: BigVGAN 48 kHz 256-band checkpoint.
 
 Admission status:
 
@@ -81,17 +103,27 @@ Admission status:
 | Official implementation | Pass | The repository is public and implementation-oriented. |
 | Code license | Pass | MIT. |
 | Fixed target sample rate | Pass | 48 kHz target is explicit. |
-| Weight management | Needs spike | Current checkpoint links are not yet a provider-backed manifest with stable revision, size, and SHA256 metadata. |
+| Weight management | Partial pass | Current code uses Hugging Face files with stable sizes and hashes, but the HF repo has no explicit license tag. |
 | Self-contained feasibility | Needs spike | The vocoder boundary and exact required files must be mapped before deciding whether to reimplement or wrap. |
-| CPU/offline validation | Needs spike | Single-step generation helps, but default tests must stay CPU/offline and small. |
+| CPU/offline validation | Blocked | Current package code hard-codes `.cuda()` in model construction, post-processing, and sampling paths. |
 | Golden validation | Needs spike | Need deterministic fixture behavior or a statistical comparison strategy. |
 
 Decision:
 
-- Track as `#32` before any backend implementation.
-- Prefer a feasibility report that separates three outcomes: external wrapper,
-  self-contained compatibility backend, or continued watchlist.
+- Defer implementation.
+- Prefer continued watchlist or a future optional GPU-only external wrapper only after upstream
+  removes hard-coded CUDA assumptions.
+- Do not pursue a self-contained compatibility backend until CPU fallback, checkpoint license, and
+  safe checkpoint loading/conversion are resolved.
 - Do not add FlowHigh dependencies or checkpoint download behavior to the baseline package.
+
+Blockers:
+
+- `FlowHighSR.from_local()` calls `.cuda()` directly for the generator and wrapper.
+- `PostProcessing` and CFM sampling paths also create CUDA tensors directly.
+- Checkpoints are PyTorch `.pt` files loaded with `torch.load`; self-contained admission needs a
+  conversion plan.
+- HF checkpoint repository lacks an explicit license tag even though the source repository is MIT.
 
 ## Unverified SOTA Watchlist
 
@@ -133,12 +165,10 @@ speech benchmark context, but speech-specific BWE planning belongs in the speech
 General-audio implementation should resume after one of these happens:
 
 1. An official FlashSR/UniverSR implementation with clear weight files and permissive licensing becomes available.
-2. A maintainer decides to run an AudioSR compatibility feasibility spike despite the expected complexity.
-3. A simpler STFT/iSTFT or ONNX-friendly general-audio SR model appears with reproducible inference.
+2. FlowHigh publishes provider-neutral CPU/CUDA inference and explicit checkpoint licensing.
+3. A maintainer decides to run an AudioSR compatibility feasibility spike despite the expected complexity.
+4. A simpler STFT/iSTFT or ONNX-friendly general-audio SR model appears with reproducible inference.
 
 Until then, prioritize:
 
-- `#31` ClearerVoice/MossFormer2 speech feasibility.
-- `#32` FlowHigh general-audio feasibility.
-- `#33` Resemble Enhance speech enhancement/BWE feasibility.
 - `v0.4.0` runtime-provider and accelerator planning for existing backends.

@@ -18,6 +18,7 @@ This project follows semantic versioning once published to PyPI.
 - Added a fresh Colab T4 validation record for `lavasr-compat` real-weight CUDA inference.
 - Added `format-check`, `typecheck`, package metadata, and wheel contents checks to the Pixi quality tasks and CI/release workflows.
 - Added a PEP 561 `py.typed` marker for downstream type checkers.
+- Completed `v0.3.0` feasibility conclusions for ClearerVoice `MossFormer2_SR_48K`, FlowHigh, and Resemble Enhance, deferring each until its validation, checkpoint, or runtime blockers are resolved.
 
 ### Changed
 

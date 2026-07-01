@@ -50,7 +50,7 @@ Remaining before marking `lavasr-compat` stable:
 - Add stricter mel/STFT exactness tests if future changes touch `lavasr_torch`.
 - Keep default installs and default tests CPU/offline.
 
-## Next: v0.3.0
+## Completed: v0.3.0 Planning
 
 Goal: plan model expansion after the first compatible inference path has real validation evidence.
 
@@ -60,9 +60,9 @@ Tracked work:
 - `#22` Define model admission criteria and candidate scorecard. Completed: documentation and scorecard API are available.
 - `#23` Evaluate next speech SR/BWE compatible backend candidates. Completed: ClearerVoice `MossFormer2_SR_48K` is the next feasibility target.
 - `#24` Evaluate general-audio SR candidate backends. Completed: keep AudioSR external, track FlowHigh as a feasibility candidate, and defer new general-audio self-contained work until reproducibility is proven.
-- `#31` Map ClearerVoice `MossFormer2_SR_48K` compatibility feasibility.
-- `#32` Map FlowHigh compatibility feasibility.
-- `#33` Map Resemble Enhance compatibility feasibility.
+- `#31` Map ClearerVoice `MossFormer2_SR_48K` compatibility feasibility. Completed: defer self-contained implementation until checkpoint conversion, upstream parity, and CPU smoke evidence exist.
+- `#32` Map FlowHigh compatibility feasibility. Completed: defer implementation until CPU/offline execution, checkpoint licensing, and provider-neutral runtime behavior are proven.
+- `#33` Map Resemble Enhance compatibility feasibility. Completed: defer as a future optional speech enhancement/BWE backend rather than immediate package-owned SR.
 
 Decision rule:
 
@@ -71,7 +71,7 @@ Decision rule:
 - `v0.4.0` is for hardware acceleration and runtime-provider work after the model/backend abstractions are clear.
 - New candidate backends should not move into implementation until their weight format, license, preprocessing, I/O shape, and validation path are clear.
 
-## Later: v0.4.0
+## Next: v0.4.0
 
 Goal: optimize execution across hardware and external runtimes without making the baseline install heavy.
 
@@ -99,9 +99,9 @@ documents linked from [docs/README.md](docs/README.md).
 | `sinc-resample` | Implemented deterministic baseline. |
 | `audiosr` | Implemented optional external AudioSR wrapper. |
 | `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight download, torch smoke, and initial upstream parity pass. |
-| `mossformer-sr-compat` | Feasibility candidate tracked by `#31`. |
-| `flowhigh-compat` | Feasibility candidate tracked by `#32`. |
-| `resemble-enhance` | Feasibility candidate tracked by `#33`. |
+| `mossformer-sr-compat` | Deferred feasibility candidate; requires checkpoint conversion/parity and CPU smoke evidence before implementation. |
+| `flowhigh-compat` | Deferred feasibility candidate; current upstream path is CUDA-first and checkpoint licensing/provider guarantees need resolution. |
+| `resemble-enhance` | Deferred speech enhancement/BWE candidate; better suited to a future optional external backend. |
 | `nuwave` | Deferred research candidate. |
 | custom backend | User-provided backend implementing the package protocol. |
 
