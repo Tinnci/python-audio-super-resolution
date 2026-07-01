@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -102,6 +103,33 @@ def test_cli_eval_run_and_compare(tmp_path: Path) -> None:
     assert comparison["baseline_backend"] == "sinc-resample"
     assert comparison["candidate_backend"] == "sinc-resample"
     assert "highband_lsd_8_16k" in comparison["metric_summary"]
+
+
+def test_cli_eval_run_from_console_argv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+    output_path = tmp_path / "sinc.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "audio-super-res",
+            "eval",
+            "run",
+            "--dataset",
+            str(dataset),
+            "--backend",
+            "sinc-resample",
+            "--output",
+            str(output_path),
+            "--work-dir",
+            str(tmp_path / "work"),
+        ],
+    )
+
+    assert main() == 0
+    assert json.loads(output_path.read_text(encoding="utf-8"))["results"]
 
 
 def _write_reference(path: Path, *, sample_rate: int = 48000) -> None:

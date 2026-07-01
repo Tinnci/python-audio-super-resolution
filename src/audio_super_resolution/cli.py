@@ -351,11 +351,12 @@ def print_config(config: InferenceConfig) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if argv and argv[0] == "eval":
-        return _run_eval_command(argv[1:])
+    args_list = sys.argv[1:] if argv is None else argv
+    if args_list and args_list[0] == "eval":
+        return _run_eval_command(args_list[1:])
 
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(args_list)
 
     try:
         config = _build_config(args)
