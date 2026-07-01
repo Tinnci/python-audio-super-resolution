@@ -96,18 +96,19 @@ audio-quality score.
 
 Tracked work:
 
-- `#38` Add full-reference objective evaluation metrics. First slice implemented: controlled
-  degraders, SI-SDR/SDR, LSD, high-band LSD, spectral convergence, and JSON eval manifests.
+- `#38` Add full-reference objective evaluation metrics. Completed: controlled degraders,
+  SI-SDR/SDR, LSD, high-band LSD, spectral convergence, optional metric adapter requirements, and
+  JSON eval manifests.
 - `#39` Add no-reference objective evaluation adapters.
 - `#40` Add downstream task evaluation workflows.
 - `#41` Add perceptual listening-test export workflow.
-- `#42` Add engineering performance and stability evaluation. First slice implemented: eval
-  manifests include elapsed time, RTF, peak RSS strategy/fallbacks, sample-rate checks, duration
-  drift, clipping, per-result failure status, lightweight failure-case classification, and backend
+- `#42` Add engineering performance and stability evaluation. Completed: eval manifests include
+  elapsed time, RTF, peak RSS strategy/fallbacks, sample-rate checks, duration drift, clipping,
+  per-result failure status, lightweight failure-case classification, and backend
   capability/governance facts.
-- `#43` Add eval regression manifests and comparison workflow. First slice implemented:
-  `audio-super-res eval run`, `audio-super-res eval compare`, threshold-based regression checks,
-  and comparison tables for audio quality, downstream, engineering, stability, and governance.
+- `#43` Add eval regression manifests and comparison workflow. Completed: `audio-super-res eval run`,
+  `audio-super-res eval compare`, threshold-based regression checks, and comparison tables for audio
+  quality, downstream, engineering, stability, and governance.
 
 Decision rule:
 

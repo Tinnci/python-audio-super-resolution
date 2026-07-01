@@ -68,6 +68,23 @@ PESQ, STOI/ESTOI, MCD, DNSMOS, NISQA, UTMOS, ViSQOL, ASR WER/CER, speaker simila
 test exports are planned as optional or gated adapters. They must not become default CI
 dependencies.
 
+## Optional Full-Reference Adapters
+
+The default package intentionally implements only lightweight CPU/offline metrics. Optional
+full-reference adapters can be added behind extras or environment gates when they meet these
+requirements:
+
+| Metric | Requirement |
+| --- | --- |
+| PESQ | Optional dependency only; document narrowband/wideband sample-rate constraints and license status. |
+| STOI/ESTOI | Optional dependency only; resample explicitly and record the effective sample rate in the manifest. |
+| MCD | Use a maintained cepstral feature implementation or a small local implementation with tests; record feature settings. |
+| Codec degraders | Keep `ffmpeg`/codec tools optional; record codec, bitrate, sample rate, and command/tool version. |
+
+Optional metrics must write `null` or an explicit skipped reason when unavailable. They must not
+change the meaning of the lightweight schema, and they must not be folded into a single aggregate
+score.
+
 ## Manifest Shape
 
 Each result contains:

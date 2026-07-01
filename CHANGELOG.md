@@ -24,6 +24,7 @@ This project follows semantic versioning once published to PyPI.
 - Added the first lightweight backend evaluation harness with controlled degraders, full-reference metrics, eval manifests, and `audio-super-res eval run/compare`.
 - Added engineering/stability fields to eval manifests and benchmark JSON, including failure status, failure-case classification, RTF/peak RSS reporting, and backend capability/governance profiles.
 - Added threshold-based `audio-super-res eval compare` checks and comparison tables for audio quality, downstream, engineering, stability, and governance evidence.
+- Documented optional PESQ/STOI/ESTOI/MCD and codec-degrader integration requirements for full-reference evaluation.
 
 ### Changed
 
