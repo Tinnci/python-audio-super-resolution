@@ -18,6 +18,13 @@ from .config import (
     InferenceConfig,
     default_model_cache_dir,
 )
+from .evaluation import (
+    SUPPORTED_DEGRADERS,
+    compare_eval_manifests,
+    load_eval_manifest,
+    run_eval_dataset,
+    write_eval_manifest,
+)
 from .manifest import (
     build_manifest,
     compare_manifests,
@@ -203,6 +210,46 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_eval_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="audio-super-res eval",
+        description="Run and compare backend evaluation manifests.",
+    )
+    subparsers = parser.add_subparsers(dest="eval_command", required=True)
+
+    run_parser = subparsers.add_parser("run", help="Run an evaluation dataset.")
+    run_parser.add_argument("--dataset", type=Path, required=True, help="Directory of clean reference WAV files.")
+    run_parser.add_argument("--backend", default="sinc-resample", choices=_backend_names(), help="Backend to evaluate.")
+    run_parser.add_argument("--output", type=Path, required=True, help="Output eval manifest JSON path.")
+    run_parser.add_argument("--work-dir", type=Path, required=True, help="Directory for degraded and enhanced files.")
+    run_parser.add_argument("--target-sr", type=int, default=48000, help="Target sample rate. Defaults to 48000.")
+    run_parser.add_argument(
+        "--degrader",
+        choices=SUPPORTED_DEGRADERS,
+        default="wideband_16k",
+        help="Controlled degradation recipe. Defaults to wideband_16k.",
+    )
+    run_parser.add_argument("--limit", type=int, help="Limit the number of reference files for smoke runs.")
+    run_parser.add_argument("--device", choices=VALID_DEVICES, default="cpu", help="Inference device. Defaults to cpu.")
+    run_parser.add_argument(
+        "--runtime-provider",
+        choices=VALID_RUNTIME_PROVIDERS,
+        default="auto",
+        help="Runtime provider selection. Defaults to auto.",
+    )
+    run_parser.add_argument(
+        "--model-cache-dir",
+        type=Path,
+        help="Directory for model weights and metadata.",
+    )
+
+    compare_parser = subparsers.add_parser("compare", help="Compare two evaluation manifests.")
+    compare_parser.add_argument("baseline", type=Path, help="Baseline eval manifest JSON path.")
+    compare_parser.add_argument("candidate", type=Path, help="Candidate eval manifest JSON path.")
+    compare_parser.add_argument("--output", type=Path, help="Write comparison JSON to this path.")
+    return parser
+
+
 def print_env_info(config: InferenceConfig) -> None:
     print(f"audio-super-resolution: {__version__}")
     print(f"python: {platform.python_version()}")
@@ -304,6 +351,9 @@ def print_config(config: InferenceConfig) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv and argv[0] == "eval":
+        return _run_eval_command(argv[1:])
+
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -313,6 +363,43 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(str(exc))
 
     return _run_command(args, parser, config)
+
+
+def _run_eval_command(argv: list[str]) -> int:
+    parser = build_eval_parser()
+    args = parser.parse_args(argv)
+    try:
+        if args.eval_command == "run":
+            model_cache_dir = args.model_cache_dir if args.model_cache_dir is not None else default_model_cache_dir()
+            manifest = run_eval_dataset(
+                dataset_dir=args.dataset,
+                backend=args.backend,
+                output_path=args.output,
+                work_dir=args.work_dir,
+                target_sample_rate=args.target_sr,
+                degrader=args.degrader,
+                limit=args.limit,
+                config=InferenceConfig(
+                    device=args.device,
+                    runtime_provider=args.runtime_provider,
+                    model_cache_dir=model_cache_dir,
+                ),
+            )
+            results = manifest.get("results")
+            result_count = len(results) if isinstance(results, list) else 0
+            print(f"Wrote eval manifest {args.output} ({result_count} result(s))")
+            return 0
+        if args.eval_command == "compare":
+            comparison = compare_eval_manifests(load_eval_manifest(args.baseline), load_eval_manifest(args.candidate))
+            if args.output:
+                write_eval_manifest(args.output, comparison)
+                print(f"Wrote eval comparison {args.output}")
+            else:
+                print(json.dumps(comparison, indent=2))
+            return 0 if comparison["passed"] else 1
+    except (OSError, RuntimeError, ValueError) as exc:
+        parser.error(str(exc))
+    parser.error(f"Unknown eval command: {args.eval_command}")
 
 
 def _run_command(args: argparse.Namespace, parser: argparse.ArgumentParser, config: InferenceConfig) -> int:

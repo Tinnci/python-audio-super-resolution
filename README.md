@@ -91,6 +91,13 @@ audio-super-res ./low-res-audio ./enhanced-audio --recursive --manifest run.json
 audio-super-res --compare-manifests expected.json actual.json
 ```
 
+Run a lightweight backend eval over clean references:
+
+```sh
+audio-super-res eval run --dataset evalsets/speech_clean_48k --backend sinc-resample --work-dir runs/sinc-work --output runs/sinc.json
+audio-super-res eval compare runs/sinc.json runs/lavasr.json --output runs/comparison.json
+```
+
 List backends and models:
 
 ```sh
@@ -222,6 +229,7 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 - [docs/README.md](docs/README.md): documentation map and ownership rules.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): package layers, backend contract, and weight-management boundaries.
 - [docs/ACCELERATORS.md](docs/ACCELERATORS.md): accelerator install strategy, runtime providers, and validation matrix.
+- [docs/EVALUATION.md](docs/EVALUATION.md): backend eval/regression workflow, degraders, metrics, and manifests.
 - [ROADMAP.md](ROADMAP.md): milestone state and next implementation tracks.
 - [CHANGELOG.md](CHANGELOG.md): release history and unreleased changes.
 - [tests/README.md](tests/README.md): default and optional test strategy.

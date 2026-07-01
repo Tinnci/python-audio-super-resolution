@@ -21,6 +21,7 @@ This project follows semantic versioning once published to PyPI.
 - Completed `v0.3.0` feasibility conclusions for ClearerVoice `MossFormer2_SR_48K`, FlowHigh, and Resemble Enhance, deferring each until its validation, checkpoint, or runtime blockers are resolved.
 - Added accelerator/runtime-provider metadata, provider resolution helpers, and benchmark JSON output for gated hardware validation.
 - Added accelerator installation, validation-matrix, and LavaSR optimization guidance.
+- Added the first lightweight backend evaluation harness with controlled degraders, full-reference metrics, eval manifests, and `audio-super-res eval run/compare`.
 
 ### Changed
 

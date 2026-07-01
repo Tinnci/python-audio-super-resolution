@@ -89,7 +89,31 @@ Decision rule:
 - Backend code should request capabilities from a runtime/provider abstraction instead of hard-coding CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, or ONNX Runtime checks.
 - GPU/SDK-specific tests must remain gated and should produce JSON evidence before they become release gates.
 
-## Next: Release Hardening
+## In Progress: v0.5.0 Evaluation And Regression Harness
+
+Goal: build a reproducible backend benchmark and regression workflow that evaluates more than one
+audio-quality score.
+
+Tracked work:
+
+- `#38` Add full-reference objective evaluation metrics. First slice implemented: controlled
+  degraders, SI-SDR/SDR, LSD, high-band LSD, spectral convergence, and JSON eval manifests.
+- `#39` Add no-reference objective evaluation adapters.
+- `#40` Add downstream task evaluation workflows.
+- `#41` Add perceptual listening-test export workflow.
+- `#42` Add engineering performance and stability evaluation. First slice implemented: eval
+  manifests include elapsed time, RTF, sample-rate checks, duration drift, and clipping quality data.
+- `#43` Add eval regression manifests and comparison workflow. First slice implemented:
+  `audio-super-res eval run` and `audio-super-res eval compare`.
+
+Decision rule:
+
+- Do not reduce backend choice to one aggregate score.
+- Keep heavyweight evaluators, ASR models, listening-test tooling, and model weights optional or gated.
+- Prefer separate tables for full-reference quality, no-reference quality, downstream impact,
+  listening evidence, engineering performance, stability, and governance.
+
+## Later: Release Hardening
 
 - Keep broadening `lavasr-compat` fixture coverage before marking it stable.
 - Keep candidate backends deferred until their weight, license, preprocessing, and validation blockers are cleared.
