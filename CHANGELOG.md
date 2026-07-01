@@ -26,6 +26,7 @@ This project follows semantic versioning once published to PyPI.
 - Added threshold-based `audio-super-res eval compare` checks and comparison tables for audio quality, downstream, engineering, stability, and governance evidence.
 - Documented optional PESQ/STOI/ESTOI/MCD and codec-degrader integration requirements for full-reference evaluation.
 - Added `audio-super-res eval no-reference` with builtin CPU/offline signal-stat screening records and documented gated DNSMOS/NISQA/UTMOS/ViSQOL adapter requirements.
+- Added `audio-super-res eval downstream` with builtin ASR transcript WER/CER delta evaluation and gated speaker/VAD/KWS adapter schema.
 
 ### Changed
 

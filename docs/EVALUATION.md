@@ -39,6 +39,14 @@ audio-super-res eval no-reference \
   --recursive
 ```
 
+For downstream ASR transcript analysis from precomputed recognizer outputs:
+
+```sh
+audio-super-res eval downstream \
+  --dataset evalsets/asr_transcripts_tiny.json \
+  --output runs/downstream-asr.json
+```
+
 Regression thresholds can be repeated. The comparator infers metric direction: SI-SDR/PESQ/STOI
 drops fail, while LSD/high-band LSD/RTF/peak RSS increases fail.
 
@@ -140,6 +148,63 @@ explicit opt-ins because they introduce heavyweight dependencies, model download
 binaries, and license/runtime obligations. Invoking one from the default install returns actionable
 guidance instead of silently downloading assets.
 
+## Downstream Evaluation
+
+Downstream evaluation asks whether enhancement helps the task that consumes the audio. For ASR
+preprocessing, an SR model that improves high-band LSD but worsens WER/CER is a regression for that
+scenario.
+
+The default implemented downstream evaluator is `transcript-error-rate`. It does not run an ASR
+model; it compares precomputed ASR transcripts for the low-quality input and enhanced output against
+a reference transcript. This keeps default CI CPU/offline and makes ASR model choice explicit.
+
+Input dataset shape:
+
+```json
+{
+  "dataset_id": "speech_bwe_tiny",
+  "records": [
+    {
+      "id": "sample_001",
+      "reference_transcript": "hello world",
+      "baseline_transcript": "hello word",
+      "enhanced_transcript": "hello world"
+    }
+  ]
+}
+```
+
+Output records include baseline input score, enhanced score, delta, evaluator version, and dataset
+identity:
+
+```json
+{
+  "evaluation_type": "downstream",
+  "dataset_id": "speech_bwe_tiny",
+  "evaluator": {
+    "name": "transcript-error-rate",
+    "version": "builtin",
+    "task": "asr",
+    "score_fields": ["wer", "cer"]
+  },
+  "records": [
+    {
+      "id": "sample_001",
+      "dataset_id": "speech_bwe_tiny",
+      "task": "asr",
+      "evaluator_version": "builtin",
+      "baseline_input_score": {"wer": 0.5, "cer": 0.1},
+      "enhanced_score": {"wer": 0.0, "cer": 0.0},
+      "delta": {"wer": -0.5, "cer": -0.1}
+    }
+  ]
+}
+```
+
+Speaker similarity, VAD/endpoint accuracy, and keyword spotting are represented as planned optional
+adapters in the manifest. They must remain gated until their models, labels, licenses, and runtime
+requirements are explicit.
+
 ## Manifest Shape
 
 Each result contains:
@@ -239,7 +304,6 @@ generated audio fixtures only.
 
 The remaining `v0.5.0` issues add:
 
-- downstream ASR/speaker/VAD/KWS evaluation
 - AB/ABX/MUSHRA listening-test exports
 - richer memory/load-time profiling, dependency-footprint, and governance tables
 - threshold-based regression policies for release gates

@@ -20,9 +20,11 @@ from .config import (
 )
 from .evaluation import (
     SUPPORTED_DEGRADERS,
+    SUPPORTED_DOWNSTREAM_EVALUATORS,
     SUPPORTED_NO_REFERENCE_EVALUATORS,
     compare_eval_manifests,
     load_eval_manifest,
+    run_downstream_eval,
     run_eval_dataset,
     run_no_reference_eval,
     write_eval_manifest,
@@ -257,6 +259,23 @@ def build_eval_parser() -> argparse.ArgumentParser:
         help="No-reference evaluator. Heavy evaluators are documented but gated. Defaults to signal-stats.",
     )
 
+    downstream_parser = subparsers.add_parser("downstream", help="Run downstream task evaluation.")
+    downstream_parser.add_argument(
+        "--dataset",
+        type=Path,
+        required=True,
+        help="JSON transcript dataset for downstream evaluation.",
+    )
+    downstream_parser.add_argument("--output", type=Path, required=True, help="Output eval manifest JSON path.")
+    downstream_parser.add_argument("--dataset-id", help="Stable dataset identity to write into records.")
+    downstream_parser.add_argument("--limit", type=int, help="Limit the number of records for smoke runs.")
+    downstream_parser.add_argument(
+        "--evaluator",
+        choices=SUPPORTED_DOWNSTREAM_EVALUATORS,
+        default="transcript-error-rate",
+        help="Downstream evaluator. Heavy evaluators are documented but gated. Defaults to transcript-error-rate.",
+    )
+
     compare_parser = subparsers.add_parser("compare", help="Compare two evaluation manifests.")
     compare_parser.add_argument("baseline", type=Path, help="Baseline eval manifest JSON path.")
     compare_parser.add_argument("candidate", type=Path, help="Candidate eval manifest JSON path.")
@@ -425,6 +444,18 @@ def _run_eval_command(argv: list[str]) -> int:
             results = manifest.get("results")
             result_count = len(results) if isinstance(results, list) else 0
             print(f"Wrote no-reference eval manifest {args.output} ({result_count} result(s))")
+            return 0
+        if args.eval_command == "downstream":
+            manifest = run_downstream_eval(
+                dataset_path=args.dataset,
+                output_path=args.output,
+                evaluator=args.evaluator,
+                dataset_id=args.dataset_id,
+                limit=args.limit,
+            )
+            results = manifest.get("results")
+            result_count = len(results) if isinstance(results, list) else 0
+            print(f"Wrote downstream eval manifest {args.output} ({result_count} result(s))")
             return 0
         if args.eval_command == "compare":
             comparison = compare_eval_manifests(

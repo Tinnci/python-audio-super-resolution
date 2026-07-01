@@ -102,7 +102,9 @@ Tracked work:
 - `#39` Add no-reference objective evaluation adapters. Completed: `audio-super-res eval
   no-reference`, builtin CPU/offline `signal-stats` records, stable no-reference JSON shape, and
   gated DNSMOS/NISQA/UTMOS/ViSQOL integration requirements.
-- `#40` Add downstream task evaluation workflows.
+- `#40` Add downstream task evaluation workflows. Completed: `audio-super-res eval downstream`,
+  builtin transcript WER/CER delta evaluation from precomputed ASR outputs, and gated
+  speaker/VAD/KWS adapter schema.
 - `#41` Add perceptual listening-test export workflow.
 - `#42` Add engineering performance and stability evaluation. Completed: eval manifests include
   elapsed time, RTF, peak RSS strategy/fallbacks, sample-rate checks, duration drift, clipping,

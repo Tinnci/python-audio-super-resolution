@@ -7,7 +7,13 @@ import pytest
 import soundfile as sf
 
 from audio_super_resolution.cli import main
-from audio_super_resolution.evaluation import compare_eval_manifests, run_eval_dataset, run_no_reference_eval
+from audio_super_resolution.evaluation import (
+    compare_eval_manifests,
+    run_downstream_eval,
+    run_eval_dataset,
+    run_no_reference_eval,
+    transcript_error_rates,
+)
 from audio_super_resolution.resolver import EnhancementResult
 
 
@@ -241,6 +247,87 @@ def test_cli_eval_no_reference(tmp_path: Path) -> None:
     assert manifest["evaluation_type"] == "no_reference"
     assert manifest["results"][0]["evaluator"]["name"] == "signal-stats"
     assert "silence_fraction" in manifest["results"][0]["scores"]
+
+
+def test_transcript_error_rates_compute_wer_and_cer() -> None:
+    rates = transcript_error_rates("hello world", "hello word")
+
+    assert rates["wer"] == 0.5
+    assert rates["cer"] == pytest.approx(1 / 10)
+
+
+def test_run_downstream_eval_writes_transcript_manifest(tmp_path: Path) -> None:
+    dataset_path = tmp_path / "downstream.json"
+    output_path = tmp_path / "runs" / "downstream.json"
+    dataset_path.write_text(
+        json.dumps(
+            {
+                "dataset_id": "speech_bwe_tiny",
+                "records": [
+                    {
+                        "id": "sample",
+                        "reference_transcript": "hello world",
+                        "baseline_transcript": "hello word",
+                        "enhanced_transcript": "hello world",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = run_downstream_eval(dataset_path=dataset_path, output_path=output_path)
+
+    assert output_path.is_file()
+    assert manifest["evaluation_type"] == "downstream"
+    assert manifest["dataset_id"] == "speech_bwe_tiny"
+    assert manifest["evaluator"]["name"] == "transcript-error-rate"
+    assert manifest["planned_adapters"][0]["name"] == "speaker-similarity"
+    record = manifest["records"][0]
+    assert record["baseline_input_score"]["wer"] == 0.5
+    assert record["enhanced_score"]["wer"] == 0.0
+    assert record["delta"]["wer"] == -0.5
+    assert record["scores"]["wer"] == 0.0
+
+    comparison = compare_eval_manifests(manifest, manifest)
+    assert comparison["passed"] is True
+    assert "wer" in comparison["tables"]["downstream"]
+
+
+def test_run_downstream_eval_rejects_gated_heavy_evaluator(tmp_path: Path) -> None:
+    dataset_path = tmp_path / "downstream.json"
+    dataset_path.write_text(json.dumps({"records": []}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Downstream models must remain opt-in"):
+        run_downstream_eval(
+            dataset_path=dataset_path,
+            output_path=tmp_path / "speaker.json",
+            evaluator="speaker-similarity",
+        )
+
+
+def test_cli_eval_downstream(tmp_path: Path) -> None:
+    dataset_path = tmp_path / "downstream.json"
+    output_path = tmp_path / "downstream-output.json"
+    dataset_path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "sample",
+                    "reference_transcript": "hello world",
+                    "baseline_transcript": "hello word",
+                    "enhanced_transcript": "hello world",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    assert main(["eval", "downstream", "--dataset", str(dataset_path), "--output", str(output_path)]) == 0
+
+    manifest = json.loads(output_path.read_text(encoding="utf-8"))
+    assert manifest["evaluation_type"] == "downstream"
+    assert manifest["results"][0]["delta"]["wer"] == -0.5
 
 
 def test_run_eval_dataset_records_backend_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

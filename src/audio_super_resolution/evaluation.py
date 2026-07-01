@@ -59,6 +59,12 @@ SIGNAL_STATS_NO_REFERENCE_METRICS = (
     "dc_offset",
 )
 SUPPORTED_NO_REFERENCE_EVALUATORS = ("signal-stats", "dnsmos", "nisqa", "utmos", "visqol")
+SUPPORTED_DOWNSTREAM_EVALUATORS = (
+    "transcript-error-rate",
+    "speaker-similarity",
+    "vad-endpoint",
+    "keyword-spotting",
+)
 PLANNED_NO_REFERENCE_ADAPTERS = (
     {
         "name": "dnsmos",
@@ -95,6 +101,32 @@ PLANNED_NO_REFERENCE_ADAPTERS = (
         "license_status": "requires review before redistribution",
         "runtime_requirements": ["visqol binary or Python binding"],
         "install_guidance": "Install ViSQOL separately and configure a future adapter with the binary/model path.",
+    },
+)
+PLANNED_DOWNSTREAM_ADAPTERS = (
+    {
+        "name": "speaker-similarity",
+        "status": "planned_optional",
+        "task": "speaker",
+        "expected_scores": ["speaker_similarity"],
+        "runtime_requirements": ["speaker embedding model", "model weights"],
+        "install_guidance": "Install a future optional downstream extra and provide explicit speaker model paths.",
+    },
+    {
+        "name": "vad-endpoint",
+        "status": "planned_optional",
+        "task": "vad",
+        "expected_scores": ["vad_accuracy", "endpoint_accuracy"],
+        "runtime_requirements": ["VAD model or labeled endpoint fixtures"],
+        "install_guidance": "Provide labeled VAD/endpoint fixtures and configure a future optional VAD adapter.",
+    },
+    {
+        "name": "keyword-spotting",
+        "status": "planned_optional",
+        "task": "kws",
+        "expected_scores": ["keyword_accuracy"],
+        "runtime_requirements": ["keyword labels", "KWS model"],
+        "install_guidance": "Provide keyword labels and configure a future optional KWS adapter.",
     },
 )
 LOWER_IS_BETTER_METRICS = {
@@ -213,6 +245,48 @@ def run_no_reference_eval(
     return manifest
 
 
+def run_downstream_eval(
+    *,
+    dataset_path: str | Path,
+    output_path: str | Path,
+    evaluator: str = "transcript-error-rate",
+    dataset_id: str | None = None,
+    limit: int | None = None,
+) -> dict[str, object]:
+    """Run lightweight downstream evaluation from precomputed task outputs."""
+
+    evaluator = evaluator.lower()
+    if evaluator != "transcript-error-rate":
+        raise ValueError(_unsupported_downstream_evaluator_message(evaluator))
+
+    dataset = _load_downstream_dataset(dataset_path)
+    loaded_records = dataset["records"]
+    if not isinstance(loaded_records, list):
+        raise ValueError("downstream dataset must include a records list")
+    records: list[object] = loaded_records
+    if limit is not None:
+        if limit <= 0:
+            raise ValueError("limit must be greater than zero")
+        records = records[:limit]
+    if not records:
+        raise ValueError(f"No downstream records found in {Path(dataset_path)}")
+
+    resolved_dataset_id = dataset_id or str(dataset.get("dataset_id") or Path(dataset_path))
+    eval_records = [
+        _transcript_error_rate_record(record, dataset_id=resolved_dataset_id)
+        for record in records
+        if isinstance(record, dict)
+    ]
+    manifest = build_downstream_manifest(
+        dataset_path=Path(dataset_path),
+        dataset_id=resolved_dataset_id,
+        evaluator=evaluator,
+        records=eval_records,
+    )
+    write_eval_manifest(output_path, manifest)
+    return manifest
+
+
 def build_no_reference_manifest(
     *,
     input_path: Path,
@@ -258,6 +332,49 @@ def no_reference_signal_stats(path: str | Path) -> dict[str, float]:
         "clipped_fraction": clipped_fraction,
         "silence_fraction": silence_fraction,
         "dc_offset": dc_offset,
+    }
+
+
+def build_downstream_manifest(
+    *,
+    dataset_path: Path,
+    dataset_id: str,
+    evaluator: str,
+    records: list[dict[str, object]],
+) -> dict[str, object]:
+    """Build a JSON-serializable downstream eval manifest."""
+
+    status_counts = _status_counts(records)
+    return {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "evaluation_type": "downstream",
+        "passed": all(record.get("status") == "passed" for record in records),
+        "dataset": str(dataset_path),
+        "dataset_id": dataset_id,
+        "evaluator": _downstream_evaluator_info(evaluator),
+        "metric_groups": {
+            "downstream": ["wer", "cer"],
+            "planned_optional_downstream": [adapter["name"] for adapter in PLANNED_DOWNSTREAM_ADAPTERS],
+        },
+        "result_count": len(records),
+        "status_counts": status_counts,
+        "planned_adapters": list(PLANNED_DOWNSTREAM_ADAPTERS),
+        "records": records,
+        "results": records,
+    }
+
+
+def transcript_error_rates(reference: str, hypothesis: str) -> dict[str, float]:
+    """Compute WER/CER for a reference and hypothesis transcript."""
+
+    reference_words = _word_tokens(reference)
+    hypothesis_words = _word_tokens(hypothesis)
+    reference_chars = _character_tokens(reference)
+    hypothesis_chars = _character_tokens(hypothesis)
+    return {
+        "wer": _error_rate(reference_words, hypothesis_words),
+        "cer": _error_rate(reference_chars, hypothesis_chars),
     }
 
 
@@ -482,6 +599,134 @@ def _unsupported_no_reference_evaluator_message(evaluator: str) -> str:
         )
     choices = ", ".join(SUPPORTED_NO_REFERENCE_EVALUATORS)
     return f"Unsupported no-reference evaluator {evaluator!r}. Choices: {choices}"
+
+
+def _load_downstream_dataset(dataset_path: str | Path) -> dict[str, object]:
+    loaded = json.loads(Path(dataset_path).read_text(encoding="utf-8"))
+    if isinstance(loaded, list):
+        return {"records": loaded}
+    if not isinstance(loaded, dict):
+        raise ValueError("downstream dataset must be a JSON object or list")
+    records = loaded.get("records")
+    if not isinstance(records, list):
+        raise ValueError("downstream dataset must include a records list")
+    return loaded
+
+
+def _transcript_error_rate_record(record: dict[str, object], *, dataset_id: str) -> dict[str, object]:
+    item_id = str(record.get("id", ""))
+    reference = _required_text(record, "reference_transcript", item_id=item_id)
+    baseline = _required_text(record, "baseline_transcript", item_id=item_id)
+    enhanced = _required_text(record, "enhanced_transcript", item_id=item_id)
+    baseline_scores = transcript_error_rates(reference, baseline)
+    enhanced_scores = transcript_error_rates(reference, enhanced)
+    delta = {
+        "wer": enhanced_scores["wer"] - baseline_scores["wer"],
+        "cer": enhanced_scores["cer"] - baseline_scores["cer"],
+    }
+    return {
+        "id": item_id or str(record.get("input_path", "record")),
+        "dataset_id": dataset_id,
+        "task": "asr",
+        "evaluator": _downstream_evaluator_info("transcript-error-rate"),
+        "evaluator_version": "builtin",
+        "status": "passed",
+        "baseline_input_score": baseline_scores,
+        "enhanced_score": enhanced_scores,
+        "delta": delta,
+        "scores": {
+            "wer": enhanced_scores["wer"],
+            "cer": enhanced_scores["cer"],
+            "baseline_wer": baseline_scores["wer"],
+            "baseline_cer": baseline_scores["cer"],
+            "wer_delta": delta["wer"],
+            "cer_delta": delta["cer"],
+        },
+        "metadata": {
+            "reference_transcript": reference,
+            "baseline_transcript": baseline,
+            "enhanced_transcript": enhanced,
+            "input_path": record.get("input_path"),
+            "enhanced_path": record.get("enhanced_path"),
+        },
+        "error": None,
+        "install_guidance": None,
+    }
+
+
+def _required_text(record: dict[str, object], field: str, *, item_id: str) -> str:
+    value = record.get(field)
+    if not isinstance(value, str):
+        label = f" for record {item_id!r}" if item_id else ""
+        raise ValueError(f"downstream transcript dataset missing string field {field!r}{label}")
+    return value
+
+
+def _downstream_evaluator_info(evaluator: str) -> dict[str, object]:
+    if evaluator == "transcript-error-rate":
+        return {
+            "name": "transcript-error-rate",
+            "version": "builtin",
+            "status": "implemented",
+            "task": "asr",
+            "score_fields": ["wer", "cer"],
+            "runtime_requirements": ["precomputed reference/baseline/enhanced transcripts"],
+            "lower_is_better": True,
+            "model_source": None,
+            "license_status": "project-license",
+        }
+    for adapter in PLANNED_DOWNSTREAM_ADAPTERS:
+        if adapter["name"] == evaluator:
+            return dict(adapter)
+    return {
+        "name": evaluator,
+        "status": "unsupported",
+        "task": "unknown",
+        "score_fields": [],
+        "runtime_requirements": [],
+    }
+
+
+def _unsupported_downstream_evaluator_message(evaluator: str) -> str:
+    evaluator_info = _downstream_evaluator_info(evaluator)
+    if evaluator_info.get("status") == "planned_optional":
+        return (
+            f"Downstream evaluator {evaluator!r} is documented but not enabled in the default install. "
+            f"{evaluator_info['install_guidance']} Downstream models must remain opt-in."
+        )
+    choices = ", ".join(SUPPORTED_DOWNSTREAM_EVALUATORS)
+    return f"Unsupported downstream evaluator {evaluator!r}. Choices: {choices}"
+
+
+def _word_tokens(text: str) -> list[str]:
+    return text.casefold().split()
+
+
+def _character_tokens(text: str) -> list[str]:
+    return [character for character in text.casefold() if not character.isspace()]
+
+
+def _error_rate(reference: list[str], hypothesis: list[str]) -> float:
+    if not reference:
+        return 0.0 if not hypothesis else 1.0
+    return _edit_distance(reference, hypothesis) / len(reference)
+
+
+def _edit_distance(reference: list[str], hypothesis: list[str]) -> int:
+    previous = list(range(len(hypothesis) + 1))
+    for reference_index, reference_token in enumerate(reference, start=1):
+        current = [reference_index]
+        for hypothesis_index, hypothesis_token in enumerate(hypothesis, start=1):
+            substitution_cost = 0 if reference_token == hypothesis_token else 1
+            current.append(
+                min(
+                    previous[hypothesis_index] + 1,
+                    current[hypothesis_index - 1] + 1,
+                    previous[hypothesis_index - 1] + substitution_cost,
+                )
+            )
+        previous = current
+    return previous[-1]
 
 
 def write_eval_manifest(path: str | Path, manifest: dict[str, object]) -> Path:

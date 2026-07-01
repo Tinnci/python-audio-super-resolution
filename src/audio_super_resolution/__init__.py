@@ -20,6 +20,7 @@ from .downloads import (
 )
 from .evaluation import (
     DegradedAudio,
+    build_downstream_manifest,
     build_eval_manifest,
     build_no_reference_manifest,
     compare_eval_manifests,
@@ -27,8 +28,10 @@ from .evaluation import (
     full_reference_metrics,
     load_eval_manifest,
     no_reference_signal_stats,
+    run_downstream_eval,
     run_eval_dataset,
     run_no_reference_eval,
+    transcript_error_rates,
     write_eval_manifest,
 )
 from .golden import (
@@ -134,6 +137,7 @@ __all__ = [
     "apply_preprocessing",
     "available_backends",
     "available_devices",
+    "build_downstream_manifest",
     "build_eval_manifest",
     "build_no_reference_manifest",
     "build_manifest",
@@ -189,8 +193,10 @@ __all__ = [
     "verify_model_weights",
     "verify_weights_for_spec",
     "runtime_provider_info",
+    "run_downstream_eval",
     "run_eval_dataset",
     "run_no_reference_eval",
+    "transcript_error_rates",
     "verify_weight_file",
     "verify_weight_manifest",
     "write_manifest",
