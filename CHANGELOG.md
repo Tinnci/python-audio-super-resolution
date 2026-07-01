@@ -22,7 +22,7 @@ This project follows semantic versioning once published to PyPI.
 - Added accelerator/runtime-provider metadata, provider resolution helpers, and benchmark JSON output for gated hardware validation.
 - Added accelerator installation, validation-matrix, and LavaSR optimization guidance.
 - Added the first lightweight backend evaluation harness with controlled degraders, full-reference metrics, eval manifests, and `audio-super-res eval run/compare`.
-- Added engineering/stability fields to eval manifests, including failure status, failure-case classification, peak RSS reporting, and backend capability/governance profiles.
+- Added engineering/stability fields to eval manifests and benchmark JSON, including failure status, failure-case classification, RTF/peak RSS reporting, and backend capability/governance profiles.
 
 ### Changed
 

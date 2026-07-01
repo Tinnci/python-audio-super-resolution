@@ -122,8 +122,10 @@ audio-super-res input.wav output.wav \
 ```
 
 Benchmark reports include backend, requested device, runtime provider, elapsed seconds, total input
-and output duration, realtime factor, per-job metadata, and quality metrics. Throughput should be
-tracked as evidence, not a hard release gate, until stable baselines exist per device/provider.
+and output duration, standard RTF (`elapsed_seconds / audio_duration_seconds`), the legacy
+`realtime_factor` throughput field, peak RSS/fallback metadata, per-job metadata, and quality
+metrics. Throughput should be tracked as evidence, not a hard release gate, until stable baselines
+exist per device/provider.
 
 ## LavaSR Optimization Recommendation
 

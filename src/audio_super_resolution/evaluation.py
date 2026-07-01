@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import platform
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -18,15 +17,8 @@ from .models import find_model_spec
 from .preprocess import lowpass_filter
 from .quality import inspect_audio_quality, quality_report_to_dict
 from .resolver import AudioSuperResolver
+from .runtime_stats import peak_rss_snapshot
 from .specs import BackendCapability, ModelSpec
-
-_resource_module: Any
-try:
-    import resource as _resource_module
-except ImportError:  # pragma: no cover - exercised on platforms without resource.
-    _resource_module = None
-
-_resource: Any | None = _resource_module
 
 SUPPORTED_DEGRADERS = (
     "lowpass_4k",
@@ -451,34 +443,7 @@ def _performance_report(
 
 
 def _memory_snapshot() -> dict[str, object]:
-    system = platform.system()
-    if _resource is None:
-        return {
-            "strategy": "resource.getrusage(RUSAGE_SELF).ru_maxrss",
-            "platform": system,
-            "available": False,
-            "peak_rss_mb": None,
-            "unit_note": None,
-            "fallback": "peak RSS unavailable because the platform does not provide the resource module",
-        }
-
-    usage = _resource.getrusage(_resource.RUSAGE_SELF)
-    raw_peak_rss = float(usage.ru_maxrss)
-    if system == "Darwin":
-        peak_rss_mb = raw_peak_rss / (1024 * 1024)
-        unit_note = "ru_maxrss reports bytes on Darwin"
-    else:
-        peak_rss_mb = raw_peak_rss / 1024
-        unit_note = "ru_maxrss reports kilobytes on Linux and most Unix platforms"
-
-    return {
-        "strategy": "resource.getrusage(RUSAGE_SELF).ru_maxrss",
-        "platform": system,
-        "available": True,
-        "peak_rss_mb": peak_rss_mb,
-        "unit_note": unit_note,
-        "fallback": None,
-    }
+    return peak_rss_snapshot()
 
 
 def _stability_report(

@@ -339,6 +339,9 @@ def test_cli_writes_benchmark_json(tmp_path: Path, capsys) -> None:
     assert benchmark["runtime_provider"] == "auto"
     assert benchmark["target_sample_rate"] == 32000
     assert benchmark["job_count"] == 1
+    assert benchmark["rtf"] is not None
+    assert benchmark["memory"]["strategy"] == "resource.getrusage(RUSAGE_SELF).ru_maxrss"
+    assert "peak_rss_mb" in benchmark
     assert benchmark["results"][0]["sample_rate"] == 32000
     assert benchmark["quality_reports"][0]["passed"] is True
 
