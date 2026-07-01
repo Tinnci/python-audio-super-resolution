@@ -15,14 +15,18 @@ This project follows semantic versioning once published to PyPI.
 - Added `v0.3.0` model-planning scope and `v0.4.0` accelerator/runtime-provider planning scope.
 - Added speech and general-audio candidate reviews for ClearerVoice, Resemble Enhance, AudioSR, FlowHigh, and deferred research candidates.
 - Added a repository-based LavaSR/GPU Colab validation guide and evidence checklist.
+- Added a fresh Colab T4 validation record for `lavasr-compat` real-weight CUDA inference.
+- Added `format-check`, `typecheck`, package metadata, and wheel contents checks to the Pixi quality tasks and CI/release workflows.
+- Added a PEP 561 `py.typed` marker for downstream type checkers.
 
 ### Changed
 
 - Wired `lavasr-compat` past verified local weights into the experimental runtime while keeping provider downloads outside backend inference.
 - Removed PyYAML from the `lavasr` extra; the extra now only provides the torch runtime dependency.
 - Reworked lightweight golden/preprocessing spectral paths to avoid fragile SciPy stateful filtering/STFT calls in default tests.
-- Updated roadmap and release documentation for the completed `v0.1.x` release flow and active `v0.2.0` work.
+- Updated roadmap and release documentation for the completed `v0.1.x` release flow and completed `v0.2.0` validation gates.
 - Simplified documentation ownership by adding a docs index and keeping README focused on user entry points.
+- Updated Docker installation to use `uv pip install --system` instead of direct `pip install`.
 
 ## 0.1.1
 

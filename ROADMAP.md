@@ -21,7 +21,7 @@ The package has a stable lightweight baseline and is adding model-backed inferen
 - The `v0.1.0` milestone is closed.
 - First-release dry-run notes remain in [docs/RELEASE_DRY_RUN_0.1.0.md](docs/RELEASE_DRY_RUN_0.1.0.md) as historical release evidence.
 
-## Active: v0.2.0
+## Completed: v0.2.0 Validation Gates
 
 Goal: make the first self-contained compatible model backend useful enough to validate with real weights.
 
@@ -30,18 +30,19 @@ Tracked work:
 - `#16` Implement `lavasr-compat` self-contained inference. Completed: self-contained torch inference runs with real LavaSR v2 BWE weights.
 - `#17` Add golden-sample validation for compatible backends. Completed: fixture format, metrics, docs, and offline tests are available.
 - `#18` Add gated real-weight model validation. Completed: gated LavaSR download verification and torch smoke tests are available.
-- `#19` Publish validated Colab and GPU documentation. In progress: repository-based Colab/GPU validation guide is available.
+- `#19` Publish validated Colab and GPU documentation. Completed: repository-based Colab/GPU validation guide passed on a fresh Colab T4 runtime.
 - `#25` Add LavaSR upstream golden parity validation. Completed: gated upstream LavaSR/Vocos parity harness passed locally with the same verified weights.
+- The `v0.2.0` milestone is closed.
 
 Current `lavasr-compat` status:
 
 - Model spec, managed weight metadata, local bundle validation, and experimental torch runtime are implemented.
-- Gated real-weight download, torch smoke, and upstream LavaSR/Vocos parity have passed locally.
+- Gated real-weight download, torch smoke, upstream LavaSR/Vocos parity, and Colab T4 CLI inference have passed.
 - Golden/parity details live in [docs/GOLDEN.md](docs/GOLDEN.md); gated test commands live in [tests/README.md](tests/README.md).
 
-Remaining before closing `v0.2.0`:
+Remaining before releasing `v0.2.0`:
 
-- Record a fresh Colab or GPU runtime validation result in `#19`.
+- Cut the release when changelog, version metadata, and release artifacts are ready.
 
 Remaining before marking `lavasr-compat` stable:
 

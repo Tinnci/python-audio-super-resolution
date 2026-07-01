@@ -70,6 +70,7 @@ class ModelSpec:
     def target_sample_rate(self) -> int | None:
         """Return the single target sample rate for legacy callers, if any."""
 
-        if not self.fixed_target_sr:
+        target_sample_rates = self.target_sample_rates
+        if target_sample_rates is None or len(target_sample_rates) != 1:
             return None
-        return self.target_sample_rates[0]
+        return target_sample_rates[0]

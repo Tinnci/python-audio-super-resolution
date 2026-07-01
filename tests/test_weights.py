@@ -92,6 +92,11 @@ def test_verify_weight_file_rejects_size_mismatch(tmp_path: Path) -> None:
         verify_weight_file(weight_path, expected_sha256=None, expected_size=999)
 
 
+def test_weight_file_rejects_non_numeric_size_metadata() -> None:
+    with pytest.raises(ValueError, match="integer manifest fields"):
+        WeightFile.from_dict({"path": "weights.bin", "size": object()})
+
+
 @pytest.mark.parametrize(
     "unsafe_path",
     [

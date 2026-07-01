@@ -9,9 +9,24 @@ Use a GPU runtime if available, but keep the commands valid on CPU:
 ```sh
 git clone https://github.com/Tinnci/python-audio-super-resolution.git
 cd python-audio-super-resolution
-python -m pip install -U pip
-python -m pip install -e ".[lavasr,download]"
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv pip install --system -e ".[lavasr,download]"
 ```
+
+## Latest Validation Record
+
+A fresh Colab T4 runtime was validated with `colab exec` on 2026-07-01 UTC at commit
+`a928d899547792fb2588ab3fe28f8a1da0578b8d`.
+
+- Runtime: Tesla T4, 15360 MiB, driver 580.82.07.
+- Python: 3.12.13.
+- torch: 2.11.0+cu128 with CUDA available.
+- Default test suite passed.
+- `lavasr-compat` downloaded and verified LavaSR v2 BWE weights.
+- Gated real-weight CUDA smoke passed with `tests/test_lavasr_real_weights.py`.
+- CLI CUDA inference wrote a 48000 Hz output, completed a run manifest, and produced a passing quality report.
+- The validation result was recorded in GitHub issue `#19`.
 
 Check the visible environment:
 
@@ -92,7 +107,7 @@ Expected checks:
 Run this only when validating compatibility against upstream LavaSR/Vocos. It installs upstream project dependencies and is not part of the default suite.
 
 ```sh
-python -m pip install "git+https://github.com/ysharma3501/LavaSR.git"
+uv pip install --system "git+https://github.com/ysharma3501/LavaSR.git"
 
 export AUDIO_SUPER_RESOLUTION_RUN_LAVASR_UPSTREAM_PARITY=1
 pytest tests/test_lavasr_upstream_parity.py -q
@@ -110,7 +125,7 @@ pytest tests/test_lavasr_upstream_parity.py -q
 AudioSR is a heavier external package backend and owns its upstream checkpoint behavior. Validate it separately from `lavasr-compat`:
 
 ```sh
-python -m pip install -e ".[audiosr]"
+uv pip install --system -e ".[audiosr]"
 
 audio-super-res input.wav audiosr-output.wav \
   --backend audiosr \

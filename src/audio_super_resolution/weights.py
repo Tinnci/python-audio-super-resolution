@@ -276,4 +276,6 @@ def _optional_int(value: object) -> int | None:
         return None
     if isinstance(value, bool):
         raise ValueError("integer manifest fields cannot be booleans")
+    if not isinstance(value, int | float | str | bytes | bytearray):
+        raise ValueError(f"integer manifest fields must be numbers or numeric strings: {value!r}")
     return int(value)

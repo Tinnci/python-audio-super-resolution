@@ -6,8 +6,12 @@ Use this checklist when publishing a package release.
 
 ```sh
 pixi run lint
+pixi run format-check
+pixi run typecheck
 pixi run test
 pixi run build
+pixi run metadata-check
+pixi run wheel-check
 pixi run python -m pip check
 ```
 

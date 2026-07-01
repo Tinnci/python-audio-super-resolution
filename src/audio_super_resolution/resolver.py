@@ -150,9 +150,10 @@ class AudioSuperResolver:
 
         self.target_sr = target_sr
         self.config = config or InferenceConfig()
-        self.backend = get_backend(backend, config=self.config) if isinstance(backend, str) else backend
-        if self.backend is None:
-            self.backend = SincResampleBackend(config=self.config)
+        resolved_backend = get_backend(backend, config=self.config) if isinstance(backend, str) else backend
+        if resolved_backend is None:
+            resolved_backend = SincResampleBackend(config=self.config)
+        self.backend: EnhancementBackend = resolved_backend
 
     def enhance(
         self,

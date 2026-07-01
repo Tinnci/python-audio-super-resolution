@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Protocol
+
 from ..config import InferenceConfig
 from ..specs import ModelSpec
 from .audiosr_external import AudiosrBackend
@@ -7,10 +9,15 @@ from .base import BackendInfo, EnhancementBackend, backend_model_specs
 from .lavasr_compat import LavaSRCompatBackend
 from .sinc import SincResampleBackend
 
-_BACKENDS: dict[str, type[EnhancementBackend]] = {}
+
+class BackendType(Protocol):
+    def __call__(self, config: InferenceConfig | None = None) -> EnhancementBackend: ...
 
 
-def register_backend(backend_type: type[EnhancementBackend], *, replace: bool = False) -> None:
+_BACKENDS: dict[str, BackendType] = {}
+
+
+def register_backend(backend_type: BackendType, *, replace: bool = False) -> None:
     """Register an enhancement backend type by its public name."""
 
     name = getattr(backend_type, "name", None)
@@ -21,7 +28,7 @@ def register_backend(backend_type: type[EnhancementBackend], *, replace: bool = 
     _BACKENDS[name] = backend_type
 
 
-def registered_backend_types() -> dict[str, type[EnhancementBackend]]:
+def registered_backend_types() -> dict[str, BackendType]:
     """Return a copy of the backend registry."""
 
     return dict(_BACKENDS)
@@ -33,7 +40,7 @@ def available_backends() -> list[BackendInfo]:
     return [
         BackendInfo(
             name=name,
-            description=backend.description,
+            description=str(getattr(backend, "description", "")),
             installed=_backend_is_available(backend),
             optional_dependency=getattr(backend, "optional_dependency", None),
             package_extra=getattr(backend, "package_extra", None),
@@ -63,7 +70,7 @@ def list_backend_model_specs() -> list[ModelSpec]:
     return specs
 
 
-def _backend_is_available(backend_type: type[EnhancementBackend]) -> bool:
+def _backend_is_available(backend_type: BackendType) -> bool:
     checker = getattr(backend_type, "is_available", None)
     if checker is None:
         return True

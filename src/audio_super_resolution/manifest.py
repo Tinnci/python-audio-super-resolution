@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from math import isclose
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from .config import InferenceConfig
 from .quality import AudioQualityReport, quality_report_to_dict
@@ -314,5 +314,5 @@ def _compare_quality_status(
     _compare_exact(differences, key, "quality_passed", expected_report.get("passed"), actual_report.get("passed"))
 
 
-def _is_number(value: Any) -> bool:
+def _is_number(value: Any) -> TypeGuard[int | float]:
     return isinstance(value, int | float) and not isinstance(value, bool)

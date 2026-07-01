@@ -58,6 +58,7 @@ platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
 [tool.pixi.dependencies]
 python = ">=3.10"
 pip = ">=24"
+uv = ">=0.8"
 numpy = ">=1.23.5"
 scipy = ">=1.11"
 pysoundfile = ">=0.12"
@@ -78,8 +79,12 @@ default = { features = ["dev"], solve-group = "default" }
 [tool.pixi.tasks]
 test = "pytest"
 lint = "ruff check src tests examples"
+format-check = "ruff format --check src tests examples"
+typecheck = "uvx mypy --python-version 3.10 --ignore-missing-imports src/audio_super_resolution"
 format = "ruff format src tests examples"
 build = "hatchling build"
+metadata-check = "uvx twine check dist/*"
+wheel-check = "uvx check-wheel-contents dist/*.whl"
 audio-super-res = "audio-super-res"
 audiosr = "audiosr"
 

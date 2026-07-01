@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import soundfile as sf
@@ -238,7 +238,7 @@ def _mel_filterbank(frequencies: np.ndarray, *, n_mels: int, sample_rate: int) -
     mel_min = _hz_to_mel(0.0)
     mel_max = _hz_to_mel(sample_rate / 2)
     mel_points = np.linspace(mel_min, mel_max, n_mels + 2)
-    hz_points = _mel_to_hz(mel_points)
+    hz_points = cast(np.ndarray, _mel_to_hz(mel_points))
 
     filters = np.zeros((n_mels, len(frequencies)))
     for mel_index in range(n_mels):

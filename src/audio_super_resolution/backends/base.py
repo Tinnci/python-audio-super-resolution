@@ -60,7 +60,7 @@ DEFAULT_FILE_BACKEND_CAPABILITY = BackendCapability(
 )
 
 
-def backend_model_specs(backend_type: type[EnhancementBackend]) -> tuple[ModelSpec, ...]:
+def backend_model_specs(backend_type: object) -> tuple[ModelSpec, ...]:
     """Return model specs exposed by a backend type."""
 
     model_specs = getattr(backend_type, "model_specs", None)

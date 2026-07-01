@@ -16,4 +16,9 @@ jobs:
         with:
           pixi-version: v0.63.2
       - run: pixi run lint
+      - run: pixi run format-check
+      - run: pixi run typecheck
       - run: pixi run test
+      - run: pixi run build
+      - run: pixi run metadata-check
+      - run: pixi run wheel-check
