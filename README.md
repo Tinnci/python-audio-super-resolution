@@ -19,7 +19,7 @@ The baseline package stays lightweight: normal inference is offline, model downl
 - Shared inference config for device, precision, chunking, preprocessing, seeds, and model cache paths.
 - JSON run manifests, manifest comparison, and quality reports for regression workflows.
 - Explicit local weight resolution with multi-file manifests, size/SHA256 checks, and opt-in Hugging Face downloads.
-- Pixi tasks for repeatable test, lint, format, and build commands.
+- Pixi tasks for repeatable lint, format, typecheck, test, build, and package validation commands.
 
 ## Installation
 
@@ -185,10 +185,13 @@ model_path = weights.path_for("enhancer_v2/pytorch_model.bin")
 ## Development
 
 ```sh
-pixi run test
 pixi run lint
-pixi run format
+pixi run format-check
+pixi run typecheck
+pixi run test
 pixi run build
+pixi run metadata-check
+pixi run wheel-check
 ```
 
 Run optional real AudioSR integration only when model inference and upstream checkpoint handling are intended:
@@ -221,7 +224,7 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 ## Requirements
 
 - Python 3.10 or newer
-- Pixi for development
+- Pixi 0.70 or newer for development; the committed `pixi.lock` uses lock-file version 7.
 - libsndfile-compatible audio files for the default reader/writer
 
 ## License
