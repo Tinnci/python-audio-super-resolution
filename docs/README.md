@@ -9,6 +9,7 @@ The top-level [README.md](../README.md) is the user entry point; detailed record
 | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Package layers, backend contract, and weight-management boundaries. |
 | [MODEL_ADMISSION.md](MODEL_ADMISSION.md) | Gates for adding model-backed inference paths and the scorecard API. |
+| [ACCELERATORS.md](ACCELERATORS.md) | Accelerator/runtime-provider policy, install strategy, gated validation matrix, and LavaSR optimization recommendation. |
 | [GOLDEN.md](GOLDEN.md) | Golden-sample fixture format, metrics, and gated parity strategy. |
 | [COLAB.md](COLAB.md) | Repository-based LavaSR/GPU validation guide and evidence checklist. |
 | [RELEASE.md](RELEASE.md) | Release checklist and PyPI Trusted Publishing notes. |

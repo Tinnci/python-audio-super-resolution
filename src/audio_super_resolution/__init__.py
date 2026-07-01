@@ -8,6 +8,7 @@ from .admission import (
 )
 from .audiosr_backend import AUDIOSR_MODEL_NAMES, AUDIOSR_SAMPLE_RATE, AudiosrBackend
 from .backends import register_backend, registered_backend_types
+from .benchmark import build_benchmark_report, write_benchmark_report
 from .config import InferenceConfig, default_model_cache_dir
 from .devices import DeviceInfo, available_devices, resolve_device
 from .downloads import (
@@ -65,6 +66,7 @@ from .resolver import (
     get_backend,
     plan_enhancements,
 )
+from .runtime import RuntimeProviderInfo, list_runtime_providers, resolve_runtime_provider, runtime_provider_info
 from .specs import BackendCapability, ModelSpec, WeightFileSpec
 from .weight_store import (
     ResolvedWeights,
@@ -111,6 +113,7 @@ __all__ = [
     "ModelSpec",
     "PlannedEnhancement",
     "ResolvedWeights",
+    "RuntimeProviderInfo",
     "WeightFile",
     "WeightFileSpec",
     "WeightManifest",
@@ -118,6 +121,7 @@ __all__ = [
     "available_backends",
     "available_devices",
     "build_manifest",
+    "build_benchmark_report",
     "build_quality_report_bundle",
     "compare_golden_fixture",
     "compare_manifests",
@@ -136,6 +140,7 @@ __all__ = [
     "inspect_audio_quality",
     "inspect_golden_audio",
     "list_models",
+    "list_runtime_providers",
     "load_manifest",
     "load_golden_fixture",
     "load_safetensors",
@@ -151,6 +156,7 @@ __all__ = [
     "registered_backend_types",
     "resolve_backend_model_weights",
     "resolve_device",
+    "resolve_runtime_provider",
     "resolve_manifest_file_paths",
     "resolve_model_weights",
     "resolve_weights_for_spec",
@@ -161,9 +167,11 @@ __all__ = [
     "validate_weight_manifest_matches_spec",
     "verify_model_weights",
     "verify_weights_for_spec",
+    "runtime_provider_info",
     "verify_weight_file",
     "verify_weight_manifest",
     "write_manifest",
+    "write_benchmark_report",
     "write_golden_report",
     "write_quality_report_bundle",
     "write_weight_manifest",

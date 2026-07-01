@@ -7,12 +7,25 @@ from scipy.signal import resample_poly
 
 from ..config import InferenceConfig
 from ..devices import resolve_device
+from ..runtime import resolve_runtime_provider
 from ..specs import BackendCapability, ModelSpec, WeightFileSpec
 from .lavasr_validation import LAVASR_WEIGHTS_PATH, LavaSRWeightBundleInfo
 
 LAVASR_SAMPLE_RATE = 48000
 LAVASR_MODEL_ID = "lavasr-v2-bwe"
 LAVASR_REVISION = "b98dc8be472da45ab7b6346ad7997e1dfeb5911d"
+LAVASR_CAPABILITY = BackendCapability(
+    supports_array_io=True,
+    supports_file_io=False,
+    supports_chunking=True,
+    deterministic=True,
+    supports_cpu=True,
+    supports_cuda=True,
+    supports_mps=True,
+    precision_modes=("float32", "auto"),
+    accelerators=("cpu", "cuda", "mps"),
+    runtime_providers=("torch-eager",),
+)
 
 
 class LavaSRCompatBackend:
@@ -79,16 +92,7 @@ class LavaSRCompatBackend:
                         size=56316591,
                     ),
                 ),
-                capability=BackendCapability(
-                    supports_array_io=True,
-                    supports_file_io=False,
-                    supports_chunking=True,
-                    deterministic=True,
-                    supports_cpu=True,
-                    supports_cuda=True,
-                    supports_mps=True,
-                    precision_modes=("float32", "auto"),
-                ),
+                capability=LAVASR_CAPABILITY,
             ),
         )
 
@@ -109,11 +113,12 @@ class LavaSRCompatBackend:
             allow_download=self.config.download_weights,
         )
         bundle_info = validate_lavasr_v2_weight_bundle(resolved_weights)
+        resolve_runtime_provider(self.config.runtime_provider, LAVASR_CAPABILITY.runtime_providers)
+        device = resolve_device(self.config.device, supported_devices=LAVASR_CAPABILITY.accelerators)
         _require_torch_runtime()
 
         import torch
 
-        device = resolve_device(self.config.device)
         model = self._load_model(resolved_weights, bundle_info, device=device)
         prepared_audio, was_mono = _prepare_lavasr_input(audio, sample_rate)
         waveform = torch.from_numpy(prepared_audio.T.copy()).to(device=device, dtype=torch.float32)
@@ -149,7 +154,7 @@ class LavaSRCompatBackend:
 
 def _require_torch_runtime() -> None:
     if importlib.util.find_spec("torch") is None:
-        raise RuntimeError("lavasr-compat inference requires `pip install audio-super-resolution[lavasr]`.")
+        raise RuntimeError("lavasr-compat inference requires `uv pip install audio-super-resolution[lavasr]`.")
 
 
 def _prepare_lavasr_input(audio: np.ndarray, sample_rate: int) -> tuple[np.ndarray, bool]:

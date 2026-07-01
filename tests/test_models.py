@@ -29,10 +29,14 @@ def test_list_models_exposes_backend_metadata() -> None:
     assert models["sinc-resample"].fixed_target_sr is False
     assert models["sinc-resample"].supports_array_io is True
     assert models["sinc-resample"].deterministic is True
+    assert models["sinc-resample"].accelerators == ("cpu",)
+    assert models["sinc-resample"].runtime_providers == ("python",)
     assert models["audiosr-basic"].implementation == "external_package"
     assert models["audiosr-basic"].target_sample_rates == (48000,)
     assert models["audiosr-basic"].fixed_target_sr is True
     assert models["audiosr-basic"].supports_file_io is True
+    assert models["audiosr-basic"].accelerators == ("cpu", "cuda", "mps")
+    assert models["audiosr-basic"].runtime_providers == ("external-package",)
     assert models["audiosr-basic"].precision_modes == ("float32", "auto")
     assert "external-package-downloads" in models["audiosr-basic"].known_limitations
     assert models["lavasr-v2-bwe"].implementation == "self_torch"
@@ -42,6 +46,7 @@ def test_list_models_exposes_backend_metadata() -> None:
     assert models["lavasr-v2-bwe"].weight_file_count == 2
     assert models["lavasr-v2-bwe"].weight_size_bytes == 56317117
     assert models["lavasr-v2-bwe"].supports_cuda is True
+    assert models["lavasr-v2-bwe"].runtime_providers == ("torch-eager",)
     assert "upstream-parity" in models["lavasr-v2-bwe"].validation
 
 

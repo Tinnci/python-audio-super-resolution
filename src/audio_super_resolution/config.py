@@ -4,7 +4,9 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-VALID_DEVICES = ("cpu", "cuda", "mps", "directml", "auto")
+from .devices import VALID_DEVICES
+from .runtime import VALID_RUNTIME_PROVIDERS
+
 VALID_PRECISIONS = ("float32", "float16", "bfloat16", "auto")
 VALID_PREPROCESSING_MODES = ("none", "lowpass")
 
@@ -29,6 +31,7 @@ class InferenceConfig:
     """Runtime options shared by enhancement backends."""
 
     device: str = "cpu"
+    runtime_provider: str = "auto"
     precision: str = "float32"
     chunked: bool = False
     chunk_seconds: float = 30.0
@@ -49,12 +52,14 @@ class InferenceConfig:
 
     def __post_init__(self) -> None:
         device = self.device.lower()
+        runtime_provider = self.runtime_provider.lower()
         precision = self.precision.lower()
         preprocess = self.preprocess.lower()
         model_cache_dir = Path(self.model_cache_dir).expanduser()
         weights_manifest = Path(self.weights_manifest).expanduser() if self.weights_manifest is not None else None
 
         _validate_choice("device", device, VALID_DEVICES)
+        _validate_choice("runtime_provider", runtime_provider, VALID_RUNTIME_PROVIDERS)
         _validate_choice("precision", precision, VALID_PRECISIONS)
         _validate_choice("preprocess", preprocess, VALID_PREPROCESSING_MODES)
         _validate_chunk_options(self.chunk_seconds, self.overlap_seconds)
@@ -64,6 +69,7 @@ class InferenceConfig:
         _validate_positive("lowpass_order", self.lowpass_order)
 
         object.__setattr__(self, "device", device)
+        object.__setattr__(self, "runtime_provider", runtime_provider)
         object.__setattr__(self, "precision", precision)
         object.__setattr__(self, "preprocess", preprocess)
         object.__setattr__(self, "model_cache_dir", model_cache_dir)
@@ -81,6 +87,7 @@ class InferenceConfig:
 
         return {
             "device": self.device,
+            "runtime_provider": self.runtime_provider,
             "precision": self.precision,
             "chunked": self.chunked,
             "chunk_seconds": self.chunk_seconds,

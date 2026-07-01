@@ -44,6 +44,8 @@ def available_backends() -> list[BackendInfo]:
             installed=_backend_is_available(backend),
             optional_dependency=getattr(backend, "optional_dependency", None),
             package_extra=getattr(backend, "package_extra", None),
+            accelerators=_backend_accelerators(backend),
+            runtime_providers=_backend_runtime_providers(backend),
         )
         for name, backend in sorted(_BACKENDS.items(), key=lambda item: item[0])
     ]
@@ -75,6 +77,34 @@ def _backend_is_available(backend_type: BackendType) -> bool:
     if checker is None:
         return True
     return bool(checker())
+
+
+def _backend_accelerators(backend_type: BackendType) -> tuple[str, ...]:
+    return _ordered_unique(
+        accelerator
+        for spec in backend_model_specs(backend_type)
+        if spec.capability is not None
+        for accelerator in spec.capability.accelerators
+    )
+
+
+def _backend_runtime_providers(backend_type: BackendType) -> tuple[str, ...]:
+    return _ordered_unique(
+        provider
+        for spec in backend_model_specs(backend_type)
+        if spec.capability is not None
+        for provider in spec.capability.runtime_providers
+    )
+
+
+def _ordered_unique(values) -> tuple[str, ...]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value not in seen:
+            result.append(value)
+            seen.add(value)
+    return tuple(result)
 
 
 register_backend(AudiosrBackend)

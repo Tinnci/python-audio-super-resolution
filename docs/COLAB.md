@@ -89,9 +89,11 @@ audio-super-res input.wav output.wav \
   --backend lavasr-compat \
   --target-sr 48000 \
   --device auto \
+  --runtime-provider auto \
   --manifest run.json \
   --quality-report \
-  --quality-report-json quality.json
+  --quality-report-json quality.json \
+  --benchmark-json benchmark.json
 ```
 
 Expected checks:
@@ -99,6 +101,7 @@ Expected checks:
 - `output.wav` exists and is non-empty.
 - `run.json` is valid JSON and records a completed run.
 - `quality.json` is valid JSON.
+- `benchmark.json` is valid JSON and records runtime/provider timing evidence.
 - The output sample rate is 48000 Hz.
 - `lavasr-compat` remains marked experimental.
 

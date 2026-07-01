@@ -50,6 +50,8 @@ class ModelInfo:
     supports_mps: bool = False
     requires_gpu: bool = False
     precision_modes: tuple[str, ...] = ()
+    accelerators: tuple[str, ...] = ()
+    runtime_providers: tuple[str, ...] = ()
     maturity: str = "unknown"
 
 
@@ -151,6 +153,8 @@ def _model_info_from_spec(spec: ModelSpec, installed: bool, package_extra: str |
         supports_mps=capability.supports_mps if capability is not None else False,
         requires_gpu=capability.requires_gpu if capability is not None else False,
         precision_modes=capability.precision_modes if capability is not None else (),
+        accelerators=capability.accelerators if capability is not None else (),
+        runtime_providers=capability.runtime_providers if capability is not None else (),
         maturity=spec.maturity,
     )
 

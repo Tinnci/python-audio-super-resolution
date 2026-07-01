@@ -10,6 +10,8 @@ import numpy as np
 import soundfile as sf
 
 from ..config import InferenceConfig
+from ..devices import resolve_device
+from ..runtime import resolve_runtime_provider
 from ..specs import ModelSpec
 from .base import DEFAULT_FILE_BACKEND_CAPABILITY
 
@@ -76,8 +78,8 @@ class AudiosrBackend:
     def enhance_file(self, input_path: str | Path, output_path: str | Path, target_sample_rate: int) -> None:
         if target_sample_rate != AUDIOSR_SAMPLE_RATE:
             raise ValueError("The audiosr backend outputs 48000 Hz audio; set target_sr=48000.")
-        if self.config.device == "directml":
-            raise ValueError("The audiosr backend does not support directml; use cpu, cuda, mps, or auto.")
+        resolve_device(self.config.device, supported_devices=DEFAULT_FILE_BACKEND_CAPABILITY.accelerators)
+        resolve_runtime_provider(self.config.runtime_provider, DEFAULT_FILE_BACKEND_CAPABILITY.runtime_providers)
         if self.config.precision not in {"float32", "auto"}:
             raise ValueError("The audiosr backend currently supports only float32 or auto precision.")
         if self.config.model_name not in AUDIOSR_MODEL_NAMES:
@@ -106,7 +108,8 @@ class AudiosrBackend:
 
     def _load_model(self, audiosr: ModuleType):
         if self._model is None:
-            self._model = audiosr.build_model(model_name=self.config.model_name, device=self.config.device)
+            device = resolve_device(self.config.device, supported_devices=DEFAULT_FILE_BACKEND_CAPABILITY.accelerators)
+            self._model = audiosr.build_model(model_name=self.config.model_name, device=device)
         return self._model
 
 
@@ -116,7 +119,7 @@ def _import_audiosr() -> ModuleType:
     except ImportError as exc:
         raise RuntimeError(
             "The audiosr backend requires the optional audiosr dependency. "
-            "Install it with `pip install audio-super-resolution[audiosr]`."
+            "Install it with `uv pip install audio-super-resolution[audiosr]`."
         ) from exc
 
 

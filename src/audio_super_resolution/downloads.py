@@ -62,7 +62,7 @@ class HuggingFaceProvider:
     def download_file(self, remote_path: str, destination: Path, revision: str | None) -> None:
         if importlib.util.find_spec("huggingface_hub") is None:
             raise RuntimeError(
-                "Downloading Hugging Face weights requires `pip install audio-super-resolution[download]`."
+                "Downloading Hugging Face weights requires `uv pip install audio-super-resolution[download]`."
             )
 
         from huggingface_hub import hf_hub_download

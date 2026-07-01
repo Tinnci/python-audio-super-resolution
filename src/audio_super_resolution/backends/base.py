@@ -19,6 +19,8 @@ class BackendInfo:
     installed: bool
     optional_dependency: str | None = None
     package_extra: str | None = None
+    accelerators: tuple[str, ...] = ()
+    runtime_providers: tuple[str, ...] = ()
 
 
 class EnhancementBackend(Protocol):
@@ -45,6 +47,8 @@ DEFAULT_ARRAY_BACKEND_CAPABILITY = BackendCapability(
     supports_chunking=True,
     deterministic=True,
     supports_cpu=True,
+    accelerators=("cpu",),
+    runtime_providers=("python",),
 )
 
 
@@ -57,6 +61,8 @@ DEFAULT_FILE_BACKEND_CAPABILITY = BackendCapability(
     supports_cuda=True,
     supports_mps=True,
     precision_modes=("float32", "auto"),
+    accelerators=("cpu", "cuda", "mps"),
+    runtime_providers=("external-package",),
 )
 
 

@@ -31,6 +31,9 @@ def test_list_backends_json(capsys) -> None:
 
     assert {backend["name"] for backend in backends} == {"audiosr", "sinc-resample", "lavasr-compat"}
     assert all("installed" in backend for backend in backends)
+    sinc = next(backend for backend in backends if backend["name"] == "sinc-resample")
+    assert sinc["accelerators"] == ["cpu"]
+    assert sinc["runtime_providers"] == ["python"]
 
 
 def test_list_models_json(capsys) -> None:
@@ -48,6 +51,8 @@ def test_list_models_json(capsys) -> None:
     assert lavasr["input_sample_rate_range"] == [8000, 48000]
     assert lavasr["weight_size_bytes"] == 56317117
     assert lavasr["supports_cuda"] is True
+    assert lavasr["accelerators"] == ["cpu", "cuda", "mps"]
+    assert lavasr["runtime_providers"] == ["torch-eager"]
     assert "upstream-parity" in lavasr["validation"]
 
 
@@ -69,6 +74,7 @@ def test_config_info_uses_cli_options(tmp_path: Path, capsys) -> None:
     output = capsys.readouterr().out
 
     assert "device: cpu" in output
+    assert "runtime_provider: auto" in output
     assert "model_name: basic" in output
     assert f"model_cache_dir: {cache_dir}" in output
 
@@ -279,6 +285,17 @@ def test_cli_reports_lavasr_denoise_as_reserved(tmp_path: Path, capsys) -> None:
     assert "denoise is reserved" in capsys.readouterr().err
 
 
+def test_cli_rejects_explicit_device_not_supported_by_backend(tmp_path: Path, capsys) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    sf.write(input_path, np.zeros(1000), 1000)
+
+    with pytest.raises(SystemExit):
+        main([str(input_path), str(output_path), "--backend", "sinc-resample", "--device", "cuda"])
+
+    assert "not supported by the selected backend" in capsys.readouterr().err
+
+
 def test_cli_processes_single_file(tmp_path: Path) -> None:
     input_path = tmp_path / "input.wav"
     output_path = tmp_path / "output.wav"
@@ -290,6 +307,40 @@ def test_cli_processes_single_file(tmp_path: Path) -> None:
     _, written_sr = sf.read(output_path)
 
     assert written_sr == 32000
+
+
+def test_cli_writes_benchmark_json(tmp_path: Path, capsys) -> None:
+    input_path = tmp_path / "input.wav"
+    output_path = tmp_path / "output.wav"
+    benchmark_path = tmp_path / "benchmark.json"
+    sample_rate = 16000
+    tone = 0.25 * np.sin(2 * np.pi * 440 * np.arange(sample_rate // 20) / sample_rate)
+    sf.write(input_path, tone, sample_rate)
+
+    assert (
+        main(
+            [
+                str(input_path),
+                str(output_path),
+                "--target-sr",
+                "32000",
+                "--benchmark-json",
+                str(benchmark_path),
+            ]
+        )
+        == 0
+    )
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+
+    assert "Wrote benchmark report" in capsys.readouterr().out
+    assert benchmark["schema_version"] == 1
+    assert benchmark["backend"] == "sinc-resample"
+    assert benchmark["device"] == "cpu"
+    assert benchmark["runtime_provider"] == "auto"
+    assert benchmark["target_sample_rate"] == 32000
+    assert benchmark["job_count"] == 1
+    assert benchmark["results"][0]["sample_rate"] == 32000
+    assert benchmark["quality_reports"][0]["passed"] is True
 
 
 def test_cli_processes_single_file_in_chunks(tmp_path: Path) -> None:

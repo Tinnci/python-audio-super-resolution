@@ -260,7 +260,7 @@ def load_safetensors(path: str | Path) -> dict[str, Any]:
     try:
         from safetensors.numpy import load_file
     except ImportError as exc:
-        raise RuntimeError("Loading safetensors weights requires `pip install safetensors`.") from exc
+        raise RuntimeError("Loading safetensors weights requires `uv pip install safetensors`.") from exc
 
     return dict(load_file(str(path)))
 

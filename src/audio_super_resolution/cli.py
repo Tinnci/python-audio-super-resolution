@@ -4,14 +4,17 @@ import argparse
 import json
 import platform
 import sys
+import time
 from dataclasses import asdict
 from pathlib import Path
 
 from . import __version__
+from .benchmark import build_benchmark_report, write_benchmark_report
 from .config import (
     VALID_DEVICES,
     VALID_PRECISIONS,
     VALID_PREPROCESSING_MODES,
+    VALID_RUNTIME_PROVIDERS,
     InferenceConfig,
     default_model_cache_dir,
 )
@@ -109,6 +112,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--device", choices=VALID_DEVICES, default="cpu", help="Inference device. Defaults to cpu."
     )
     backend_params.add_argument(
+        "--runtime-provider",
+        choices=VALID_RUNTIME_PROVIDERS,
+        default="auto",
+        help="Runtime provider selection. Defaults to auto.",
+    )
+    backend_params.add_argument(
         "--precision",
         choices=VALID_PRECISIONS,
         default="float32",
@@ -182,6 +191,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write combined quality checks to a JSON file.",
     )
     quality_params.add_argument(
+        "--benchmark-json",
+        type=Path,
+        help="Write a machine-readable runtime benchmark summary for the enhancement run.",
+    )
+    quality_params.add_argument(
         "--fail-on-quality-issue",
         action="store_true",
         help="Return a non-zero exit code if quality checks find issues.",
@@ -205,14 +219,24 @@ def print_backends(list_format: str = "pretty") -> None:
     name_width = max(len("Backend"), *(len(backend.name) for backend in backends))
     status_width = len("Installed")
     extra_width = max(len("Extra"), *(len(backend.package_extra or "-") for backend in backends))
+    accelerator_width = max(len("Accelerators"), *(len(",".join(backend.accelerators) or "-") for backend in backends))
+    provider_width = max(
+        len("Runtime Providers"), *(len(",".join(backend.runtime_providers) or "-") for backend in backends)
+    )
 
-    print(f"{'Backend':<{name_width}}  {'Installed':<{status_width}}  {'Extra':<{extra_width}}  Description")
-    print("-" * (name_width + status_width + extra_width + 15 + 11))
+    print(
+        f"{'Backend':<{name_width}}  {'Installed':<{status_width}}  {'Extra':<{extra_width}}  "
+        f"{'Accelerators':<{accelerator_width}}  {'Runtime Providers':<{provider_width}}  Description"
+    )
+    print("-" * (name_width + status_width + extra_width + accelerator_width + provider_width + 23 + 11))
     for backend in backends:
         installed = "yes" if backend.installed else "no"
         extra = backend.package_extra or "-"
+        accelerators = ",".join(backend.accelerators) or "-"
+        providers = ",".join(backend.runtime_providers) or "-"
         print(
-            f"{backend.name:<{name_width}}  {installed:<{status_width}}  {extra:<{extra_width}}  {backend.description}"
+            f"{backend.name:<{name_width}}  {installed:<{status_width}}  {extra:<{extra_width}}  "
+            f"{accelerators:<{accelerator_width}}  {providers:<{provider_width}}  {backend.description}"
         )
 
 
@@ -232,12 +256,15 @@ def print_models(filter_text: str | None = None, list_format: str = "pretty") ->
     domain_width = max(len("Domain"), *(len(",".join(model.domain) or "-") for model in models))
     installed_width = len("Installed")
     target_width = len("Target SR")
+    accelerator_width = max(len("Accelerators"), *(len(",".join(model.accelerators) or "-") for model in models))
+    provider_width = max(len("Runtime Providers"), *(len(",".join(model.runtime_providers) or "-") for model in models))
     maturity_width = max(len("Maturity"), *(len(model.maturity) for model in models))
 
     print(
         f"{'Model ID':<{id_width}}  {'Backend':<{backend_width}}  "
         f"{'Implementation':<{implementation_width}}  {'Domain':<{domain_width}}  "
         f"{'Installed':<{installed_width}}  {'Target SR':<{target_width}}  "
+        f"{'Accelerators':<{accelerator_width}}  {'Runtime Providers':<{provider_width}}  "
         f"{'Maturity':<{maturity_width}}  Description"
     )
     print(
@@ -249,8 +276,10 @@ def print_models(filter_text: str | None = None, list_format: str = "pretty") ->
             + domain_width
             + installed_width
             + target_width
+            + accelerator_width
+            + provider_width
             + maturity_width
-            + 30
+            + 34
             + 11
         )
     )
@@ -258,10 +287,13 @@ def print_models(filter_text: str | None = None, list_format: str = "pretty") ->
         installed = "yes" if model.installed else "no"
         target = "any" if model.target_sample_rate is None else str(model.target_sample_rate)
         domain = ",".join(model.domain) or "-"
+        accelerators = ",".join(model.accelerators) or "-"
+        providers = ",".join(model.runtime_providers) or "-"
         print(
             f"{model.id:<{id_width}}  {model.backend:<{backend_width}}  "
             f"{model.implementation:<{implementation_width}}  {domain:<{domain_width}}  "
             f"{installed:<{installed_width}}  {target:<{target_width}}  "
+            f"{accelerators:<{accelerator_width}}  {providers:<{provider_width}}  "
             f"{model.maturity:<{maturity_width}}  {model.description}"
         )
 
@@ -432,6 +464,7 @@ def _handle_enhancement(
     jobs: list[PlannedEnhancement],
 ) -> int:
     resolver = AudioSuperResolver(target_sr=args.target_sr, backend=args.backend, config=config)
+    started_at = time.perf_counter()
     try:
         results = [
             resolver.enhance(
@@ -443,6 +476,7 @@ def _handle_enhancement(
         ]
     except (RuntimeError, ValueError) as exc:
         parser.error(str(exc))
+    elapsed_seconds = time.perf_counter() - started_at
 
     for result in results:
         print(
@@ -451,6 +485,20 @@ def _handle_enhancement(
         )
 
     reports = _handle_quality_reports(args, results)
+
+    if args.benchmark_json:
+        benchmark_path = write_benchmark_report(
+            args.benchmark_json,
+            build_benchmark_report(
+                backend=args.backend,
+                target_sample_rate=args.target_sr,
+                config=config,
+                results=results,
+                quality_reports=reports,
+                elapsed_seconds=elapsed_seconds,
+            ),
+        )
+        print(f"Wrote benchmark report {benchmark_path}")
 
     if args.manifest:
         manifest_path = write_manifest(
@@ -474,7 +522,7 @@ def _handle_enhancement(
 
 
 def _handle_quality_reports(args: argparse.Namespace, results: list[EnhancementResult]):
-    if not (args.quality_report or args.quality_report_json or args.fail_on_quality_issue):
+    if not (args.quality_report or args.quality_report_json or args.fail_on_quality_issue or args.benchmark_json):
         return []
 
     reports = [
@@ -503,6 +551,7 @@ def _build_config(args: argparse.Namespace) -> InferenceConfig:
     model_cache_dir = args.model_cache_dir if args.model_cache_dir is not None else default_model_cache_dir()
     return InferenceConfig(
         device=args.device,
+        runtime_provider=args.runtime_provider,
         precision=args.precision,
         chunked=args.chunked,
         chunk_seconds=args.chunk_seconds,

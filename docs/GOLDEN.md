@@ -65,7 +65,7 @@ Real checkpoint generation must remain gated. For LavaSR, use the environment va
 This test is not part of the default suite because it imports upstream LavaSR and Vocos dependencies. Run it only after installing the upstream package and preparing the LavaSR cache:
 
 ```sh
-pixi run python -m pip install "git+https://github.com/ysharma3501/LavaSR.git"
+uv pip install "git+https://github.com/ysharma3501/LavaSR.git"
 set AUDIO_SUPER_RESOLUTION_RUN_WEIGHT_DOWNLOAD=1
 set AUDIO_SUPER_RESOLUTION_RUN_LAVASR_UPSTREAM_PARITY=1
 set AUDIO_SUPER_RESOLUTION_LAVASR_CACHE=C:\path\to\models

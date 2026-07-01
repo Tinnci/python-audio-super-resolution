@@ -19,6 +19,8 @@ This project follows semantic versioning once published to PyPI.
 - Added `format-check`, `typecheck`, package metadata, and wheel contents checks to the Pixi quality tasks and CI/release workflows.
 - Added a PEP 561 `py.typed` marker for downstream type checkers.
 - Completed `v0.3.0` feasibility conclusions for ClearerVoice `MossFormer2_SR_48K`, FlowHigh, and Resemble Enhance, deferring each until its validation, checkpoint, or runtime blockers are resolved.
+- Added accelerator/runtime-provider metadata, provider resolution helpers, and benchmark JSON output for gated hardware validation.
+- Added accelerator installation, validation-matrix, and LavaSR optimization guidance.
 
 ### Changed
 
@@ -26,6 +28,7 @@ This project follows semantic versioning once published to PyPI.
 - Removed PyYAML from the `lavasr` extra; the extra now only provides the torch runtime dependency.
 - Reworked lightweight golden/preprocessing spectral paths to avoid fragile SciPy stateful filtering/STFT calls in default tests.
 - Updated roadmap and release documentation for the completed `v0.1.x` release flow and completed `v0.2.0` validation gates.
+- Updated model and backend listing metadata to report declared accelerators and runtime providers without importing heavy runtimes.
 - Simplified documentation ownership by adding a docs index and keeping README focused on user entry points.
 - Updated Docker installation to use `uv pip install --system` instead of direct `pip install`.
 

@@ -17,7 +17,9 @@ The baseline package stays lightweight: normal inference is offline, model downl
 - CLI and Python API for single files, directory batches, dry runs, and recursive path-preserving output.
 - Pluggable backend registry with `sinc-resample`, optional `audiosr`, and experimental `lavasr-compat`.
 - Shared inference config for device, precision, chunking, preprocessing, seeds, and model cache paths.
+- Import-light accelerator and runtime-provider metadata for CPU/CUDA/ROCm/XPU/MPS/DirectML planning.
 - JSON run manifests, manifest comparison, and quality reports for regression workflows.
+- Optional benchmark JSON reports for local accelerator/runtime validation.
 - Explicit local weight resolution with multi-file manifests, size/SHA256 checks, and opt-in Hugging Face downloads.
 - Pixi tasks for repeatable lint, format, typecheck, test, build, and package validation commands.
 
@@ -26,26 +28,26 @@ The baseline package stays lightweight: normal inference is offline, model downl
 Install from PyPI:
 
 ```sh
-pip install audio-super-resolution
+uv pip install audio-super-resolution
 ```
 
 Install optional model/runtime extras only when needed. For example, LavaSR-compatible inference with
 managed Hugging Face downloads uses:
 
 ```sh
-pip install "audio-super-resolution[lavasr,download]"
+uv pip install "audio-super-resolution[lavasr,download]"
 ```
 
 Install the unreleased repository version from GitHub:
 
 ```sh
-pip install "audio-super-resolution @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
+uv pip install "audio-super-resolution @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
 ```
 
 GitHub installs can include extras:
 
 ```sh
-pip install "audio-super-resolution[lavasr,download] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
+uv pip install "audio-super-resolution[lavasr,download] @ git+https://github.com/Tinnci/python-audio-super-resolution.git"
 ```
 
 For local development:
@@ -101,6 +103,7 @@ Run post-write quality checks:
 ```sh
 audio-super-res input.wav output.wav --quality-report --fail-on-quality-issue
 audio-super-res input.wav output.wav --quality-report-json quality.json
+audio-super-res input.wav output.wav --benchmark-json benchmark.json
 ```
 
 The shorter `audiosr` command is also available as an alias for `audio-super-res`.
@@ -115,7 +118,9 @@ Current backend status:
 | `audiosr` | Optional external package backend; upstream package owns its checkpoint behavior. |
 | `lavasr-compat` | Experimental self-contained LavaSR v2 BWE path with managed weights. Gated real-weight download, torch smoke, and initial upstream parity validation pass. |
 
-Use `audio-super-res --list-models --list-format json` for machine-readable comparison metadata, including task/domain, input and target sample rates, implementation family, I/O capabilities, accelerator declarations, weight source/size/license, validation evidence, recommended use, and known limitations.
+Use `audio-super-res --list-models --list-format json` for machine-readable comparison metadata, including task/domain, input and target sample rates, implementation family, I/O capabilities, accelerator and runtime-provider declarations, weight source/size/license, validation evidence, recommended use, and known limitations.
+
+Accelerator install paths, `device=auto` behavior, runtime-provider selection, and gated benchmark guidance live in [docs/ACCELERATORS.md](docs/ACCELERATORS.md).
 
 Future model candidates are tracked in the speech and general-audio reviews linked from [docs/README.md](docs/README.md). Candidate entries are not supported backends until they pass admission and validation.
 
@@ -216,6 +221,7 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 
 - [docs/README.md](docs/README.md): documentation map and ownership rules.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): package layers, backend contract, and weight-management boundaries.
+- [docs/ACCELERATORS.md](docs/ACCELERATORS.md): accelerator install strategy, runtime providers, and validation matrix.
 - [ROADMAP.md](ROADMAP.md): milestone state and next implementation tracks.
 - [CHANGELOG.md](CHANGELOG.md): release history and unreleased changes.
 - [tests/README.md](tests/README.md): default and optional test strategy.

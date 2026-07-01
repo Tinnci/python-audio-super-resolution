@@ -71,23 +71,29 @@ Decision rule:
 - `v0.4.0` is for hardware acceleration and runtime-provider work after the model/backend abstractions are clear.
 - New candidate backends should not move into implementation until their weight format, license, preprocessing, I/O shape, and validation path are clear.
 
-## Next: v0.4.0
+## Completed: v0.4.0 Runtime Provider Planning
 
 Goal: optimize execution across hardware and external runtimes without making the baseline install heavy.
 
 Tracked work:
 
-- `#26` Define accelerator capability model and fallback policy.
-- `#27` Add runtime provider abstraction for optimized execution.
-- `#28` Add gated accelerator validation and benchmark matrix.
-- `#29` Document accelerator install strategy and optional extras.
-- `#30` Evaluate LavaSR optimized runtime and export paths.
+- `#26` Define accelerator capability model and fallback policy. Completed: logical devices now cover CPU/CUDA/ROCm/XPU/MPS/DirectML, model/backend listings expose declared accelerator support, `device=auto` is documented, and unsupported explicit devices fail before inference.
+- `#27` Add runtime provider abstraction for optimized execution. Completed: import-light runtime provider metadata and resolution are available for `python`, `torch-eager`, `onnxruntime`, and `external-package`, with mocked availability tests.
+- `#28` Add gated accelerator validation and benchmark matrix. Completed: default tests remain CPU/offline, hardware validation is opt-in, and enhancement runs can write machine-readable benchmark JSON with timing and quality metrics.
+- `#29` Document accelerator install strategy and optional extras. Completed: accelerator install paths and the conservative extras policy live in [docs/ACCELERATORS.md](docs/ACCELERATORS.md).
+- `#30` Evaluate LavaSR optimized runtime and export paths. Completed: keep `lavasr-compat` on PyTorch eager until `torch.compile`, ONNX Runtime, TensorRT, or OpenVINO have real-weight benchmark and parity evidence.
 
 Decision rule:
 
 - Accelerator support is a runtime layer, not a model-selection layer.
 - Backend code should request capabilities from a runtime/provider abstraction instead of hard-coding CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, or ONNX Runtime checks.
 - GPU/SDK-specific tests must remain gated and should produce JSON evidence before they become release gates.
+
+## Next: Release Hardening
+
+- Keep broadening `lavasr-compat` fixture coverage before marking it stable.
+- Keep candidate backends deferred until their weight, license, preprocessing, and validation blockers are cleared.
+- Use benchmark JSON reports as evidence for future accelerator/provider claims.
 
 ## Backend Planning Snapshot
 

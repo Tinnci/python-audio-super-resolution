@@ -4,6 +4,8 @@ import numpy as np
 from scipy.signal import resample_poly
 
 from ..config import InferenceConfig
+from ..devices import resolve_device
+from ..runtime import resolve_runtime_provider
 from ..specs import ModelSpec
 from .base import DEFAULT_ARRAY_BACKEND_CAPABILITY
 
@@ -46,6 +48,9 @@ class SincResampleBackend:
         )
 
     def enhance(self, audio: np.ndarray, sample_rate: int, target_sample_rate: int) -> np.ndarray:
+        resolve_runtime_provider(self.config.runtime_provider, DEFAULT_ARRAY_BACKEND_CAPABILITY.runtime_providers)
+        resolve_device(self.config.device, supported_devices=DEFAULT_ARRAY_BACKEND_CAPABILITY.accelerators)
+
         if sample_rate == target_sample_rate:
             return np.asarray(audio)
 

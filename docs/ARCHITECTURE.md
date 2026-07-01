@@ -10,7 +10,7 @@ The package is organized around a small public CLI/API surface, a pluggable back
 | Backends | `backends.*`, `audiosr_backend` | Register enhancement implementations and expose backend-owned model specs. |
 | Model catalog | `models`, `specs` | Convert backend `ModelSpec` records into user-facing listings and strict selection. |
 | Weight management | `weights`, `downloads`, `weight_store`, `model_weights` | Verify local manifests, download explicit provider files, and resolve verified paths. |
-| Runtime helpers | `config`, `devices`, `chunking`, `preprocess` | Shared inference options, device discovery, chunking, and optional preprocessing. |
+| Runtime helpers | `config`, `devices`, `runtime`, `chunking`, `preprocess` | Shared inference options, device discovery, runtime-provider selection, chunking, and optional preprocessing. |
 | Artifacts | `manifest`, `quality` | JSON run manifests, manifest comparison, and quality reports. |
 
 High-level flow:
@@ -53,10 +53,14 @@ Model specs should describe stable comparison facts without importing heavy runt
 - architecture and implementation family, such as baseline, external package, or self-contained torch
 - supported input and target sample-rate metadata
 - managed weight source, provider, file count, size, hash, revision, and license metadata
-- backend capability metadata for array/file I/O, chunking, determinism, CPU/CUDA/MPS support, and precision modes
+- backend capability metadata for array/file I/O, chunking, determinism, accelerator support, runtime providers, and precision modes
 - validation evidence, recommended use, and known limitations
 
-Provider-specific accelerator routing belongs below the catalog in the future runtime-provider layer. The catalog may report declared support, but it should not import CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, ONNX Runtime, or other SDKs merely to list models.
+Provider-specific accelerator routing belongs below the catalog in the runtime-provider layer. The catalog reports declared support through `accelerators` and `runtime_providers`, but it must not import CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, ONNX Runtime, or other SDKs merely to list models.
+
+Runtime-provider rules live in [ACCELERATORS.md](ACCELERATORS.md). Backends may request a supported
+provider and logical device, but provider installation and global device detection stay in shared
+runtime helpers.
 
 Candidate admission rules and scorecard usage live in [MODEL_ADMISSION.md](MODEL_ADMISSION.md).
 
@@ -107,6 +111,7 @@ The first remote provider is Hugging Face through the optional `download` extra.
 - `sinc-resample` is the default backend and must run in CI.
 - `audiosr` is optional and imported only when its external backend is selected.
 - `lavasr-compat` can require local verified files and optional torch runtime, but it must not call Hugging Face or other providers directly.
+- Runtime provider adapters must be optional and import-light until selected.
 - Normal CI and normal inference must not download model weights.
 - Self-contained backends should prefer safetensors or hash-verified trusted state dicts over untrusted pickle-style loading.
 

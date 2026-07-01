@@ -25,6 +25,8 @@ class BackendCapability:
     supports_mps: bool = False
     requires_gpu: bool = False
     precision_modes: tuple[str, ...] = ("float32",)
+    accelerators: tuple[str, ...] = ("cpu",)
+    runtime_providers: tuple[str, ...] = ("python",)
 
 
 @dataclass(frozen=True)

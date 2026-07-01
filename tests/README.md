@@ -6,7 +6,7 @@ The default suite is lightweight, CPU-friendly, and offline:
 pixi run test
 ```
 
-It covers the baseline CLI/API path, backend and model discovery, manifests, quality reports, golden comparison metrics, preprocessing, chunking, weight manifest validation, fake-provider downloads, LavaSR metadata validation, device discovery, and release example artifacts.
+It covers the baseline CLI/API path, backend and model discovery, manifests, quality reports, benchmark JSON, golden comparison metrics, preprocessing, chunking, weight manifest validation, fake-provider downloads, LavaSR metadata validation, device/runtime-provider discovery, and release example artifacts.
 
 ## Policy
 
@@ -16,6 +16,7 @@ It covers the baseline CLI/API path, backend and model discovery, manifests, qua
 - Keep provider tests mocked unless they are explicitly gated by an environment variable.
 - Keep optional model inference tests separate from the default suite.
 - Keep torch-dependent LavaSR runtime tests skipped unless torch is installed.
+- Keep accelerator matrix tests opt-in through environment variables.
 
 ## Optional Integrations
 
@@ -51,10 +52,29 @@ Set both `AUDIO_SUPER_RESOLUTION_RUN_WEIGHT_DOWNLOAD=1` and `AUDIO_SUPER_RESOLUT
 Run LavaSR upstream parity only when upstream LavaSR/Vocos dependencies are intentionally installed:
 
 ```sh
-pixi run python -m pip install "git+https://github.com/ysharma3501/LavaSR.git"
+uv pip install "git+https://github.com/ysharma3501/LavaSR.git"
 set AUDIO_SUPER_RESOLUTION_RUN_LAVASR_UPSTREAM_PARITY=1
 set AUDIO_SUPER_RESOLUTION_LAVASR_CACHE=C:\path\to\models
 pixi run pytest tests/test_lavasr_upstream_parity.py
 ```
 
 The parity test compares the self-contained `lavasr-compat` runtime with upstream `LavaSR.enhancer.LavaBWE` using the same verified local `enhancer_v2` weights. It remains out of the default suite because it requires upstream project dependencies.
+
+## Accelerator Matrix
+
+Hardware validation is opt-in. Record the requested device/provider and write benchmark JSON during
+manual validation:
+
+```sh
+set AUDIO_SUPER_RESOLUTION_RUN_ACCELERATOR_MATRIX=1
+set AUDIO_SUPER_RESOLUTION_ACCELERATOR_DEVICE=cuda
+pixi run pytest tests/test_accelerator_matrix.py
+```
+
+Then run a normal enhancement with benchmark output on that environment:
+
+```sh
+audio-super-res input.wav output.wav --device auto --runtime-provider auto --benchmark-json benchmark.json
+```
+
+See [docs/ACCELERATORS.md](../docs/ACCELERATORS.md) for the full install and validation matrix.

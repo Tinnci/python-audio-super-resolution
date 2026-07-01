@@ -12,7 +12,7 @@ pixi run test
 pixi run build
 pixi run metadata-check
 pixi run wheel-check
-pixi run python -m pip check
+pixi run uv pip check
 ```
 
 Also confirm:
