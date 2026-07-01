@@ -28,6 +28,7 @@ This project follows semantic versioning once published to PyPI.
 - Added `audio-super-res eval no-reference` with builtin CPU/offline signal-stat screening records and documented gated DNSMOS/NISQA/UTMOS/ViSQOL adapter requirements.
 - Added `audio-super-res eval downstream` with builtin ASR transcript WER/CER delta evaluation and gated speaker/VAD/KWS adapter schema.
 - Added `audio-super-res eval listening-export` for AB/ABX/MUSHRA-ready blind bundles with separate answer keys and explicit rating dimensions.
+- Completed the `v0.5.0` evaluation/regression harness milestone scope across full-reference, no-reference, downstream, listening, engineering/stability, and regression workflows.
 
 ### Changed
 

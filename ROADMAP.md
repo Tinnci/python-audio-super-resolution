@@ -89,7 +89,7 @@ Decision rule:
 - Backend code should request capabilities from a runtime/provider abstraction instead of hard-coding CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, or ONNX Runtime checks.
 - GPU/SDK-specific tests must remain gated and should produce JSON evidence before they become release gates.
 
-## In Progress: v0.5.0 Evaluation And Regression Harness
+## Completed: v0.5.0 Evaluation And Regression Harness
 
 Goal: build a reproducible backend benchmark and regression workflow that evaluates more than one
 audio-quality score.
