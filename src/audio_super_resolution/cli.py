@@ -247,6 +247,16 @@ def build_eval_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("baseline", type=Path, help="Baseline eval manifest JSON path.")
     compare_parser.add_argument("candidate", type=Path, help="Candidate eval manifest JSON path.")
     compare_parser.add_argument("--output", type=Path, help="Write comparison JSON to this path.")
+    compare_parser.add_argument(
+        "--threshold",
+        action="append",
+        default=[],
+        metavar="FIELD=MAX_REGRESSION",
+        help=(
+            "Fail if FIELD regresses by more than MAX_REGRESSION. Can be repeated. "
+            "Metric direction is inferred, so SI-SDR drops fail while LSD/RTF increases fail."
+        ),
+    )
     return parser
 
 
@@ -391,7 +401,11 @@ def _run_eval_command(argv: list[str]) -> int:
             print(f"Wrote eval manifest {args.output} ({result_count} result(s))")
             return 0
         if args.eval_command == "compare":
-            comparison = compare_eval_manifests(load_eval_manifest(args.baseline), load_eval_manifest(args.candidate))
+            comparison = compare_eval_manifests(
+                load_eval_manifest(args.baseline),
+                load_eval_manifest(args.candidate),
+                thresholds=_parse_eval_thresholds(args.threshold),
+            )
             if args.output:
                 write_eval_manifest(args.output, comparison)
                 print(f"Wrote eval comparison {args.output}")
@@ -401,6 +415,25 @@ def _run_eval_command(argv: list[str]) -> int:
     except (OSError, RuntimeError, ValueError) as exc:
         parser.error(str(exc))
     parser.error(f"Unknown eval command: {args.eval_command}")
+
+
+def _parse_eval_thresholds(raw_thresholds: list[str]) -> dict[str, float]:
+    thresholds: dict[str, float] = {}
+    for raw_threshold in raw_thresholds:
+        if "=" not in raw_threshold:
+            raise ValueError(f"eval threshold must use FIELD=MAX_REGRESSION syntax: {raw_threshold!r}")
+        field, raw_value = raw_threshold.split("=", 1)
+        field = field.strip()
+        if not field:
+            raise ValueError(f"eval threshold field is empty: {raw_threshold!r}")
+        try:
+            value = float(raw_value)
+        except ValueError as exc:
+            raise ValueError(f"eval threshold value must be numeric: {raw_threshold!r}") from exc
+        if value < 0:
+            raise ValueError(f"eval threshold value must be non-negative: {raw_threshold!r}")
+        thresholds[field] = value
+    return thresholds
 
 
 def _run_command(args: argparse.Namespace, parser: argparse.ArgumentParser, config: InferenceConfig) -> int:

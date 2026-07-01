@@ -106,7 +106,8 @@ Tracked work:
   drift, clipping, per-result failure status, lightweight failure-case classification, and backend
   capability/governance facts.
 - `#43` Add eval regression manifests and comparison workflow. First slice implemented:
-  `audio-super-res eval run` and `audio-super-res eval compare`.
+  `audio-super-res eval run`, `audio-super-res eval compare`, threshold-based regression checks,
+  and comparison tables for audio quality, downstream, engineering, stability, and governance.
 
 Decision rule:
 

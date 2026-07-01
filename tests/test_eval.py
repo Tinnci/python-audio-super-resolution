@@ -53,8 +53,8 @@ def test_run_eval_dataset_writes_full_reference_manifest(tmp_path: Path) -> None
 
 
 def test_compare_eval_manifests_reports_metric_deltas() -> None:
-    baseline = _eval_manifest("sinc-resample", si_sdr=10.0, lsd=3.0)
-    candidate = _eval_manifest("lavasr-compat", si_sdr=12.5, lsd=2.2)
+    baseline = _eval_manifest("sinc-resample", si_sdr=10.0, lsd=3.0, rtf=1.0)
+    candidate = _eval_manifest("lavasr-compat", si_sdr=12.5, lsd=2.2, rtf=0.8)
 
     comparison = compare_eval_manifests(baseline, candidate)
 
@@ -62,7 +62,28 @@ def test_compare_eval_manifests_reports_metric_deltas() -> None:
     assert comparison["passed"] is True
     assert comparison["metric_summary"]["si_sdr_db"]["delta"] == 2.5
     assert comparison["metric_summary"]["lsd_db"]["delta"] == pytest.approx(-0.8)
+    assert comparison["metric_summary"]["lsd_db"]["direction"] == "lower_is_better"
+    assert "lsd_db" in comparison["tables"]["audio_quality"]
+    assert "rtf" in comparison["tables"]["engineering"]
+    assert comparison["tables"]["stability"]["candidate_status_counts"] == {"passed": 1}
     assert comparison["regressions"] == []
+
+
+def test_compare_eval_manifests_applies_threshold_directions() -> None:
+    baseline = _eval_manifest("sinc-resample", si_sdr=10.0, lsd=3.0, rtf=1.0)
+    candidate = _eval_manifest("lavasr-compat", si_sdr=9.4, lsd=3.3, rtf=1.4)
+
+    comparison = compare_eval_manifests(
+        baseline,
+        candidate,
+        thresholds={"si_sdr_db": 0.5, "lsd_db": 0.2, "rtf": 0.2},
+    )
+
+    assert comparison["passed"] is False
+    regressions = {(regression["field"], regression["direction"]) for regression in comparison["regressions"]}
+    assert ("si_sdr_db", "higher_is_better") in regressions
+    assert ("lsd_db", "lower_is_better") in regressions
+    assert ("rtf", "lower_is_better") in regressions
 
 
 def test_cli_eval_run_and_compare(tmp_path: Path) -> None:
@@ -117,6 +138,36 @@ def test_cli_eval_run_and_compare(tmp_path: Path) -> None:
     assert comparison["baseline_backend"] == "sinc-resample"
     assert comparison["candidate_backend"] == "sinc-resample"
     assert "highband_lsd_8_16k" in comparison["metric_summary"]
+    assert "audio_quality" in comparison["tables"]
+
+
+def test_cli_eval_compare_thresholds(tmp_path: Path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    candidate_path = tmp_path / "candidate.json"
+    comparison_path = tmp_path / "comparison.json"
+    baseline_path.write_text(json.dumps(_eval_manifest("sinc-resample", si_sdr=10.0, lsd=3.0)), encoding="utf-8")
+    candidate_path.write_text(json.dumps(_eval_manifest("sinc-resample", si_sdr=9.0, lsd=3.0)), encoding="utf-8")
+
+    assert (
+        main(
+            [
+                "eval",
+                "compare",
+                str(baseline_path),
+                str(candidate_path),
+                "--threshold",
+                "si_sdr_db=0.5",
+                "--output",
+                str(comparison_path),
+            ]
+        )
+        == 1
+    )
+
+    comparison = json.loads(comparison_path.read_text(encoding="utf-8"))
+    assert comparison["passed"] is False
+    assert comparison["thresholds"] == {"si_sdr_db": 0.5}
+    assert comparison["regressions"][0]["field"] == "si_sdr_db"
 
 
 def test_cli_eval_run_from_console_argv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -233,16 +284,34 @@ def _write_silence(path: Path, *, sample_rate: int = 48000) -> None:
     sf.write(path, np.zeros(int(sample_rate * 0.06), dtype=np.float32), sample_rate)
 
 
-def _eval_manifest(backend: str, *, si_sdr: float, lsd: float) -> dict[str, object]:
+def _eval_manifest(backend: str, *, si_sdr: float, lsd: float, rtf: float = 1.0) -> dict[str, object]:
     return {
         "schema_version": 1,
         "backend": backend,
+        "backend_profile": {
+            "backend": backend,
+            "model_id": backend,
+            "capabilities": {
+                "offline": True,
+                "reproducible": True,
+            },
+            "governance": {
+                "license_usable": True,
+                "explicit_weights": True,
+            },
+            "dependency_footprint": {
+                "dependency_tier": "baseline-no-weights",
+            },
+        },
         "results": [
             {
                 "id": "sample",
                 "metrics": {
                     "si_sdr_db": si_sdr,
                     "lsd_db": lsd,
+                },
+                "performance": {
+                    "rtf": rtf,
                 },
                 "quality": {"passed": True},
                 "stability": {"passed": True},

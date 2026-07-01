@@ -30,6 +30,16 @@ audio-super-res eval run \
 audio-super-res eval compare runs/sinc.json runs/lavasr.json --output runs/comparison.json
 ```
 
+Regression thresholds can be repeated. The comparator infers metric direction: SI-SDR/PESQ/STOI
+drops fail, while LSD/high-band LSD/RTF/peak RSS increases fail.
+
+```sh
+audio-super-res eval compare runs/sinc.json runs/lavasr.json \
+  --threshold si_sdr_db=0.5 \
+  --threshold highband_lsd_8_16k=0.25 \
+  --threshold rtf=0.2
+```
+
 `eval run` accepts a directory of clean `.wav` reference files. It writes degraded inputs, backend
 outputs, full-reference metrics, quality/stability checks, and simple runtime data into a JSON
 manifest.
@@ -74,7 +84,15 @@ Each result contains:
 
 `eval compare` compares manifests by item id and reports separate metric deltas. It does not hide
 raw metrics behind a single aggregate score. Candidate results with failed status, failed stability
-checks, or failed quality checks are reported as regressions.
+checks, failed quality checks, or threshold violations are reported as regressions.
+
+The comparison JSON keeps raw `metric_summary` data and also groups it into `tables`:
+
+- `audio_quality`: full-reference and optional objective metrics
+- `downstream`: WER/CER/speaker/VAD/KWS metrics when optional adapters add them
+- `engineering`: RTF, elapsed time, init time, and peak RSS
+- `stability`: drift/clipping metrics plus candidate status and failure-case counts
+- `governance`: backend/profile facts for offline use, reproducibility, license usability, explicit weights, and dependency footprint
 
 The manifest also includes a `backend_profile` with capability and governance facts from the model
 catalog:

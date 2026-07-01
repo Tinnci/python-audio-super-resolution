@@ -35,6 +35,39 @@ FULL_REFERENCE_METRICS = (
     "highband_lsd_8_16k",
 )
 OPTIONAL_FULL_REFERENCE_METRICS = ("pesq", "stoi", "estoi", "mcd")
+DOWNSTREAM_METRICS = (
+    "wer",
+    "cer",
+    "speaker_similarity",
+    "vad_accuracy",
+    "endpoint_accuracy",
+    "keyword_accuracy",
+)
+ENGINEERING_METRICS = (
+    "backend_init_seconds",
+    "elapsed_seconds",
+    "rtf",
+    "peak_rss_mb",
+    "peak_rss_delta_mb",
+)
+STABILITY_METRICS = ("duration_drift_seconds", "clipped_fraction")
+LOWER_IS_BETTER_METRICS = {
+    "lsd_db",
+    "mcd",
+    "spectral_convergence",
+    "highband_lsd_4_8k",
+    "highband_lsd_8_16k",
+    "wer",
+    "cer",
+    "endpoint_error",
+    "backend_init_seconds",
+    "elapsed_seconds",
+    "rtf",
+    "peak_rss_mb",
+    "peak_rss_delta_mb",
+    "duration_drift_seconds",
+    "clipped_fraction",
+}
 SILENCE_RMS_THRESHOLD = 1e-5
 HALLUCINATION_RMS_THRESHOLD = 1e-4
 LOW_VOLUME_RMS_THRESHOLD = 0.01
@@ -310,6 +343,8 @@ def compare_eval_manifests(
         "missing_from_candidate": sorted(set(baseline_results) - set(candidate_results)),
         "unexpected_candidate_items": sorted(set(candidate_results) - set(baseline_results)),
         "metric_summary": metric_summary,
+        "tables": _comparison_tables(baseline, candidate, metric_summary, candidate_results),
+        "thresholds": thresholds or {},
         "regressions": regressions,
     }
 
@@ -793,19 +828,19 @@ def _indexed_results(manifest: dict[str, object]) -> dict[str, dict[str, object]
 def _metric_summary(
     baseline_results: dict[str, dict[str, object]],
     candidate_results: dict[str, dict[str, object]],
-) -> dict[str, dict[str, float]]:
-    summary: dict[str, dict[str, float]] = {}
+) -> dict[str, dict[str, object]]:
+    summary: dict[str, dict[str, object]] = {}
     metric_names = sorted(
         {
             metric
             for record in [*baseline_results.values(), *candidate_results.values()]
-            for metric in _numeric_metrics(record)
+            for metric in _numeric_eval_values(record)
         }
     )
     common_ids = sorted(set(baseline_results) & set(candidate_results))
     for metric in metric_names:
-        baseline_values = [_numeric_metrics(baseline_results[item_id]).get(metric) for item_id in common_ids]
-        candidate_values = [_numeric_metrics(candidate_results[item_id]).get(metric) for item_id in common_ids]
+        baseline_values = [_numeric_eval_values(baseline_results[item_id]).get(metric) for item_id in common_ids]
+        candidate_values = [_numeric_eval_values(candidate_results[item_id]).get(metric) for item_id in common_ids]
         paired = [
             (baseline, candidate)
             for baseline, candidate in zip(baseline_values, candidate_values, strict=False)
@@ -819,8 +854,34 @@ def _metric_summary(
             "baseline_mean": baseline_mean,
             "candidate_mean": candidate_mean,
             "delta": candidate_mean - baseline_mean,
+            "direction": _metric_direction(metric),
         }
     return summary
+
+
+def _comparison_tables(
+    baseline: dict[str, object],
+    candidate: dict[str, object],
+    metric_summary: dict[str, dict[str, object]],
+    candidate_results: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    return {
+        "audio_quality": _summary_subset(
+            metric_summary,
+            set(FULL_REFERENCE_METRICS) | set(OPTIONAL_FULL_REFERENCE_METRICS),
+        ),
+        "downstream": _summary_subset(metric_summary, set(DOWNSTREAM_METRICS)),
+        "engineering": _summary_subset(metric_summary, set(ENGINEERING_METRICS)),
+        "stability": {
+            "metrics": _summary_subset(metric_summary, set(STABILITY_METRICS)),
+            "candidate_status_counts": _status_counts(list(candidate_results.values())),
+            "candidate_failure_cases": _failure_case_counts(candidate_results),
+        },
+        "governance": {
+            "baseline": _governance_table(baseline.get("backend_profile")),
+            "candidate": _governance_table(candidate.get("backend_profile")),
+        },
+    }
 
 
 def _eval_regressions(
@@ -848,21 +909,33 @@ def _eval_regressions(
         candidate_quality = candidate_results[item_id].get("quality")
         if isinstance(candidate_quality, dict) and candidate_quality.get("passed") is False:
             regressions.append({"id": item_id, "field": "quality", "message": "candidate quality checks failed"})
-        baseline_metrics = _numeric_metrics(baseline_results[item_id])
-        candidate_metrics = _numeric_metrics(candidate_results[item_id])
-        for metric, allowed_drop in thresholds.items():
-            if metric in baseline_metrics and metric in candidate_metrics:
-                delta = candidate_metrics[metric] - baseline_metrics[metric]
-                if delta < -allowed_drop:
+        baseline_values = _numeric_eval_values(baseline_results[item_id])
+        candidate_values = _numeric_eval_values(candidate_results[item_id])
+        for metric, allowed_regression in thresholds.items():
+            if metric in baseline_values and metric in candidate_values:
+                delta = candidate_values[metric] - baseline_values[metric]
+                if _threshold_regressed(metric, delta, allowed_regression):
                     regressions.append(
                         {
                             "id": item_id,
                             "field": metric,
                             "delta": delta,
-                            "message": f"{metric} regressed by more than {allowed_drop}",
+                            "allowed_regression": allowed_regression,
+                            "direction": _metric_direction(metric),
+                            "message": f"{metric} regressed by more than {allowed_regression}",
                         }
                     )
     return regressions
+
+
+def _numeric_eval_values(record: dict[str, object]) -> dict[str, float]:
+    values = _numeric_metrics(record)
+    values.update(_numeric_nested_values(record.get("performance"), ENGINEERING_METRICS))
+    quality_values = _numeric_nested_values(record.get("quality"), STABILITY_METRICS)
+    stability_values = _numeric_nested_values(record.get("stability"), STABILITY_METRICS)
+    values.update(quality_values)
+    values.update(stability_values)
+    return values
 
 
 def _numeric_metrics(record: dict[str, object]) -> dict[str, float]:
@@ -874,6 +947,66 @@ def _numeric_metrics(record: dict[str, object]) -> dict[str, float]:
         for name, value in metrics.items()
         if isinstance(value, int | float) and not isinstance(value, bool)
     }
+
+
+def _numeric_nested_values(container: object, names: tuple[str, ...]) -> dict[str, float]:
+    if not isinstance(container, dict):
+        return {}
+    return {
+        name: float(value)
+        for name in names
+        if isinstance((value := container.get(name)), int | float) and not isinstance(value, bool)
+    }
+
+
+def _summary_subset(
+    metric_summary: dict[str, dict[str, object]],
+    names: set[str],
+) -> dict[str, dict[str, object]]:
+    return {name: metric_summary[name] for name in sorted(names & set(metric_summary))}
+
+
+def _failure_case_counts(candidate_results: dict[str, dict[str, object]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for result in candidate_results.values():
+        failure_cases = result.get("failure_cases")
+        if not isinstance(failure_cases, list):
+            continue
+        for failure_case in failure_cases:
+            name = str(failure_case)
+            counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def _governance_table(profile: object) -> dict[str, object]:
+    if not isinstance(profile, dict):
+        return {}
+    capabilities = profile.get("capabilities")
+    governance = profile.get("governance")
+    dependency_footprint = profile.get("dependency_footprint")
+    return {
+        "backend": profile.get("backend"),
+        "model_id": profile.get("model_id"),
+        "offline": capabilities.get("offline") if isinstance(capabilities, dict) else None,
+        "reproducible": capabilities.get("reproducible") if isinstance(capabilities, dict) else None,
+        "license_usable": governance.get("license_usable") if isinstance(governance, dict) else None,
+        "explicit_weights": governance.get("explicit_weights") if isinstance(governance, dict) else None,
+        "dependency_footprint": dependency_footprint if isinstance(dependency_footprint, dict) else None,
+    }
+
+
+def _threshold_regressed(metric: str, delta: float, allowed_regression: float) -> bool:
+    if allowed_regression < 0:
+        raise ValueError("threshold values must be non-negative")
+    if _metric_direction(metric) == "lower_is_better":
+        return delta > allowed_regression
+    return delta < -allowed_regression
+
+
+def _metric_direction(metric: str) -> str:
+    if metric in LOWER_IS_BETTER_METRICS:
+        return "lower_is_better"
+    return "higher_is_better"
 
 
 def _status_counts(results: list[dict[str, object]]) -> dict[str, int]:
