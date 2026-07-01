@@ -102,7 +102,9 @@ Tracked work:
 - `#40` Add downstream task evaluation workflows.
 - `#41` Add perceptual listening-test export workflow.
 - `#42` Add engineering performance and stability evaluation. First slice implemented: eval
-  manifests include elapsed time, RTF, sample-rate checks, duration drift, and clipping quality data.
+  manifests include elapsed time, RTF, peak RSS strategy/fallbacks, sample-rate checks, duration
+  drift, clipping, per-result failure status, lightweight failure-case classification, and backend
+  capability/governance facts.
 - `#43` Add eval regression manifests and comparison workflow. First slice implemented:
   `audio-super-res eval run` and `audio-super-res eval compare`.
 

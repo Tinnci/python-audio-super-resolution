@@ -8,6 +8,7 @@ import soundfile as sf
 
 from audio_super_resolution.cli import main
 from audio_super_resolution.evaluation import compare_eval_manifests, run_eval_dataset
+from audio_super_resolution.resolver import EnhancementResult
 
 
 def test_run_eval_dataset_writes_full_reference_manifest(tmp_path: Path) -> None:
@@ -27,15 +28,28 @@ def test_run_eval_dataset_writes_full_reference_manifest(tmp_path: Path) -> None
 
     assert output_path.is_file()
     assert manifest["schema_version"] == 1
+    assert manifest["passed"] is True
     assert manifest["backend"] == "sinc-resample"
+    assert manifest["backend_profile"]["capabilities"]["offline"] is True
+    assert manifest["backend_profile"]["capabilities"]["cpu_only"] is True
+    assert manifest["backend_profile"]["governance"]["license_usable"] is True
+    assert manifest["backend_profile"]["governance"]["explicit_weights"] is True
+    assert manifest["backend_profile"]["dependency_footprint"]["dependency_tier"] == "baseline-no-weights"
     assert manifest["degrader"]["name"] == "wideband_16k"
+    assert manifest["status_counts"] == {"passed": 1}
+    assert manifest["results"][0]["status"] == "passed"
     assert manifest["results"][0]["reference_path"] == str(dataset / "sample.wav")
     assert Path(manifest["results"][0]["degraded_path"]).is_file()
     assert Path(manifest["results"][0]["enhanced_path"]).is_file()
     metrics = manifest["results"][0]["metrics"]
     assert {"si_sdr_db", "sdr_db", "lsd_db", "spectral_convergence", "highband_lsd_8_16k"} <= set(metrics)
     assert manifest["results"][0]["quality"]["passed"] is True
+    assert manifest["results"][0]["stability"]["sample_rate_correct"] is True
+    assert manifest["results"][0]["stability"]["clipped"] is False
+    assert manifest["results"][0]["failure_cases"] == []
     assert manifest["results"][0]["performance"]["rtf"] is not None
+    assert manifest["results"][0]["performance"]["memory"]["strategy"] == "resource.getrusage(RUSAGE_SELF).ru_maxrss"
+    assert "peak_rss_mb" in manifest["results"][0]["performance"]
 
 
 def test_compare_eval_manifests_reports_metric_deltas() -> None:
@@ -132,10 +146,91 @@ def test_cli_eval_run_from_console_argv(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert json.loads(output_path.read_text(encoding="utf-8"))["results"]
 
 
+def test_run_eval_dataset_records_backend_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+
+    class FailingResolver:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def enhance(self, input_path: Path, output_path: Path, target_sr: int) -> EnhancementResult:
+            raise RuntimeError("backend exploded")
+
+    monkeypatch.setattr("audio_super_resolution.evaluation.AudioSuperResolver", FailingResolver)
+
+    manifest = run_eval_dataset(
+        dataset_dir=dataset,
+        backend="sinc-resample",
+        output_path=tmp_path / "runs" / "failed.json",
+        work_dir=tmp_path / "work",
+    )
+
+    result = manifest["results"][0]
+    assert manifest["passed"] is False
+    assert manifest["status_counts"] == {"failed": 1}
+    assert result["status"] == "failed"
+    assert result["failure"]["stage"] == "enhance"
+    assert result["failure"]["type"] == "RuntimeError"
+    assert result["stability"]["failure_status"] == "enhance_failed"
+    assert result["stability"]["failure_case_classification"]["backend_failure"] is True
+    assert "output_missing" in result["failure_cases"]
+
+    comparison = compare_eval_manifests(_eval_manifest("sinc-resample", si_sdr=10.0, lsd=3.0), manifest)
+    assert comparison["passed"] is False
+    assert any(regression["field"] == "status" for regression in comparison["regressions"])
+
+
+def test_run_eval_dataset_classifies_silence_hallucination(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_silence(dataset / "sample.wav")
+
+    class LoudResolver:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def enhance(self, input_path: Path, output_path: Path, target_sr: int) -> EnhancementResult:
+            input_info = sf.info(input_path)
+            duration_seconds = input_info.frames / input_info.samplerate
+            output_audio = np.full(int(target_sr * duration_seconds), 0.2, dtype=np.float32)
+            sf.write(output_path, output_audio, target_sr)
+            return EnhancementResult(
+                input_path=Path(input_path),
+                output_path=Path(output_path),
+                input_sample_rate=input_info.samplerate,
+                sample_rate=target_sr,
+                input_duration_seconds=duration_seconds,
+                duration_seconds=duration_seconds,
+                channels=1,
+                backend="sinc-resample",
+            )
+
+    monkeypatch.setattr("audio_super_resolution.evaluation.AudioSuperResolver", LoudResolver)
+
+    manifest = run_eval_dataset(
+        dataset_dir=dataset,
+        backend="sinc-resample",
+        output_path=tmp_path / "runs" / "hallucination.json",
+        work_dir=tmp_path / "work",
+    )
+
+    result = manifest["results"][0]
+    assert manifest["passed"] is False
+    assert result["status"] == "stability_failed"
+    assert result["stability"]["failure_case_classification"]["silence_hallucination"] is True
+    assert "silence_hallucination" in result["failure_cases"]
+
+
 def _write_reference(path: Path, *, sample_rate: int = 48000) -> None:
     time = np.arange(int(sample_rate * 0.06)) / sample_rate
     audio = 0.15 * np.sin(2 * np.pi * 440 * time) + 0.04 * np.sin(2 * np.pi * 9000 * time)
     sf.write(path, audio.astype("float32"), sample_rate)
+
+
+def _write_silence(path: Path, *, sample_rate: int = 48000) -> None:
+    sf.write(path, np.zeros(int(sample_rate * 0.06), dtype=np.float32), sample_rate)
 
 
 def _eval_manifest(backend: str, *, si_sdr: float, lsd: float) -> dict[str, object]:
@@ -150,6 +245,8 @@ def _eval_manifest(backend: str, *, si_sdr: float, lsd: float) -> dict[str, obje
                     "lsd_db": lsd,
                 },
                 "quality": {"passed": True},
+                "stability": {"passed": True},
+                "status": "passed",
             }
         ],
     }
