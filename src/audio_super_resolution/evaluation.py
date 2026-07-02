@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import random
 import shutil
+import tarfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -12,6 +13,7 @@ from typing import Any, cast
 
 import numpy as np
 import soundfile as sf
+from scipy.fft import dct
 from scipy.signal import resample_poly
 
 from .backends import available_backends
@@ -20,7 +22,7 @@ from .models import find_model_spec
 from .preprocess import lowpass_filter
 from .quality import inspect_audio_quality, quality_report_to_dict
 from .resolver import AudioSuperResolver, discover_audio_files
-from .runtime_stats import peak_rss_snapshot
+from .runtime_stats import accelerator_memory_snapshot, peak_rss_snapshot
 from .specs import BackendCapability, ModelSpec
 
 SUPPORTED_DEGRADERS = (
@@ -56,6 +58,11 @@ ENGINEERING_METRICS = (
     "rtf",
     "peak_rss_mb",
     "peak_rss_delta_mb",
+)
+MATRIX_COMPARE_METRICS = (
+    "passed",
+    "run_count",
+    "failure_count",
 )
 STABILITY_METRICS = ("duration_drift_seconds", "clipped_fraction")
 SIGNAL_STATS_NO_REFERENCE_METRICS = (
@@ -285,6 +292,8 @@ def run_eval_matrix(
     config: InferenceConfig | None = None,
     limit: int | None = None,
     optional_metrics: tuple[str, ...] = (),
+    reuse_existing: bool = False,
+    fail_fast: bool = False,
 ) -> dict[str, object]:
     """Run multiple backend/degrader eval combinations and write a matrix index."""
 
@@ -305,17 +314,35 @@ def run_eval_matrix(
         for degrader in degraders:
             run_id = f"{_safe_eval_id(backend)}__{_safe_eval_id(degrader)}"
             manifest_path = runs_dir / f"{run_id}.json"
-            manifest = run_eval_dataset(
-                dataset_dir=dataset_path,
-                backend=backend,
-                output_path=manifest_path,
-                work_dir=work_dir / run_id,
-                target_sample_rate=target_sample_rate,
-                degrader=degrader,
-                config=resolved_config,
-                limit=limit,
-                optional_metrics=optional_metrics,
-            )
+            reused = False
+            try:
+                if reuse_existing and manifest_path.is_file():
+                    manifest = load_eval_manifest(manifest_path)
+                    reused = True
+                else:
+                    manifest = run_eval_dataset(
+                        dataset_dir=dataset_path,
+                        backend=backend,
+                        output_path=manifest_path,
+                        work_dir=work_dir / run_id,
+                        target_sample_rate=target_sample_rate,
+                        degrader=degrader,
+                        config=resolved_config,
+                        limit=limit,
+                        optional_metrics=optional_metrics,
+                    )
+            except (OSError, RuntimeError, ValueError) as exc:
+                if fail_fast:
+                    raise
+                manifest = _failed_matrix_run_manifest(
+                    dataset_dir=dataset_path,
+                    backend=backend,
+                    degrader=degrader,
+                    target_sample_rate=target_sample_rate,
+                    config=resolved_config,
+                    exc=exc,
+                )
+                write_eval_manifest(manifest_path, manifest)
             results = manifest.get("results")
             entries.append(
                 {
@@ -324,6 +351,7 @@ def run_eval_matrix(
                     "degrader": degrader,
                     "manifest_path": str(manifest_path),
                     "passed": bool(manifest.get("passed")),
+                    "reused": reused,
                     "result_count": len(results) if isinstance(results, list) else 0,
                     "status_counts": manifest.get("status_counts", {}),
                     "failure_count": manifest.get("failure_count", 0),
@@ -339,10 +367,302 @@ def run_eval_matrix(
         config=resolved_config,
         limit=limit,
         optional_metrics=optional_metrics,
+        reuse_existing=reuse_existing,
+        fail_fast=fail_fast,
         entries=entries,
     )
     write_eval_manifest(matrix_dir / "matrix.json", matrix)
     return matrix
+
+
+def compare_eval_matrices(
+    baseline_matrix_path: str | Path,
+    candidate_matrix_path: str | Path,
+    *,
+    thresholds: dict[str, float] | None = None,
+) -> dict[str, object]:
+    """Compare two eval matrix indexes by matching backend/degrader run manifests."""
+
+    baseline_path = Path(baseline_matrix_path)
+    candidate_path = Path(candidate_matrix_path)
+    baseline = load_eval_manifest(baseline_path)
+    candidate = load_eval_manifest(candidate_path)
+    if baseline.get("evaluation_type") != "matrix" or candidate.get("evaluation_type") != "matrix":
+        raise ValueError("matrix comparison requires two eval matrix manifests")
+
+    baseline_runs = _indexed_matrix_runs(baseline)
+    candidate_runs = _indexed_matrix_runs(candidate)
+    comparisons: list[dict[str, object]] = []
+    regressions: list[dict[str, object]] = []
+    for key in sorted(set(baseline_runs) & set(candidate_runs)):
+        baseline_run = baseline_runs[key]
+        candidate_run = candidate_runs[key]
+        baseline_manifest = load_eval_manifest(_resolve_manifest_path(baseline_run, base_path=baseline_path))
+        candidate_manifest = load_eval_manifest(_resolve_manifest_path(candidate_run, base_path=candidate_path))
+        comparison = compare_eval_manifests(
+            baseline_manifest,
+            candidate_manifest,
+            thresholds=thresholds,
+        )
+        comparison["matrix_key"] = key
+        comparison["backend"] = candidate_run.get("backend")
+        comparison["degrader"] = candidate_run.get("degrader")
+        comparisons.append(comparison)
+        comparison_regressions = comparison.get("regressions")
+        if isinstance(comparison_regressions, list):
+            for regression in comparison_regressions:
+                if not isinstance(regression, dict):
+                    continue
+                regression_copy = dict(regression)
+                regression_copy["matrix_key"] = key
+                regression_copy["backend"] = candidate_run.get("backend")
+                regression_copy["degrader"] = candidate_run.get("degrader")
+                regressions.append(regression_copy)
+
+    for key in sorted(set(baseline_runs) - set(candidate_runs)):
+        regressions.append({"matrix_key": key, "field": "runs", "message": "missing candidate matrix run"})
+
+    return {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "evaluation_type": "matrix_compare",
+        "passed": not regressions,
+        "baseline_matrix": str(baseline_path),
+        "candidate_matrix": str(candidate_path),
+        "thresholds": thresholds or {},
+        "run_count": len(comparisons),
+        "missing_from_candidate": sorted(set(baseline_runs) - set(candidate_runs)),
+        "unexpected_candidate_runs": sorted(set(candidate_runs) - set(baseline_runs)),
+        "comparisons": comparisons,
+        "regressions": regressions,
+        "results": comparisons,
+    }
+
+
+def load_threshold_policy(path: str | Path) -> dict[str, float]:
+    """Load a JSON threshold policy with FIELD: MAX_REGRESSION values."""
+
+    loaded = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError("threshold policy must be a JSON object")
+    raw_thresholds = loaded.get("thresholds", loaded)
+    if not isinstance(raw_thresholds, dict):
+        raise ValueError("threshold policy thresholds must be a JSON object")
+    thresholds: dict[str, float] = {}
+    for field, value in raw_thresholds.items():
+        if not isinstance(field, str) or not field:
+            raise ValueError("threshold policy fields must be non-empty strings")
+        if not isinstance(value, int | float) or isinstance(value, bool):
+            raise ValueError(f"threshold policy value for {field!r} must be numeric")
+        if value < 0:
+            raise ValueError(f"threshold policy value for {field!r} must be non-negative")
+        thresholds[field] = float(value)
+    return thresholds
+
+
+def render_eval_report(manifest: dict[str, object]) -> str:
+    """Render a compact Markdown report for eval artifacts."""
+
+    evaluation_type = str(manifest.get("evaluation_type") or "eval_run")
+    lines = ["# Audio Super Resolution Eval Report", "", f"- Type: `{evaluation_type}`"]
+    if "backend" in manifest:
+        lines.append(f"- Backend: `{manifest.get('backend')}`")
+    if "dataset" in manifest:
+        lines.append(f"- Dataset: `{manifest.get('dataset')}`")
+    if "passed" in manifest:
+        lines.append(f"- Passed: `{manifest.get('passed')}`")
+
+    if evaluation_type == "matrix":
+        lines.extend(
+            [
+                "",
+                "## Matrix Runs",
+                "",
+                "| Backend | Degrader | Passed | Results | Manifest |",
+                "| --- | --- | --- | ---: | --- |",
+            ]
+        )
+        for run in _manifest_results(manifest):
+            lines.append(
+                f"| `{run.get('backend')}` | `{run.get('degrader')}` | `{run.get('passed')}` | "
+                f"{run.get('result_count')} | `{run.get('manifest_path')}` |"
+            )
+    elif evaluation_type == "matrix_compare":
+        lines.extend(["", "## Matrix Regressions", ""])
+        regressions = manifest.get("regressions")
+        if isinstance(regressions, list) and regressions:
+            lines.extend(["| Key | Field | Message |", "| --- | --- | --- |"])
+            for regression in regressions:
+                if isinstance(regression, dict):
+                    lines.append(
+                        f"| `{regression.get('matrix_key')}` | `{regression.get('field')}` | "
+                        f"{regression.get('message', '')} |"
+                    )
+        else:
+            lines.append("No regressions detected.")
+    elif "tables" in manifest:
+        lines.extend(["", "## Tables", ""])
+        tables = manifest.get("tables")
+        if isinstance(tables, dict):
+            for table_name, table in tables.items():
+                lines.append(f"- `{table_name}`: {len(table) if isinstance(table, dict) else 'available'}")
+    else:
+        results = manifest.get("results")
+        if isinstance(results, list):
+            lines.extend(["", "## Results", "", f"- Result count: `{len(results)}`"])
+            status_counts = manifest.get("status_counts")
+            if isinstance(status_counts, dict):
+                for status, count in sorted(status_counts.items()):
+                    lines.append(f"- `{status}`: `{count}`")
+    return "\n".join(lines) + "\n"
+
+
+def write_eval_report(manifest_path: str | Path, output_path: str | Path) -> str:
+    """Load an eval artifact and write a Markdown report."""
+
+    manifest = load_eval_manifest(manifest_path)
+    report = render_eval_report(manifest)
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(report, encoding="utf-8")
+    return report
+
+
+def bundle_eval_artifacts(
+    *,
+    manifest_paths: list[str | Path],
+    output_dir: str | Path,
+    archive_path: str | Path | None = None,
+) -> dict[str, object]:
+    """Copy eval artifacts and their referenced manifests into a bundle directory."""
+
+    if not manifest_paths:
+        raise ValueError("at least one manifest path is required")
+    bundle_dir = Path(output_dir)
+    manifests_dir = bundle_dir / "manifests"
+    manifests_dir.mkdir(parents=True, exist_ok=True)
+    copied: list[dict[str, object]] = []
+    for manifest_path in manifest_paths:
+        path = Path(manifest_path)
+        manifest = load_eval_manifest(path)
+        target = manifests_dir / path.name
+        shutil.copy2(path, target)
+        copied.append({"source": str(path), "path": str(target), "evaluation_type": manifest.get("evaluation_type")})
+        if manifest.get("evaluation_type") == "matrix":
+            for run in _manifest_results(manifest):
+                run_path = _resolve_manifest_path(run, base_path=path)
+                run_target = manifests_dir / "runs" / run_path.name
+                run_target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(run_path, run_target)
+                copied.append({"source": str(run_path), "path": str(run_target), "evaluation_type": "eval_run"})
+
+    index = {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "evaluation_type": "artifact_bundle",
+        "artifact_count": len(copied),
+        "artifacts": copied,
+        "results": copied,
+    }
+    write_eval_manifest(bundle_dir / "bundle_manifest.json", index)
+    archive = None
+    if archive_path is not None:
+        archive = Path(archive_path)
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(archive, "w:gz") as tar:
+            tar.add(bundle_dir, arcname=bundle_dir.name)
+    index["archive_path"] = str(archive) if archive is not None else None
+    return index
+
+
+def validate_eval_dataset_manifest(path: str | Path) -> dict[str, object]:
+    """Validate a dataset manifest without requiring bundled audio in the repository."""
+
+    manifest_path = Path(path)
+    loaded = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError("dataset manifest must be a JSON object")
+    records = loaded.get("records")
+    if not isinstance(records, list):
+        raise ValueError("dataset manifest must include a records list")
+    root = Path(str(loaded.get("root") or manifest_path.parent))
+    problems: list[dict[str, object]] = []
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            problems.append({"index": index, "field": "record", "message": "record must be an object"})
+            continue
+        if not isinstance(record.get("id"), str) or not record.get("id"):
+            problems.append({"index": index, "field": "id", "message": "id is required"})
+        record_path = record.get("path")
+        if not isinstance(record_path, str) or not record_path:
+            problems.append({"index": index, "field": "path", "message": "path is required"})
+            continue
+        resolved = root / record_path
+        if not resolved.exists():
+            problems.append({"index": index, "field": "path", "message": f"missing file: {resolved}"})
+    return {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "evaluation_type": "dataset_validation",
+        "dataset_id": loaded.get("dataset_id"),
+        "passed": not problems,
+        "record_count": len(records),
+        "problem_count": len(problems),
+        "problems": problems,
+        "results": problems,
+    }
+
+
+def inspect_torch_checkpoint(path: str | Path, *, limit: int | None = None) -> dict[str, object]:
+    """Inspect tensor keys/shapes from an explicit local torch checkpoint."""
+
+    checkpoint_path = Path(path)
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(checkpoint_path)
+    try:
+        torch_module = import_module("torch")
+    except ImportError as exc:
+        raise RuntimeError("torch is required for checkpoint inspection and must be installed explicitly") from exc
+    torch = cast(Any, torch_module)
+    try:
+        loaded = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+        weights_only = True
+    except TypeError:
+        loaded = torch.load(checkpoint_path, map_location="cpu")
+        weights_only = False
+    state = _checkpoint_state_dict(loaded)
+    keys = sorted(state)
+    if limit is not None:
+        if limit <= 0:
+            raise ValueError("limit must be greater than zero")
+        keys = keys[:limit]
+    tensors = []
+    for key in keys:
+        value = state[key]
+        shape = list(value.shape) if hasattr(value, "shape") else None
+        dtype = str(value.dtype) if hasattr(value, "dtype") else None
+        tensors.append({"key": key, "shape": shape, "dtype": dtype})
+    return {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "evaluation_type": "checkpoint_inspection",
+        "path": str(checkpoint_path),
+        "weights_only": weights_only,
+        "tensor_count": len(state),
+        "reported_count": len(tensors),
+        "tensors": tensors,
+        "results": tensors,
+    }
+
+
+def _checkpoint_state_dict(loaded: object) -> dict[str, object]:
+    if isinstance(loaded, dict):
+        for key in ("state_dict", "model", "module", "net"):
+            value = loaded.get(key)
+            if isinstance(value, dict):
+                return {str(tensor_key): tensor_value for tensor_key, tensor_value in value.items()}
+        return {str(tensor_key): tensor_value for tensor_key, tensor_value in loaded.items()}
+    raise ValueError("checkpoint root is not a dict-like state container")
 
 
 def init_speech_bwe_evalset(
@@ -427,6 +747,65 @@ def init_speech_bwe_evalset(
     return manifest
 
 
+def init_failure_case_evalset(
+    *,
+    output_dir: str | Path,
+    sample_rate: int = 48000,
+    force: bool = False,
+) -> dict[str, object]:
+    """Create deterministic stability/failure-case reference fixtures."""
+
+    if sample_rate <= 0:
+        raise ValueError("sample_rate must be greater than zero")
+    output_path = Path(output_dir)
+    clean_dir = output_path / "speech_clean_48k"
+    manifest_path = output_path / "manifest.json"
+    if output_path.exists() and any(output_path.iterdir()) and not force:
+        raise FileExistsError(f"{output_path} is not empty; pass force=True or --force to replace generated files")
+    clean_dir.mkdir(parents=True, exist_ok=True)
+
+    fixtures = {
+        "silence": np.zeros(int(sample_rate * 0.12), dtype=np.float32),
+        "low_volume": _fixture_tone(sample_rate=sample_rate, duration_seconds=0.12, amplitude=0.002),
+        "near_clipping": _fixture_tone(sample_rate=sample_rate, duration_seconds=0.12, amplitude=0.98),
+        "stereo_offset": np.column_stack(
+            [
+                _fixture_tone(sample_rate=sample_rate, duration_seconds=0.12, amplitude=0.12, frequency=440.0),
+                _fixture_tone(sample_rate=sample_rate, duration_seconds=0.12, amplitude=0.12, frequency=660.0),
+            ]
+        ),
+        "long_smoke": _fixture_tone(sample_rate=sample_rate, duration_seconds=1.0, amplitude=0.08, frequency=220.0),
+    }
+    records: list[dict[str, object]] = []
+    for name, audio in fixtures.items():
+        path = clean_dir / f"{name}.wav"
+        sf.write(path, audio, sample_rate)
+        records.append(
+            {
+                "id": name,
+                "path": str(path.relative_to(output_path)),
+                "sample_rate": sample_rate,
+                "duration_seconds": audio.shape[0] / sample_rate,
+                "channels": 1 if audio.ndim == 1 else int(audio.shape[1]),
+                "failure_focus": name,
+                "synthetic": True,
+            }
+        )
+    manifest = {
+        "schema_version": 1,
+        "dataset_id": "speech_bwe_failure_cases_v1",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "root": str(output_path),
+        "reference_dir": str(clean_dir.relative_to(output_path)),
+        "sample_rate": sample_rate,
+        "record_count": len(records),
+        "records": records,
+        "notes": ["Synthetic stability fixtures for regression hardening; not perceptual quality evidence."],
+    }
+    write_eval_manifest(manifest_path, manifest)
+    return manifest
+
+
 def build_eval_matrix_manifest(
     *,
     dataset_dir: Path,
@@ -438,6 +817,8 @@ def build_eval_matrix_manifest(
     limit: int | None,
     optional_metrics: tuple[str, ...],
     entries: list[dict[str, object]],
+    reuse_existing: bool = False,
+    fail_fast: bool = False,
 ) -> dict[str, object]:
     """Build an eval matrix index manifest."""
 
@@ -454,10 +835,44 @@ def build_eval_matrix_manifest(
         "backends": list(backends),
         "degraders": list(degraders),
         "optional_metrics_requested": list(optional_metrics),
+        "reuse_existing": reuse_existing,
+        "fail_fast": fail_fast,
         "run_count": len(entries),
         "runs": entries,
         "results": entries,
     }
+
+
+def _failed_matrix_run_manifest(
+    *,
+    dataset_dir: Path,
+    backend: str,
+    degrader: str,
+    target_sample_rate: int,
+    config: InferenceConfig,
+    exc: Exception,
+) -> dict[str, object]:
+    failure = {"stage": "matrix_run", "type": exc.__class__.__name__, "message": str(exc)}
+    return build_eval_manifest(
+        dataset_dir=dataset_dir,
+        backend=backend,
+        target_sample_rate=target_sample_rate,
+        degrader=degrader,
+        config=config,
+        results=[
+            {
+                "id": f"{backend}::{degrader}",
+                "status": "failed",
+                "failure": failure,
+                "metrics": {},
+                "optional_metric_records": [],
+                "quality": None,
+                "stability": {"passed": False, "failure_status": "matrix_run_failed", "failure": failure},
+                "failure_cases": ["matrix_run_failed"],
+                "performance": {},
+            }
+        ],
+    )
 
 
 def run_no_reference_eval(
@@ -1379,6 +1794,8 @@ def _run_optional_full_reference_metric(
         reference_eval = _resample(reference, sample_rate, eval_sample_rate)
         enhanced_eval = _resample(enhanced, sample_rate, eval_sample_rate)
         return float(stoi_func(reference_eval, enhanced_eval, eval_sample_rate, extended=metric == "estoi"))
+    if metric == "mcd":
+        return _mcd(enhanced, reference, sample_rate=sample_rate)
     return None
 
 
@@ -1461,6 +1878,7 @@ def _performance_report(
             "unit_note": memory_after["unit_note"],
             "fallback": memory_after["fallback"],
         },
+        "accelerator_memory": accelerator_memory_snapshot(),
         "peak_rss_mb": peak_rss_mb,
         "peak_rss_delta_mb": peak_rss_delta_mb,
     }
@@ -1778,6 +2196,17 @@ def _synthetic_speech_like_audio(
     return np.clip(audio, -0.95, 0.95).astype(np.float32)
 
 
+def _fixture_tone(
+    *,
+    sample_rate: int,
+    duration_seconds: float,
+    amplitude: float,
+    frequency: float = 440.0,
+) -> np.ndarray:
+    time_axis = np.arange(int(sample_rate * duration_seconds), dtype=np.float64) / sample_rate
+    return (amplitude * np.sin(2 * np.pi * frequency * time_axis)).astype(np.float32)
+
+
 def _mixdown(audio: np.ndarray) -> np.ndarray:
     audio_array = np.asarray(audio, dtype=np.float64)
     if audio_array.ndim == 1:
@@ -1853,11 +2282,80 @@ def _spectral_convergence(enhanced_mag: np.ndarray, reference_mag: np.ndarray) -
     return float(np.linalg.norm(diff) / max(np.linalg.norm(reference_mag[:, :frames]), 1e-12))
 
 
+def _mcd(enhanced: np.ndarray, reference: np.ndarray, *, sample_rate: int) -> float:
+    enhanced_cepstra = _mel_cepstra(enhanced, sample_rate=sample_rate)
+    reference_cepstra = _mel_cepstra(reference, sample_rate=sample_rate)
+    frames = min(enhanced_cepstra.shape[0], reference_cepstra.shape[0])
+    if frames == 0:
+        return 0.0
+    diff = enhanced_cepstra[:frames, 1:] - reference_cepstra[:frames, 1:]
+    return float((10.0 / np.log(10.0)) * np.sqrt(2.0 * np.mean(np.sum(diff**2, axis=1))))
+
+
+def _mel_cepstra(audio: np.ndarray, *, sample_rate: int, n_mels: int = 24, n_coefficients: int = 13) -> np.ndarray:
+    magnitude = _stft_magnitude(audio, n_fft=1024, hop_length=256)
+    mel_filters = _mel_filterbank(sample_rate=sample_rate, n_fft=1024, n_mels=n_mels)
+    mel_energy = np.maximum(mel_filters @ magnitude, 1e-10)
+    log_mel = np.log(mel_energy).T
+    return dct(log_mel, type=2, norm="ortho", axis=1)[:, :n_coefficients]
+
+
+def _mel_filterbank(*, sample_rate: int, n_fft: int, n_mels: int) -> np.ndarray:
+    low_mel = _hz_to_mel(0.0)
+    high_mel = _hz_to_mel(sample_rate / 2)
+    mel_points = np.linspace(low_mel, high_mel, n_mels + 2)
+    hz_points = _mel_to_hz(mel_points)
+    bin_points = np.floor((n_fft + 1) * hz_points / sample_rate).astype(int)
+    filters = np.zeros((n_mels, n_fft // 2 + 1), dtype=np.float64)
+    for mel_index in range(n_mels):
+        left, center, right = bin_points[mel_index : mel_index + 3]
+        center = max(center, left + 1)
+        right = max(right, center + 1)
+        for bin_index in range(left, min(center, filters.shape[1])):
+            filters[mel_index, bin_index] = (bin_index - left) / max(center - left, 1)
+        for bin_index in range(center, min(right, filters.shape[1])):
+            filters[mel_index, bin_index] = (right - bin_index) / max(right - center, 1)
+    return filters
+
+
+def _hz_to_mel(hz: float | np.ndarray) -> float | np.ndarray:
+    return 2595.0 * np.log10(1.0 + np.asarray(hz) / 700.0)
+
+
+def _mel_to_hz(mel: np.ndarray) -> np.ndarray:
+    return 700.0 * (10 ** (mel / 2595.0) - 1.0)
+
+
 def _indexed_results(manifest: dict[str, object]) -> dict[str, dict[str, object]]:
     records = manifest.get("results")
     if not isinstance(records, list):
         return {}
     return {str(record.get("id", index)): record for index, record in enumerate(records) if isinstance(record, dict)}
+
+
+def _indexed_matrix_runs(matrix: dict[str, object]) -> dict[str, dict[str, object]]:
+    records = matrix.get("runs")
+    if not isinstance(records, list):
+        return {}
+    indexed: dict[str, dict[str, object]] = {}
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            continue
+        backend = str(record.get("backend", ""))
+        degrader = str(record.get("degrader", ""))
+        key = f"{backend}::{degrader}" if backend and degrader else str(record.get("id", index))
+        indexed[key] = record
+    return indexed
+
+
+def _resolve_manifest_path(record: dict[str, object], *, base_path: Path) -> Path:
+    raw_path = record.get("manifest_path")
+    if not isinstance(raw_path, str):
+        raise ValueError("matrix run is missing manifest_path")
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return base_path.parent / path
 
 
 def _metric_summary(

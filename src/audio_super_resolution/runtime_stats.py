@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import platform
-from typing import Any
+from importlib import import_module
+from typing import Any, cast
 
 _resource_module: Any
 try:
@@ -41,5 +42,41 @@ def peak_rss_snapshot() -> dict[str, object]:
         "available": True,
         "peak_rss_mb": peak_rss_mb,
         "unit_note": unit_note,
+        "fallback": None,
+    }
+
+
+def accelerator_memory_snapshot() -> dict[str, object]:
+    """Return optional accelerator memory data without requiring torch."""
+
+    try:
+        torch_module = import_module("torch")
+    except ImportError:
+        return {
+            "strategy": "torch.cuda.memory_*",
+            "available": False,
+            "device": None,
+            "allocated_mb": None,
+            "reserved_mb": None,
+            "fallback": "torch is not installed",
+        }
+    torch = cast(Any, torch_module)
+    cuda = torch.cuda
+    if not cuda.is_available():
+        return {
+            "strategy": "torch.cuda.memory_*",
+            "available": False,
+            "device": None,
+            "allocated_mb": None,
+            "reserved_mb": None,
+            "fallback": "CUDA is not available",
+        }
+    device = cuda.current_device()
+    return {
+        "strategy": "torch.cuda.memory_*",
+        "available": True,
+        "device": cuda.get_device_name(device),
+        "allocated_mb": float(cuda.memory_allocated(device)) / (1024 * 1024),
+        "reserved_mb": float(cuda.memory_reserved(device)) / (1024 * 1024),
         "fallback": None,
     }

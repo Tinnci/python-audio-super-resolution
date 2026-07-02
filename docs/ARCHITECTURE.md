@@ -64,6 +64,24 @@ runtime helpers.
 
 Candidate admission rules and scorecard usage live in [MODEL_ADMISSION.md](MODEL_ADMISSION.md).
 
+## External Adapter Protocol
+
+External wrappers for ClearerVoice, Resemble Enhance, FlowHigh, or similar packages should use the
+same backend contract as built-ins:
+
+- register a backend object through `register_backend()`
+- expose import-light `ModelSpec` metadata through `model_specs()`
+- implement `enhance_file()` when the upstream package is file-native
+- never download weights during normal inference
+- fail with explicit install/cache guidance when optional packages or weights are missing
+- declare `implementation="external_package"` unless inference is package-owned
+- provide enough `BackendCapability` metadata for `eval matrix` to compare I/O, CPU/GPU support,
+  determinism, runtime provider, and governance without importing the heavy runtime
+
+An external adapter can enter `eval matrix` before becoming a self-contained backend. Promotion to a
+package-owned compatibility backend still requires the admission gates in
+[MODEL_ADMISSION.md](MODEL_ADMISSION.md).
+
 ## Weight Management
 
 Default inference is offline. Missing weights should fail with a command that tells the user how to explicitly download and verify the selected model.

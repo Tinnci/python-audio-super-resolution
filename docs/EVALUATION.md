@@ -24,6 +24,9 @@ audio-super-res eval init-speech-bwe \
   --output-dir evalsets/speech_bwe_v1 \
   --count 20
 
+audio-super-res eval init-failure-cases \
+  --output-dir evalsets/speech_bwe_failure_cases_v1
+
 audio-super-res eval run \
   --dataset evalsets/speech_bwe_v1/speech_clean_48k \
   --backend sinc-resample \
@@ -42,6 +45,16 @@ audio-super-res eval matrix \
   --output-dir runs/matrix-smoke
 
 audio-super-res eval compare runs/sinc.json runs/lavasr.json --output runs/comparison.json
+
+audio-super-res eval matrix-compare runs/baseline-matrix/matrix.json runs/candidate-matrix/matrix.json \
+  --threshold-policy eval-thresholds.json \
+  --output runs/matrix-comparison.json
+
+audio-super-res eval report --manifest runs/matrix-comparison.json --output runs/matrix-report.md
+audio-super-res eval bundle --manifest runs/baseline-matrix/matrix.json --output-dir runs/evidence --archive runs/evidence.tar.gz
+
+audio-super-res eval validate-dataset --manifest evalsets/speech_bwe_v1/manifest.json
+audio-super-res eval inspect-checkpoint --checkpoint /path/to/model.pt --output runs/checkpoint-keys.json
 ```
 
 For real recordings without a clean reference, run lightweight no-reference screening:
@@ -90,9 +103,25 @@ manifest.
 `matrix.json` index. Use it for smoke grids, Colab evidence bundles, and release regression
 artifacts before comparing specific candidate manifests.
 
+`eval matrix-compare` compares two `matrix.json` indexes by matching backend/degrader runs and
+delegating each pair to the normal manifest comparator. `--threshold-policy` accepts a JSON object
+or `{"thresholds": {...}}`, and inline `--threshold FIELD=MAX_REGRESSION` values override policy
+entries. `eval report` writes a compact Markdown summary. `eval bundle` copies matrix manifests and
+referenced run manifests into a portable evidence directory, optionally archived as `.tar.gz`.
+Use `eval matrix --reuse-existing` to keep completed run manifests, and `--fail-fast` when a
+combination-level failure should stop the whole matrix instead of being recorded as a failed run.
+
 `eval init-speech-bwe` creates a deterministic synthetic tiny evalset for smoke and regression
 testing. It is useful for CI and example commands, but it is not a substitute for a licensed real
 speech dataset when making backend quality claims.
+
+`eval init-failure-cases` creates deterministic synthetic stability fixtures for silence,
+low-volume, near-clipping, stereo/channel, and long-smoke paths. These are intended for backend
+hardening, including gated LavaSR validation, not for perceptual quality claims.
+
+`eval inspect-checkpoint` is a gated local-only helper for checkpoint feasibility spikes such as
+MossFormer2. It requires an explicit local checkpoint path and an explicitly installed torch
+runtime. It does not download weights.
 
 Implemented degraders:
 
@@ -115,6 +144,7 @@ Implemented lightweight full-reference metrics:
 | `High-band LSD 4-8 kHz` | Speech bandwidth-extension high-frequency recovery. |
 | `High-band LSD 8-16 kHz` | Higher-band reconstruction, especially important for 48 kHz SR. |
 | `Spectral convergence` | Overall magnitude-spectrum closeness. |
+| `MCD` | Lightweight mel-cepstral distortion, available through `--optional-metric mcd`. |
 
 PESQ, STOI/ESTOI, MCD, DNSMOS, NISQA, UTMOS, ViSQOL, real ASR runners, speaker similarity, VAD, and
 keyword spotting are planned as optional or gated adapters. They must not become default CI
@@ -139,10 +169,11 @@ change the meaning of the lightweight schema, and they must not be folded into a
 score.
 
 `eval run --optional-metric FIELD` currently supports explicit adapter attempts for `pesq`, `stoi`,
-`estoi`, and `mcd`. PESQ/STOI/ESTOI use dynamic imports when their optional packages are installed.
-Unavailable metrics write `optional_metric_records` with `status: "skipped"` and install guidance.
-`mcd` remains skipped until a maintained cepstral implementation or a tested local implementation is
-accepted.
+`estoi`, and `mcd`. MCD uses the package's lightweight NumPy/SciPy mel-cepstral implementation.
+PESQ/STOI/ESTOI use dynamic imports when their optional packages are installed. Unavailable metrics
+write `optional_metric_records` with `status: "skipped"` and install guidance. Install
+`audio-super-resolution[eval-fullref]` to request PESQ/STOI adapters in an environment that supports
+their upstream packages.
 
 ## No-Reference Screening
 

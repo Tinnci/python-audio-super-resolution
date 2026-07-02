@@ -147,6 +147,12 @@ Tracked work:
   elapsed time, total elapsed time, RTF, and peak RSS strategy/fallbacks.
 - Matrix execution: `audio-super-res eval matrix` can run backend/degrader smoke grids and write a
   `matrix.json` index over the generated eval manifests.
+- Matrix comparison and evidence: threshold policy files, matrix comparison, Markdown reports,
+  artifact bundles, dataset manifest validation, lightweight MCD, and optional CUDA memory
+  profiling are available without adding heavyweight default dependencies.
+- Gated hardening tools: matrix cache/continue controls, synthetic failure-case fixtures, explicit
+  local torch checkpoint inspection, and external adapter protocol documentation are available for
+  LavaSR and candidate-backend spikes.
 
 Decision rule:
 

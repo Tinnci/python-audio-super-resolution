@@ -2659,6 +2659,8 @@ packages:
   - safetensors>=0.4 ; extra == 'weights'
   - huggingface-hub>=0.24 ; extra == 'download'
   - torch>=2 ; extra == 'lavasr'
+  - pesq>=0.0.4 ; extra == 'eval-fullref'
+  - pystoi>=0.4 ; extra == 'eval-fullref'
   requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/4b/39/f0e8ea762a764a9dc52aa7dabcfad51a354819de1f0d4652b6a1122424d6/scipy-1.17.1-cp314-cp314-win_amd64.whl
   name: scipy

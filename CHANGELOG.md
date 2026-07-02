@@ -35,6 +35,8 @@ This project follows semantic versioning once published to PyPI.
 - Added explicit optional full-reference adapter attempts through `eval run --optional-metric` for PESQ, STOI, ESTOI, and MCD, with skipped dependency records when unavailable.
 - Added backend load/init time and total elapsed time fields to benchmark and eval performance reports.
 - Added `audio-super-res eval matrix` to run backend/degrader grids and write a `matrix.json` index over individual eval manifests.
+- Added matrix comparison, JSON threshold policies, Markdown eval reports, artifact bundles, dataset manifest validation, lightweight MCD, optional full-reference extras, and optional CUDA memory profiling metadata.
+- Added matrix `--reuse-existing` / `--fail-fast`, synthetic failure-case evalset generation, explicit local torch checkpoint inspection, and external backend adapter protocol documentation.
 
 ### Changed
 

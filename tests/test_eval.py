@@ -9,14 +9,20 @@ import soundfile as sf
 from audio_super_resolution.cli import main
 from audio_super_resolution.evaluation import (
     compare_eval_manifests,
+    compare_eval_matrices,
     degrade_audio,
+    init_failure_case_evalset,
     init_speech_bwe_evalset,
+    inspect_torch_checkpoint,
+    load_threshold_policy,
     run_downstream_eval,
     run_eval_dataset,
     run_eval_matrix,
     run_listening_export,
     run_no_reference_eval,
     transcript_error_rates,
+    validate_eval_dataset_manifest,
+    write_eval_report,
 )
 from audio_super_resolution.resolver import EnhancementResult
 
@@ -157,7 +163,7 @@ def test_cli_eval_run_and_compare(tmp_path: Path) -> None:
     assert "audio_quality" in comparison["tables"]
 
 
-def test_eval_run_records_optional_metric_skip_without_dependency(tmp_path: Path) -> None:
+def test_eval_run_records_lightweight_mcd_optional_metric(tmp_path: Path) -> None:
     dataset = tmp_path / "dataset"
     dataset.mkdir()
     _write_reference(dataset / "sample.wav")
@@ -173,17 +179,10 @@ def test_eval_run_records_optional_metric_skip_without_dependency(tmp_path: Path
 
     assert manifest["optional_metrics_requested"] == ["mcd"]
     optional_records = manifest["results"][0]["optional_metric_records"]
-    assert optional_records == [
-        {
-            "name": "mcd",
-            "status": "skipped",
-            "score": None,
-            "install_guidance": (
-                "Use a maintained feature extractor or a tested local implementation before enabling MCD."
-            ),
-            "error": "mcd does not have a default lightweight implementation",
-        }
-    ]
+    assert optional_records[0]["name"] == "mcd"
+    assert optional_records[0]["status"] == "passed"
+    assert isinstance(optional_records[0]["score"], float)
+    assert "mcd" in manifest["results"][0]["metrics"]
 
 
 def test_cli_eval_run_accepts_optional_metric(tmp_path: Path) -> None:
@@ -214,7 +213,7 @@ def test_cli_eval_run_accepts_optional_metric(tmp_path: Path) -> None:
 
     manifest = json.loads(output_path.read_text(encoding="utf-8"))
     assert manifest["optional_metrics_requested"] == ["mcd"]
-    assert manifest["results"][0]["optional_metric_records"][0]["status"] == "skipped"
+    assert manifest["results"][0]["optional_metric_records"][0]["status"] == "passed"
 
 
 def test_run_eval_matrix_writes_index_and_run_manifests(tmp_path: Path) -> None:
@@ -241,7 +240,114 @@ def test_run_eval_matrix_writes_index_and_run_manifests(tmp_path: Path) -> None:
         run_manifest_path = Path(run["manifest_path"])
         assert run_manifest_path.is_file()
         run_manifest = json.loads(run_manifest_path.read_text(encoding="utf-8"))
-        assert run_manifest["results"][0]["optional_metric_records"][0]["status"] == "skipped"
+        assert run_manifest["results"][0]["optional_metric_records"][0]["status"] == "passed"
+
+
+def test_run_eval_matrix_can_reuse_existing_manifests(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+    output_dir = tmp_path / "matrix"
+
+    first = run_eval_matrix(
+        dataset_dir=dataset,
+        output_dir=output_dir,
+        backends=("sinc-resample",),
+        degraders=("lowpass_4k",),
+    )
+    second = run_eval_matrix(
+        dataset_dir=dataset,
+        output_dir=output_dir,
+        backends=("sinc-resample",),
+        degraders=("lowpass_4k",),
+        reuse_existing=True,
+    )
+
+    assert first["run_count"] == second["run_count"] == 1
+    assert second["runs"][0]["reused"] is True
+
+
+def test_init_failure_case_evalset_and_checkpoint_gate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    evalset = init_failure_case_evalset(output_dir=tmp_path / "failure-cases")
+    assert evalset["dataset_id"] == "speech_bwe_failure_cases_v1"
+    assert evalset["record_count"] == 5
+    assert (tmp_path / "failure-cases" / "speech_clean_48k" / "silence.wav").is_file()
+
+    checkpoint = tmp_path / "checkpoint.pt"
+    checkpoint.write_bytes(b"not a checkpoint")
+
+    def missing_torch(name: str):
+        if name == "torch":
+            raise ImportError("missing torch")
+        raise AssertionError(name)
+
+    monkeypatch.setattr("audio_super_resolution.evaluation.import_module", missing_torch)
+    with pytest.raises(RuntimeError, match="torch is required"):
+        inspect_torch_checkpoint(checkpoint)
+
+
+def test_compare_eval_matrices_writes_run_comparisons(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+    baseline = run_eval_matrix(
+        dataset_dir=dataset,
+        output_dir=tmp_path / "baseline",
+        backends=("sinc-resample",),
+        degraders=("lowpass_4k",),
+    )
+    candidate = run_eval_matrix(
+        dataset_dir=dataset,
+        output_dir=tmp_path / "candidate",
+        backends=("sinc-resample",),
+        degraders=("lowpass_4k",),
+    )
+
+    comparison = compare_eval_matrices(
+        tmp_path / "baseline" / "matrix.json",
+        tmp_path / "candidate" / "matrix.json",
+        thresholds={"rtf": 100.0},
+    )
+
+    assert baseline["run_count"] == candidate["run_count"] == 1
+    assert comparison["evaluation_type"] == "matrix_compare"
+    assert comparison["passed"] is True
+    assert comparison["run_count"] == 1
+    assert comparison["comparisons"][0]["matrix_key"] == "sinc-resample::lowpass_4k"
+
+
+def test_threshold_policy_report_bundle_and_dataset_validation(tmp_path: Path) -> None:
+    dataset = tmp_path / "evalset"
+    manifest = init_speech_bwe_evalset(output_dir=dataset, count=2, duration_seconds=0.03)
+    validation = validate_eval_dataset_manifest(dataset / "manifest.json")
+    assert validation["passed"] is True
+    assert validation["record_count"] == 2
+
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(json.dumps({"thresholds": {"rtf": 0.25, "mcd": 1.0}}), encoding="utf-8")
+    assert load_threshold_policy(policy_path) == {"rtf": 0.25, "mcd": 1.0}
+
+    matrix = run_eval_matrix(
+        dataset_dir=dataset / manifest["reference_dir"],
+        output_dir=tmp_path / "matrix",
+        backends=("sinc-resample",),
+        degraders=("lowpass_4k",),
+    )
+    report_path = tmp_path / "report.md"
+    report = write_eval_report(tmp_path / "matrix" / "matrix.json", report_path)
+    assert "# Audio Super Resolution Eval Report" in report
+    assert report_path.is_file()
+
+    from audio_super_resolution.evaluation import bundle_eval_artifacts
+
+    bundle = bundle_eval_artifacts(
+        manifest_paths=[tmp_path / "matrix" / "matrix.json"],
+        output_dir=tmp_path / "bundle",
+        archive_path=tmp_path / "bundle.tar.gz",
+    )
+    assert matrix["run_count"] == 1
+    assert bundle["artifact_count"] == 2
+    assert (tmp_path / "bundle.tar.gz").is_file()
 
 
 def test_init_speech_bwe_evalset_writes_tiny_reference_set(tmp_path: Path) -> None:

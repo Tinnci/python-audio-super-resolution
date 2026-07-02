@@ -37,6 +37,7 @@ audiosr = ["audiosr==0.0.7"]
 weights = ["safetensors>=0.4"]
 download = ["huggingface-hub>=0.24"]
 lavasr = ["torch>=2"]
+eval-fullref = ["pesq>=0.0.4", "pystoi>=0.4"]
 
 [project.urls]
 Homepage = "https://github.com/Tinnci/python-audio-super-resolution"

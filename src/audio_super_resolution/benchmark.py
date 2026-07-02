@@ -7,7 +7,7 @@ from pathlib import Path
 from .config import InferenceConfig
 from .quality import AudioQualityReport, quality_report_to_dict
 from .resolver import EnhancementResult
-from .runtime_stats import peak_rss_snapshot
+from .runtime_stats import accelerator_memory_snapshot, peak_rss_snapshot
 
 
 def build_benchmark_report(
@@ -28,6 +28,7 @@ def build_benchmark_report(
     rtf = elapsed_seconds / total_output_duration if total_output_duration > 0 else None
     realtime_factor = total_output_duration / elapsed_seconds if elapsed_seconds > 0 else None
     memory = peak_rss_snapshot()
+    accelerator_memory = accelerator_memory_snapshot()
     return {
         "schema_version": 1,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -45,6 +46,7 @@ def build_benchmark_report(
         "rtf": rtf,
         "realtime_factor": realtime_factor,
         "memory": memory,
+        "accelerator_memory": accelerator_memory,
         "peak_rss_mb": memory["peak_rss_mb"],
         "results": [_enhancement_result_to_dict(result) for result in results],
         "quality_reports": [quality_report_to_dict(report) for report in quality_reports],

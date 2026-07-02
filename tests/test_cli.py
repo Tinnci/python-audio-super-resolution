@@ -375,6 +375,17 @@ def test_cli_eval_init_speech_bwe(tmp_path: Path, capsys) -> None:
     assert len(list((output_dir / "speech_clean_48k").glob("*.wav"))) == 4
 
 
+def test_cli_eval_init_failure_cases(tmp_path: Path, capsys) -> None:
+    output_dir = tmp_path / "failure-cases"
+
+    assert main(["eval", "init-failure-cases", "--output-dir", str(output_dir)]) == 0
+
+    manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert "Wrote failure-case evalset" in capsys.readouterr().out
+    assert manifest["dataset_id"] == "speech_bwe_failure_cases_v1"
+    assert manifest["record_count"] == 5
+
+
 def test_cli_eval_matrix(tmp_path: Path, capsys) -> None:
     dataset = tmp_path / "dataset"
     dataset.mkdir()
@@ -410,6 +421,102 @@ def test_cli_eval_matrix(tmp_path: Path, capsys) -> None:
     assert matrix["evaluation_type"] == "matrix"
     assert matrix["run_count"] == 2
     assert {run["degrader"] for run in matrix["runs"]} == {"lowpass_4k", "mp3_32kbps"}
+
+
+def test_cli_eval_matrix_compare_report_bundle_and_validate_dataset(tmp_path: Path, capsys) -> None:
+    evalset = tmp_path / "evalset"
+    assert (
+        main(
+            [
+                "eval",
+                "init-speech-bwe",
+                "--output-dir",
+                str(evalset),
+                "--count",
+                "2",
+                "--duration-seconds",
+                "0.03",
+            ]
+        )
+        == 0
+    )
+    validation_path = tmp_path / "validation.json"
+    assert (
+        main(
+            [
+                "eval",
+                "validate-dataset",
+                "--manifest",
+                str(evalset / "manifest.json"),
+                "--output",
+                str(validation_path),
+            ]
+        )
+        == 0
+    )
+
+    for name in ("baseline", "candidate"):
+        assert (
+            main(
+                [
+                    "eval",
+                    "matrix",
+                    "--dataset",
+                    str(evalset / "speech_clean_48k"),
+                    "--output-dir",
+                    str(tmp_path / name),
+                    "--backend",
+                    "sinc-resample",
+                    "--degrader",
+                    "lowpass_4k",
+                    "--limit",
+                    "1",
+                ]
+            )
+            == 0
+        )
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(json.dumps({"thresholds": {"rtf": 100.0}}), encoding="utf-8")
+    comparison_path = tmp_path / "matrix-comparison.json"
+    assert (
+        main(
+            [
+                "eval",
+                "matrix-compare",
+                str(tmp_path / "baseline" / "matrix.json"),
+                str(tmp_path / "candidate" / "matrix.json"),
+                "--threshold-policy",
+                str(policy_path),
+                "--output",
+                str(comparison_path),
+            ]
+        )
+        == 0
+    )
+    report_path = tmp_path / "report.md"
+    assert main(["eval", "report", "--manifest", str(comparison_path), "--output", str(report_path)]) == 0
+    assert (
+        main(
+            [
+                "eval",
+                "bundle",
+                "--manifest",
+                str(tmp_path / "baseline" / "matrix.json"),
+                "--output-dir",
+                str(tmp_path / "bundle"),
+                "--archive",
+                str(tmp_path / "bundle.tar.gz"),
+            ]
+        )
+        == 0
+    )
+
+    assert json.loads(validation_path.read_text(encoding="utf-8"))["passed"] is True
+    assert json.loads(comparison_path.read_text(encoding="utf-8"))["evaluation_type"] == "matrix_compare"
+    assert "# Audio Super Resolution Eval Report" in report_path.read_text(encoding="utf-8")
+    assert (tmp_path / "bundle" / "bundle_manifest.json").is_file()
+    assert (tmp_path / "bundle.tar.gz").is_file()
+    assert "Wrote eval bundle" in capsys.readouterr().out
 
 
 def test_cli_processes_single_file_in_chunks(tmp_path: Path) -> None:

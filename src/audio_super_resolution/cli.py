@@ -24,15 +24,22 @@ from .evaluation import (
     SUPPORTED_DOWNSTREAM_EVALUATORS,
     SUPPORTED_LISTENING_PROTOCOLS,
     SUPPORTED_NO_REFERENCE_EVALUATORS,
+    bundle_eval_artifacts,
     compare_eval_manifests,
+    compare_eval_matrices,
+    init_failure_case_evalset,
     init_speech_bwe_evalset,
+    inspect_torch_checkpoint,
     load_eval_manifest,
+    load_threshold_policy,
     run_downstream_eval,
     run_eval_dataset,
     run_eval_matrix,
     run_listening_export,
     run_no_reference_eval,
+    validate_eval_dataset_manifest,
     write_eval_manifest,
+    write_eval_report,
 )
 from .manifest import (
     build_manifest,
@@ -238,6 +245,18 @@ def build_eval_parser() -> argparse.ArgumentParser:
     )
     init_parser.add_argument("--force", action="store_true", help="Allow writing into a non-empty output directory.")
 
+    failure_parser = subparsers.add_parser(
+        "init-failure-cases",
+        help="Create deterministic stability/failure-case eval fixtures.",
+    )
+    failure_parser.add_argument("--output-dir", type=Path, required=True, help="Output evalset directory.")
+    failure_parser.add_argument("--sample-rate", type=int, default=48000, help="Reference sample rate.")
+    failure_parser.add_argument("--force", action="store_true", help="Allow writing into a non-empty output directory.")
+
+    validate_dataset_parser = subparsers.add_parser("validate-dataset", help="Validate an eval dataset manifest.")
+    validate_dataset_parser.add_argument("--manifest", type=Path, required=True, help="Dataset manifest JSON path.")
+    validate_dataset_parser.add_argument("--output", type=Path, help="Optional validation JSON output path.")
+
     matrix_parser = subparsers.add_parser("matrix", help="Run a backend/degrader evaluation matrix.")
     matrix_parser.add_argument("--dataset", type=Path, required=True, help="Directory of clean reference WAV files.")
     matrix_parser.add_argument("--output-dir", type=Path, required=True, help="Output directory for matrix artifacts.")
@@ -257,6 +276,16 @@ def build_eval_parser() -> argparse.ArgumentParser:
     )
     matrix_parser.add_argument("--target-sr", type=int, default=48000, help="Target sample rate. Defaults to 48000.")
     matrix_parser.add_argument("--limit", type=int, help="Limit the number of reference files for smoke runs.")
+    matrix_parser.add_argument(
+        "--reuse-existing",
+        action="store_true",
+        help="Reuse existing run manifests in the output directory when present.",
+    )
+    matrix_parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="Stop the matrix on the first combination-level failure.",
+    )
     matrix_parser.add_argument(
         "--optional-metric",
         action="append",
@@ -368,6 +397,43 @@ def build_eval_parser() -> argparse.ArgumentParser:
             "Metric direction is inferred, so SI-SDR drops fail while LSD/RTF increases fail."
         ),
     )
+    compare_parser.add_argument("--threshold-policy", type=Path, help="JSON threshold policy file.")
+
+    matrix_compare_parser = subparsers.add_parser("matrix-compare", help="Compare two evaluation matrix manifests.")
+    matrix_compare_parser.add_argument("baseline", type=Path, help="Baseline matrix JSON path.")
+    matrix_compare_parser.add_argument("candidate", type=Path, help="Candidate matrix JSON path.")
+    matrix_compare_parser.add_argument("--output", type=Path, help="Write matrix comparison JSON to this path.")
+    matrix_compare_parser.add_argument(
+        "--threshold",
+        action="append",
+        default=[],
+        metavar="FIELD=MAX_REGRESSION",
+        help="Fail if FIELD regresses by more than MAX_REGRESSION. Can be repeated.",
+    )
+    matrix_compare_parser.add_argument("--threshold-policy", type=Path, help="JSON threshold policy file.")
+
+    report_parser = subparsers.add_parser("report", help="Render a Markdown report for an eval artifact.")
+    report_parser.add_argument("--manifest", type=Path, required=True, help="Eval artifact JSON path.")
+    report_parser.add_argument("--output", type=Path, required=True, help="Output Markdown report path.")
+
+    bundle_parser = subparsers.add_parser("bundle", help="Bundle eval manifests and referenced run manifests.")
+    bundle_parser.add_argument(
+        "--manifest",
+        action="append",
+        type=Path,
+        required=True,
+        help="Eval manifest JSON to include. Repeat for multiple artifacts.",
+    )
+    bundle_parser.add_argument("--output-dir", type=Path, required=True, help="Output bundle directory.")
+    bundle_parser.add_argument("--archive", type=Path, help="Optional .tar.gz archive path.")
+
+    checkpoint_parser = subparsers.add_parser(
+        "inspect-checkpoint",
+        help="Inspect tensor keys/shapes from an explicit local torch checkpoint.",
+    )
+    checkpoint_parser.add_argument("--checkpoint", type=Path, required=True, help="Local torch checkpoint path.")
+    checkpoint_parser.add_argument("--output", type=Path, required=True, help="Output checkpoint inspection JSON path.")
+    checkpoint_parser.add_argument("--limit", type=int, help="Limit reported tensor records.")
     return parser
 
 
@@ -501,6 +567,22 @@ def _run_eval_command(argv: list[str]) -> int:
             )
             print(f"Wrote speech BWE evalset {args.output_dir} ({manifest['record_count']} reference file(s))")
             return 0
+        if args.eval_command == "init-failure-cases":
+            manifest = init_failure_case_evalset(
+                output_dir=args.output_dir,
+                sample_rate=args.sample_rate,
+                force=args.force,
+            )
+            print(f"Wrote failure-case evalset {args.output_dir} ({manifest['record_count']} reference file(s))")
+            return 0
+        if args.eval_command == "validate-dataset":
+            validation = validate_eval_dataset_manifest(args.manifest)
+            if args.output:
+                write_eval_manifest(args.output, validation)
+                print(f"Wrote dataset validation {args.output}")
+            else:
+                print(json.dumps(validation, indent=2))
+            return 0 if validation["passed"] else 1
         if args.eval_command == "matrix":
             model_cache_dir = args.model_cache_dir if args.model_cache_dir is not None else default_model_cache_dir()
             manifest = run_eval_matrix(
@@ -511,6 +593,8 @@ def _run_eval_command(argv: list[str]) -> int:
                 target_sample_rate=args.target_sr,
                 limit=args.limit,
                 optional_metrics=tuple(args.optional_metric),
+                reuse_existing=args.reuse_existing,
+                fail_fast=args.fail_fast,
                 config=InferenceConfig(
                     device=args.device,
                     runtime_provider=args.runtime_provider,
@@ -578,7 +662,7 @@ def _run_eval_command(argv: list[str]) -> int:
             comparison = compare_eval_manifests(
                 load_eval_manifest(args.baseline),
                 load_eval_manifest(args.candidate),
-                thresholds=_parse_eval_thresholds(args.threshold),
+                thresholds=_parse_eval_thresholds(args.threshold, policy_path=args.threshold_policy),
             )
             if args.output:
                 write_eval_manifest(args.output, comparison)
@@ -586,13 +670,44 @@ def _run_eval_command(argv: list[str]) -> int:
             else:
                 print(json.dumps(comparison, indent=2))
             return 0 if comparison["passed"] else 1
+        if args.eval_command == "matrix-compare":
+            comparison = compare_eval_matrices(
+                args.baseline,
+                args.candidate,
+                thresholds=_parse_eval_thresholds(args.threshold, policy_path=args.threshold_policy),
+            )
+            if args.output:
+                write_eval_manifest(args.output, comparison)
+                print(f"Wrote eval matrix comparison {args.output}")
+            else:
+                print(json.dumps(comparison, indent=2))
+            return 0 if comparison["passed"] else 1
+        if args.eval_command == "report":
+            write_eval_report(args.manifest, args.output)
+            print(f"Wrote eval report {args.output}")
+            return 0
+        if args.eval_command == "bundle":
+            bundle = bundle_eval_artifacts(
+                manifest_paths=args.manifest,
+                output_dir=args.output_dir,
+                archive_path=args.archive,
+            )
+            print(f"Wrote eval bundle {args.output_dir} ({bundle['artifact_count']} artifact(s))")
+            if bundle.get("archive_path"):
+                print(f"Wrote eval bundle archive {bundle['archive_path']}")
+            return 0
+        if args.eval_command == "inspect-checkpoint":
+            inspection = inspect_torch_checkpoint(args.checkpoint, limit=args.limit)
+            write_eval_manifest(args.output, inspection)
+            print(f"Wrote checkpoint inspection {args.output}")
+            return 0
     except (OSError, RuntimeError, ValueError) as exc:
         parser.error(str(exc))
     parser.error(f"Unknown eval command: {args.eval_command}")
 
 
-def _parse_eval_thresholds(raw_thresholds: list[str]) -> dict[str, float]:
-    thresholds: dict[str, float] = {}
+def _parse_eval_thresholds(raw_thresholds: list[str], *, policy_path: Path | None = None) -> dict[str, float]:
+    thresholds: dict[str, float] = load_threshold_policy(policy_path) if policy_path is not None else {}
     for raw_threshold in raw_thresholds:
         if "=" not in raw_threshold:
             raise ValueError(f"eval threshold must use FIELD=MAX_REGRESSION syntax: {raw_threshold!r}")
