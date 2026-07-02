@@ -6,8 +6,9 @@ import shutil
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from importlib import import_module
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import soundfile as sf
@@ -26,6 +27,8 @@ SUPPORTED_DEGRADERS = (
     "lowpass_4k",
     "narrowband_8k",
     "wideband_16k",
+    "opus_16k_24kbps",
+    "mp3_32kbps",
     "noisy_16k",
 )
 FULL_REFERENCE_METRICS = (
@@ -46,8 +49,10 @@ DOWNSTREAM_METRICS = (
     "keyword_accuracy",
 )
 ENGINEERING_METRICS = (
+    "load_time_seconds",
     "backend_init_seconds",
     "elapsed_seconds",
+    "total_elapsed_seconds",
     "rtf",
     "peak_rss_mb",
     "peak_rss_delta_mb",
@@ -118,6 +123,34 @@ PLANNED_NO_REFERENCE_ADAPTERS = (
         "install_guidance": "Install ViSQOL separately and configure a future adapter with the binary/model path.",
     },
 )
+PLANNED_FULL_REFERENCE_ADAPTERS = (
+    {
+        "name": "pesq",
+        "status": "planned_optional",
+        "expected_scores": ["pesq"],
+        "runtime_requirements": ["pesq optional dependency"],
+        "sample_rate_constraints": ["8000 Hz narrowband", "16000 Hz wideband"],
+        "install_guidance": (
+            "Install a future optional full-reference extra; record PESQ mode and effective sample rate."
+        ),
+    },
+    {
+        "name": "stoi",
+        "status": "planned_optional",
+        "expected_scores": ["stoi", "estoi"],
+        "runtime_requirements": ["pystoi optional dependency"],
+        "sample_rate_constraints": ["explicitly resampled evaluator input"],
+        "install_guidance": "Install a future optional full-reference extra; record resampling settings.",
+    },
+    {
+        "name": "mcd",
+        "status": "planned_optional",
+        "expected_scores": ["mcd"],
+        "runtime_requirements": ["cepstral feature implementation"],
+        "sample_rate_constraints": ["record mel/cepstral feature settings"],
+        "install_guidance": "Use a maintained feature extractor or a tested local implementation before enabling MCD.",
+    },
+)
 PLANNED_DOWNSTREAM_ADAPTERS = (
     {
         "name": "speaker-similarity",
@@ -166,6 +199,17 @@ HALLUCINATION_RMS_THRESHOLD = 1e-4
 LOW_VOLUME_RMS_THRESHOLD = 0.01
 OVERAMPLIFICATION_GAIN_THRESHOLD = 12.0
 OVERAMPLIFICATION_OUTPUT_RMS_THRESHOLD = 0.05
+SPEECH_BWE_EVALSET_ID = "speech_bwe_v1_tiny"
+SPEECH_BWE_EVALSET_PROFILES = (
+    ("zh_female_slow_clean", "zh", "female", "slow", "clean", 185.0),
+    ("zh_male_normal_clean", "zh", "male", "normal", "clean", 125.0),
+    ("zh_female_fast_noisy", "zh", "female", "fast", "noisy", 210.0),
+    ("zh_male_slow_reverb", "zh", "male", "slow", "reverb", 110.0),
+    ("en_female_normal_clean", "en", "female", "normal", "clean", 195.0),
+    ("en_male_fast_noisy", "en", "male", "fast", "noisy", 135.0),
+    ("en_female_slow_reverb", "en", "female", "slow", "reverb", 175.0),
+    ("en_male_normal_clean", "en", "male", "normal", "clean", 120.0),
+)
 
 
 @dataclass(frozen=True)
@@ -187,6 +231,7 @@ def run_eval_dataset(
     degrader: str = "wideband_16k",
     config: InferenceConfig | None = None,
     limit: int | None = None,
+    optional_metrics: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Run a lightweight full-reference eval over clean reference WAV files."""
 
@@ -213,6 +258,7 @@ def run_eval_dataset(
             degraded_dir=degraded_dir,
             enhanced_dir=enhanced_dir,
             config=resolved_config,
+            optional_metrics=optional_metrics,
         )
         for reference in references
     ]
@@ -223,8 +269,91 @@ def run_eval_dataset(
         degrader=degrader,
         config=resolved_config,
         results=results,
+        optional_metrics=optional_metrics,
     )
     write_eval_manifest(output, manifest)
+    return manifest
+
+
+def init_speech_bwe_evalset(
+    *,
+    output_dir: str | Path,
+    count: int = 20,
+    sample_rate: int = 48000,
+    duration_seconds: float = 0.35,
+    force: bool = False,
+) -> dict[str, object]:
+    """Create a deterministic tiny speech-BWE evalset fixture.
+
+    The generated audio is synthetic and intended for smoke/regression workflows, not for
+    publishable perceptual claims.
+    """
+
+    if count <= 0:
+        raise ValueError("count must be greater than zero")
+    if sample_rate <= 0:
+        raise ValueError("sample_rate must be greater than zero")
+    if duration_seconds <= 0:
+        raise ValueError("duration_seconds must be greater than zero")
+
+    output_path = Path(output_dir)
+    clean_dir = output_path / "speech_clean_48k"
+    manifest_path = output_path / "manifest.json"
+    if output_path.exists() and any(output_path.iterdir()) and not force:
+        raise FileExistsError(f"{output_path} is not empty; pass force=True or --force to replace generated files")
+    clean_dir.mkdir(parents=True, exist_ok=True)
+
+    records: list[dict[str, object]] = []
+    for index in range(count):
+        profile = SPEECH_BWE_EVALSET_PROFILES[index % len(SPEECH_BWE_EVALSET_PROFILES)]
+        profile_id, language, speaker_gender, speaking_rate, condition, base_frequency = profile
+        item_id = f"sample_{index + 1:03d}_{profile_id}"
+        path = clean_dir / f"{item_id}.wav"
+        audio = _synthetic_speech_like_audio(
+            sample_rate=sample_rate,
+            duration_seconds=duration_seconds,
+            base_frequency=base_frequency,
+            seed=index,
+            condition=condition,
+        )
+        sf.write(path, audio, sample_rate)
+        records.append(
+            {
+                "id": item_id,
+                "path": str(path.relative_to(output_path)),
+                "language": language,
+                "speaker_gender": speaker_gender,
+                "speaking_rate": speaking_rate,
+                "condition": condition,
+                "sample_rate": sample_rate,
+                "duration_seconds": duration_seconds,
+                "synthetic": True,
+            }
+        )
+
+    manifest = {
+        "schema_version": 1,
+        "dataset_id": SPEECH_BWE_EVALSET_ID,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "root": str(output_path),
+        "reference_dir": str(clean_dir.relative_to(output_path)),
+        "sample_rate": sample_rate,
+        "record_count": len(records),
+        "degraders": list(SUPPORTED_DEGRADERS),
+        "recommended_metrics": {
+            "full_reference": list(FULL_REFERENCE_METRICS),
+            "optional_full_reference": list(OPTIONAL_FULL_REFERENCE_METRICS),
+            "downstream": ["wer", "cer"],
+            "engineering": ["rtf", "peak_rss_mb", "load_time_seconds", "duration_drift_seconds"],
+            "stability": ["clipped_fraction", "sample_rate_correct", "failure_cases"],
+        },
+        "notes": [
+            "Synthetic fixture for smoke and regression tests only.",
+            "Use real licensed clean speech before making backend quality claims.",
+        ],
+        "records": records,
+    }
+    write_eval_manifest(manifest_path, manifest)
     return manifest
 
 
@@ -488,6 +617,7 @@ def build_eval_manifest(
     degrader: str,
     config: InferenceConfig,
     results: list[dict[str, object]],
+    optional_metrics: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Build a JSON-serializable eval manifest."""
 
@@ -502,12 +632,15 @@ def build_eval_manifest(
         "target_sample_rate": target_sample_rate,
         "degrader": {"name": degrader},
         "config": config.as_dict(),
+        "optional_metrics_requested": list(optional_metrics),
         "metric_groups": {
             "full_reference": list(FULL_REFERENCE_METRICS),
             "optional_full_reference": list(OPTIONAL_FULL_REFERENCE_METRICS),
             "engineering": [
                 "backend_init_seconds",
+                "load_time_seconds",
                 "elapsed_seconds",
+                "total_elapsed_seconds",
                 "rtf",
                 "peak_rss_mb",
                 "peak_rss_delta_mb",
@@ -532,6 +665,11 @@ def build_eval_manifest(
         "result_count": len(results),
         "status_counts": status_counts,
         "failure_count": sum(count for status, count in status_counts.items() if status != "passed"),
+        "planned_adapters": {
+            "full_reference": list(PLANNED_FULL_REFERENCE_ADAPTERS),
+            "no_reference": list(PLANNED_NO_REFERENCE_ADAPTERS),
+            "downstream": list(PLANNED_DOWNSTREAM_ADAPTERS),
+        },
         "results": results,
     }
 
@@ -1003,6 +1141,22 @@ def degrade_audio(audio: np.ndarray, sample_rate: int, degrader: str) -> Degrade
     if degrader == "wideband_16k":
         degraded = _resample(audio, sample_rate, 16000)
         return DegradedAudio(audio=degraded, sample_rate=16000, recipe={"name": degrader, "sample_rate": 16000})
+    if degrader == "opus_16k_24kbps":
+        degraded = _resample(audio, sample_rate, 16000)
+        degraded = _codec_like_quantize(degraded, levels=512)
+        return DegradedAudio(
+            audio=degraded,
+            sample_rate=16000,
+            recipe={"name": degrader, "sample_rate": 16000, "codec": "opus-like", "bitrate": "24kbps"},
+        )
+    if degrader == "mp3_32kbps":
+        degraded = lowpass_filter(audio, sample_rate=sample_rate, cutoff_hz=min(11000.0, sample_rate * 0.45))
+        degraded = _codec_like_quantize(degraded, levels=384)
+        return DegradedAudio(
+            audio=degraded.astype(np.float32, copy=False),
+            sample_rate=sample_rate,
+            recipe={"name": degrader, "codec": "mp3-like", "bitrate": "32kbps", "lowpass_cutoff_hz": 11000.0},
+        )
     if degrader == "noisy_16k":
         degraded = _resample(audio, sample_rate, 16000)
         noise = _deterministic_noise(degraded.shape, scale=0.005)
@@ -1046,6 +1200,96 @@ def full_reference_metrics(
     }
 
 
+def optional_full_reference_metrics(
+    enhanced_audio: np.ndarray,
+    reference_audio: np.ndarray,
+    *,
+    sample_rate: int,
+    metrics: tuple[str, ...],
+) -> tuple[dict[str, float], list[dict[str, object]]]:
+    """Run explicitly requested optional full-reference metrics when their dependencies exist."""
+
+    scores: dict[str, float] = {}
+    records: list[dict[str, object]] = []
+    for metric in metrics:
+        metric_name = metric.lower()
+        if metric_name not in OPTIONAL_FULL_REFERENCE_METRICS:
+            choices = ", ".join(OPTIONAL_FULL_REFERENCE_METRICS)
+            raise ValueError(f"Unsupported optional full-reference metric {metric!r}. Choices: {choices}")
+        try:
+            score = _run_optional_full_reference_metric(
+                metric_name,
+                enhanced_audio,
+                reference_audio,
+                sample_rate=sample_rate,
+            )
+        except ImportError as exc:
+            records.append(_optional_metric_record(metric_name, status="skipped", error=str(exc)))
+            continue
+        except (RuntimeError, ValueError) as exc:
+            records.append(_optional_metric_record(metric_name, status="failed", error=str(exc)))
+            continue
+        if score is None:
+            records.append(
+                _optional_metric_record(
+                    metric_name,
+                    status="skipped",
+                    error=f"{metric_name} does not have a default lightweight implementation",
+                )
+            )
+            continue
+        scores[metric_name] = score
+        records.append(
+            {
+                "name": metric_name,
+                "status": "passed",
+                "score": score,
+                "install_guidance": None,
+                "error": None,
+            }
+        )
+    return scores, records
+
+
+def _run_optional_full_reference_metric(
+    metric: str,
+    enhanced_audio: np.ndarray,
+    reference_audio: np.ndarray,
+    *,
+    sample_rate: int,
+) -> float | None:
+    enhanced = _mixdown(enhanced_audio)
+    reference = _mixdown(reference_audio)
+    enhanced, reference = _align(enhanced, reference)
+    if metric == "pesq":
+        pesq_module = import_module("pesq")
+        pesq_func = cast(Any, pesq_module).pesq
+        eval_sample_rate = 16000 if sample_rate >= 16000 else 8000
+        mode = "wb" if eval_sample_rate == 16000 else "nb"
+        reference_eval = _resample(reference, sample_rate, eval_sample_rate)
+        enhanced_eval = _resample(enhanced, sample_rate, eval_sample_rate)
+        return float(pesq_func(eval_sample_rate, reference_eval, enhanced_eval, mode))
+    if metric in {"stoi", "estoi"}:
+        pystoi_module = import_module("pystoi.stoi")
+        stoi_func = cast(Any, pystoi_module).stoi
+        eval_sample_rate = min(sample_rate, 16000)
+        reference_eval = _resample(reference, sample_rate, eval_sample_rate)
+        enhanced_eval = _resample(enhanced, sample_rate, eval_sample_rate)
+        return float(stoi_func(reference_eval, enhanced_eval, eval_sample_rate, extended=metric == "estoi"))
+    return None
+
+
+def _optional_metric_record(metric: str, *, status: str, error: str) -> dict[str, object]:
+    adapter_info = next((adapter for adapter in PLANNED_FULL_REFERENCE_ADAPTERS if adapter["name"] == metric), {})
+    return {
+        "name": metric,
+        "status": status,
+        "score": None,
+        "install_guidance": adapter_info.get("install_guidance"),
+        "error": error,
+    }
+
+
 def _failed_eval_result(
     *,
     item_id: str,
@@ -1075,6 +1319,7 @@ def _failed_eval_result(
         "backend": backend,
         "degrader": degraded_recipe,
         "metrics": {},
+        "optional_metric_records": [],
         "quality": None,
         "stability": stability,
         "failure_cases": stability["failure_cases"],
@@ -1097,8 +1342,10 @@ def _performance_report(
         peak_rss_delta_mb = max(float(peak_rss_mb) - float(start_peak_rss_mb), 0.0)
 
     return {
+        "load_time_seconds": backend_init_seconds,
         "backend_init_seconds": backend_init_seconds,
         "elapsed_seconds": elapsed_seconds,
+        "total_elapsed_seconds": backend_init_seconds + elapsed_seconds,
         "audio_duration_seconds": audio_duration_seconds,
         "rtf": elapsed_seconds / audio_duration_seconds if audio_duration_seconds > 0 else None,
         "memory": {
@@ -1238,6 +1485,7 @@ def _run_eval_item(
     degraded_dir: Path,
     enhanced_dir: Path,
     config: InferenceConfig,
+    optional_metrics: tuple[str, ...],
 ) -> dict[str, object]:
     reference_audio, reference_sample_rate = sf.read(reference_path, always_2d=True)
     degraded = degrade_audio(reference_audio, reference_sample_rate, degrader)
@@ -1302,6 +1550,13 @@ def _run_eval_item(
             comparison_reference = _resample(reference_audio, reference_sample_rate, enhanced_sample_rate)
 
         metrics = full_reference_metrics(enhanced_audio, comparison_reference, sample_rate=enhanced_sample_rate)
+        optional_scores, optional_records = optional_full_reference_metrics(
+            enhanced_audio,
+            comparison_reference,
+            sample_rate=enhanced_sample_rate,
+            metrics=optional_metrics,
+        )
+        metrics.update(optional_scores)
         quality = inspect_audio_quality(
             enhanced_path,
             expected_sample_rate=target_sample_rate,
@@ -1344,6 +1599,7 @@ def _run_eval_item(
         "backend": backend,
         "degrader": degraded.recipe,
         "metrics": metrics,
+        "optional_metric_records": optional_records,
         "quality": quality_dict,
         "stability": stability,
         "failure_cases": stability["failure_cases"],
@@ -1380,6 +1636,39 @@ def _resample(audio: np.ndarray, source_sr: int, target_sr: int) -> np.ndarray:
 def _deterministic_noise(shape: tuple[int, ...], *, scale: float) -> np.ndarray:
     rng = np.random.default_rng(0)
     return rng.normal(0.0, scale, size=shape).astype(np.float32)
+
+
+def _codec_like_quantize(audio: np.ndarray, *, levels: int) -> np.ndarray:
+    clipped = np.clip(audio, -1.0, 1.0)
+    return (np.round(clipped * levels) / levels).astype(np.float32, copy=False)
+
+
+def _synthetic_speech_like_audio(
+    *,
+    sample_rate: int,
+    duration_seconds: float,
+    base_frequency: float,
+    seed: int,
+    condition: str,
+) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    frames = int(sample_rate * duration_seconds)
+    time_axis = np.arange(frames, dtype=np.float64) / sample_rate
+    envelope = 0.5 - 0.5 * np.cos(2 * np.pi * np.linspace(0.0, 1.0, frames))
+    modulation = 0.65 + 0.35 * np.sin(2 * np.pi * 5.0 * time_axis + seed)
+    audio = np.zeros(frames, dtype=np.float64)
+    for harmonic, gain in enumerate((1.0, 0.45, 0.24, 0.12, 0.06), start=1):
+        audio += gain * np.sin(2 * np.pi * base_frequency * harmonic * time_axis + harmonic * 0.13 * seed)
+    audio *= envelope * modulation * 0.11
+    audio += 0.015 * np.sin(2 * np.pi * min(9000.0 + 137.0 * seed, sample_rate * 0.45) * time_axis)
+    if condition == "noisy":
+        audio += rng.normal(0.0, 0.003, size=frames)
+    elif condition == "reverb":
+        delay = max(int(sample_rate * 0.018), 1)
+        echo = np.zeros_like(audio)
+        echo[delay:] = audio[:-delay] * 0.28
+        audio += echo
+    return np.clip(audio, -0.95, 0.95).astype(np.float32)
 
 
 def _mixdown(audio: np.ndarray) -> np.ndarray:

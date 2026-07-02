@@ -29,6 +29,11 @@ This project follows semantic versioning once published to PyPI.
 - Added `audio-super-res eval downstream` with builtin ASR transcript WER/CER delta evaluation and gated speaker/VAD/KWS adapter schema.
 - Added `audio-super-res eval listening-export` for AB/ABX/MUSHRA-ready blind bundles with separate answer keys and explicit rating dimensions.
 - Completed the `v0.5.0` evaluation/regression harness milestone scope across full-reference, no-reference, downstream, listening, engineering/stability, and regression workflows.
+- Prepared source version metadata for `0.6.0` release hardening after the completed v0.2-v0.5 milestones.
+- Added `audio-super-res eval init-speech-bwe` to generate a deterministic synthetic `speech_bwe_v1_tiny` evalset for smoke/regression workflows.
+- Added deterministic `opus_16k_24kbps` and `mp3_32kbps` codec-like degraders for lightweight eval coverage without requiring ffmpeg.
+- Added explicit optional full-reference adapter attempts through `eval run --optional-metric` for PESQ, STOI, ESTOI, and MCD, with skipped dependency records when unavailable.
+- Added backend load/init time and total elapsed time fields to benchmark and eval performance reports.
 
 ### Changed
 

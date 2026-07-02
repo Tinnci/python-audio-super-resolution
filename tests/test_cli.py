@@ -339,11 +339,40 @@ def test_cli_writes_benchmark_json(tmp_path: Path, capsys) -> None:
     assert benchmark["runtime_provider"] == "auto"
     assert benchmark["target_sample_rate"] == 32000
     assert benchmark["job_count"] == 1
+    assert benchmark["load_time_seconds"] >= 0
+    assert benchmark["backend_init_seconds"] == benchmark["load_time_seconds"]
+    assert benchmark["total_elapsed_seconds"] >= benchmark["elapsed_seconds"]
     assert benchmark["rtf"] is not None
     assert benchmark["memory"]["strategy"] == "resource.getrusage(RUSAGE_SELF).ru_maxrss"
     assert "peak_rss_mb" in benchmark
     assert benchmark["results"][0]["sample_rate"] == 32000
     assert benchmark["quality_reports"][0]["passed"] is True
+
+
+def test_cli_eval_init_speech_bwe(tmp_path: Path, capsys) -> None:
+    output_dir = tmp_path / "evalsets" / "speech_bwe_v1"
+
+    assert (
+        main(
+            [
+                "eval",
+                "init-speech-bwe",
+                "--output-dir",
+                str(output_dir),
+                "--count",
+                "4",
+                "--duration-seconds",
+                "0.03",
+            ]
+        )
+        == 0
+    )
+
+    manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert "Wrote speech BWE evalset" in capsys.readouterr().out
+    assert manifest["dataset_id"] == "speech_bwe_v1_tiny"
+    assert manifest["record_count"] == 4
+    assert len(list((output_dir / "speech_clean_48k").glob("*.wav"))) == 4
 
 
 def test_cli_processes_single_file_in_chunks(tmp_path: Path) -> None:

@@ -27,8 +27,10 @@ from .evaluation import (
     compare_eval_manifests,
     degrade_audio,
     full_reference_metrics,
+    init_speech_bwe_evalset,
     load_eval_manifest,
     no_reference_signal_stats,
+    optional_full_reference_metrics,
     run_downstream_eval,
     run_eval_dataset,
     run_listening_export,
@@ -161,6 +163,7 @@ __all__ = [
     "format_manifest_comparison",
     "format_quality_report",
     "full_reference_metrics",
+    "init_speech_bwe_evalset",
     "get_backend",
     "get_model_spec",
     "inspect_audio_quality",
@@ -175,6 +178,7 @@ __all__ = [
     "manifest_comparison_to_dict",
     "model_admission_report_to_dict",
     "no_reference_signal_stats",
+    "optional_full_reference_metrics",
     "plan_enhancements",
     "quality_report_to_dict",
     "golden_report_to_dict",
@@ -211,4 +215,4 @@ __all__ = [
     "write_weight_manifest",
 ]
 
-__version__ = "0.1.1"
+__version__ = "0.6.0"

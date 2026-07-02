@@ -19,11 +19,13 @@ from .config import (
     default_model_cache_dir,
 )
 from .evaluation import (
+    OPTIONAL_FULL_REFERENCE_METRICS,
     SUPPORTED_DEGRADERS,
     SUPPORTED_DOWNSTREAM_EVALUATORS,
     SUPPORTED_LISTENING_PROTOCOLS,
     SUPPORTED_NO_REFERENCE_EVALUATORS,
     compare_eval_manifests,
+    init_speech_bwe_evalset,
     load_eval_manifest,
     run_downstream_eval,
     run_eval_dataset,
@@ -223,6 +225,18 @@ def build_eval_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="eval_command", required=True)
 
+    init_parser = subparsers.add_parser("init-speech-bwe", help="Create a tiny deterministic speech BWE evalset.")
+    init_parser.add_argument("--output-dir", type=Path, required=True, help="Output evalset directory.")
+    init_parser.add_argument("--count", type=int, default=20, help="Number of clean reference WAV files.")
+    init_parser.add_argument("--sample-rate", type=int, default=48000, help="Reference sample rate. Defaults to 48000.")
+    init_parser.add_argument(
+        "--duration-seconds",
+        type=float,
+        default=0.35,
+        help="Duration of each generated fixture. Defaults to 0.35.",
+    )
+    init_parser.add_argument("--force", action="store_true", help="Allow writing into a non-empty output directory.")
+
     run_parser = subparsers.add_parser("run", help="Run an evaluation dataset.")
     run_parser.add_argument("--dataset", type=Path, required=True, help="Directory of clean reference WAV files.")
     run_parser.add_argument("--backend", default="sinc-resample", choices=_backend_names(), help="Backend to evaluate.")
@@ -236,6 +250,13 @@ def build_eval_parser() -> argparse.ArgumentParser:
         help="Controlled degradation recipe. Defaults to wideband_16k.",
     )
     run_parser.add_argument("--limit", type=int, help="Limit the number of reference files for smoke runs.")
+    run_parser.add_argument(
+        "--optional-metric",
+        action="append",
+        choices=OPTIONAL_FULL_REFERENCE_METRICS,
+        default=[],
+        help="Explicit optional full-reference metric to attempt. Missing dependencies are recorded as skipped.",
+    )
     run_parser.add_argument("--device", choices=VALID_DEVICES, default="cpu", help="Inference device. Defaults to cpu.")
     run_parser.add_argument(
         "--runtime-provider",
@@ -432,6 +453,16 @@ def _run_eval_command(argv: list[str]) -> int:
     parser = build_eval_parser()
     args = parser.parse_args(argv)
     try:
+        if args.eval_command == "init-speech-bwe":
+            manifest = init_speech_bwe_evalset(
+                output_dir=args.output_dir,
+                count=args.count,
+                sample_rate=args.sample_rate,
+                duration_seconds=args.duration_seconds,
+                force=args.force,
+            )
+            print(f"Wrote speech BWE evalset {args.output_dir} ({manifest['record_count']} reference file(s))")
+            return 0
         if args.eval_command == "run":
             model_cache_dir = args.model_cache_dir if args.model_cache_dir is not None else default_model_cache_dir()
             manifest = run_eval_dataset(
@@ -442,6 +473,7 @@ def _run_eval_command(argv: list[str]) -> int:
                 target_sample_rate=args.target_sr,
                 degrader=args.degrader,
                 limit=args.limit,
+                optional_metrics=tuple(args.optional_metric),
                 config=InferenceConfig(
                     device=args.device,
                     runtime_provider=args.runtime_provider,
@@ -670,7 +702,9 @@ def _handle_enhancement(
     config: InferenceConfig,
     jobs: list[PlannedEnhancement],
 ) -> int:
+    init_started_at = time.perf_counter()
     resolver = AudioSuperResolver(target_sr=args.target_sr, backend=args.backend, config=config)
+    backend_init_seconds = time.perf_counter() - init_started_at
     started_at = time.perf_counter()
     try:
         results = [
@@ -702,6 +736,7 @@ def _handle_enhancement(
                 config=config,
                 results=results,
                 quality_reports=reports,
+                backend_init_seconds=backend_init_seconds,
                 elapsed_seconds=elapsed_seconds,
             ),
         )

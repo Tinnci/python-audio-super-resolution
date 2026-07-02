@@ -20,10 +20,15 @@ clean_48k_reference.wav
 The first implementation is intentionally lightweight and CPU/offline friendly:
 
 ```sh
+audio-super-res eval init-speech-bwe \
+  --output-dir evalsets/speech_bwe_v1 \
+  --count 20
+
 audio-super-res eval run \
-  --dataset evalsets/speech_clean_48k \
+  --dataset evalsets/speech_bwe_v1/speech_clean_48k \
   --backend sinc-resample \
   --degrader wideband_16k \
+  --optional-metric mcd \
   --work-dir runs/sinc-work \
   --output runs/sinc.json
 
@@ -72,6 +77,10 @@ audio-super-res eval compare runs/sinc.json runs/lavasr.json \
 outputs, full-reference metrics, quality/stability checks, and simple runtime data into a JSON
 manifest.
 
+`eval init-speech-bwe` creates a deterministic synthetic tiny evalset for smoke and regression
+testing. It is useful for CI and example commands, but it is not a substitute for a licensed real
+speech dataset when making backend quality claims.
+
 Implemented degraders:
 
 | Degrader | Behavior |
@@ -79,6 +88,8 @@ Implemented degraders:
 | `lowpass_4k` | Keeps the original sample rate and low-passes around 4 kHz. |
 | `narrowband_8k` | Downsamples to 8 kHz. |
 | `wideband_16k` | Downsamples to 16 kHz. |
+| `opus_16k_24kbps` | Downsamples to 16 kHz and applies deterministic codec-like quantization. |
+| `mp3_32kbps` | Applies deterministic low-pass and codec-like quantization at the original sample rate. |
 | `noisy_16k` | Downsamples to 16 kHz and adds deterministic light noise. |
 
 Implemented lightweight full-reference metrics:
@@ -92,9 +103,10 @@ Implemented lightweight full-reference metrics:
 | `High-band LSD 8-16 kHz` | Higher-band reconstruction, especially important for 48 kHz SR. |
 | `Spectral convergence` | Overall magnitude-spectrum closeness. |
 
-PESQ, STOI/ESTOI, MCD, DNSMOS, NISQA, UTMOS, ViSQOL, ASR WER/CER, speaker similarity, and listening
-test exports are planned as optional or gated adapters. They must not become default CI
-dependencies.
+PESQ, STOI/ESTOI, MCD, DNSMOS, NISQA, UTMOS, ViSQOL, real ASR runners, speaker similarity, VAD, and
+keyword spotting are planned as optional or gated adapters. They must not become default CI
+dependencies. Listening-test export and transcript WER/CER from precomputed ASR outputs are already
+implemented in the default package.
 
 ## Optional Full-Reference Adapters
 
@@ -112,6 +124,12 @@ requirements:
 Optional metrics must write `null` or an explicit skipped reason when unavailable. They must not
 change the meaning of the lightweight schema, and they must not be folded into a single aggregate
 score.
+
+`eval run --optional-metric FIELD` currently supports explicit adapter attempts for `pesq`, `stoi`,
+`estoi`, and `mcd`. PESQ/STOI/ESTOI use dynamic imports when their optional packages are installed.
+Unavailable metrics write `optional_metric_records` with `status: "skipped"` and install guidance.
+`mcd` remains skipped until a maintained cepstral implementation or a tested local implementation is
+accepted.
 
 ## No-Reference Screening
 
@@ -267,8 +285,8 @@ Each result contains:
 - full-reference metrics
 - quality checks: sample rate, duration drift, peak/clipping, pass/fail
 - stability checks: sample-rate correctness, duration drift, clipping, and classified failure cases
-- performance: backend init time, elapsed seconds, audio duration, RTF, and peak RSS where the
-  platform exposes `resource.getrusage(RUSAGE_SELF).ru_maxrss`
+- performance: backend init/load time, enhancement elapsed seconds, total elapsed seconds, audio
+  duration, RTF, and peak RSS where the platform exposes `resource.getrusage(RUSAGE_SELF).ru_maxrss`
 
 `eval compare` compares manifests by item id and reports separate metric deltas. It does not hide
 raw metrics behind a single aggregate score. Candidate results with failed status, failed stability

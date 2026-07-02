@@ -123,7 +123,38 @@ Decision rule:
 - Prefer separate tables for full-reference quality, no-reference quality, downstream impact,
   listening evidence, engineering performance, stability, and governance.
 
-## Later: Release Hardening
+## Active: v0.6.0 Release Hardening And Real Eval Evidence
+
+Goal: turn the completed planning/eval work into a release-ready package with a tiny reproducible
+evalset, explicit optional evaluator boundaries, richer runtime evidence, and clear next-backend
+spikes.
+
+Tracked work:
+
+- Release hardening: source version metadata is prepared for `0.6.0`; release remains gated on the
+  full Pixi quality suite, wheel metadata checks, and CI success.
+- Evalset v1: `audio-super-res eval init-speech-bwe` creates a deterministic tiny
+  `speech_bwe_v1_tiny` fixture for smoke/regression workflows without committing binary audio.
+- Optional metrics: `eval run --optional-metric pesq|stoi|estoi|mcd` attempts explicit optional
+  full-reference adapters and records skipped dependency guidance when unavailable.
+- LavaSR stability: failure-case reporting remains the default guardrail; broader real-weight
+  LavaSR fixture coverage is the next gated validation target before stable promotion.
+- Downstream eval: transcript WER/CER remains default/offline; real ASR, speaker, VAD, and KWS
+  adapters stay gated until model licenses, labels, and runtime requirements are explicit.
+- Speech backend spike: ClearerVoice `MossFormer2_SR_48K` should proceed only through checkpoint key
+  inspection, safe conversion planning, CPU smoke, and upstream parity evidence.
+- Runtime evidence: benchmark and eval manifests now report backend load/init time, enhancement
+  elapsed time, total elapsed time, RTF, and peak RSS strategy/fallbacks.
+
+Decision rule:
+
+- A release can ship the harness and gating boundaries without shipping heavyweight evaluators or
+  new model weights.
+- Do not mark `lavasr-compat` stable until broader fixtures and gated real-weight evidence pass.
+- Do not implement MossFormer2, FlowHigh, or Resemble Enhance until admission blockers are closed
+  with reproducible evidence.
+
+## Later: Post-v0.6 Hardening
 
 - Keep broadening `lavasr-compat` fixture coverage before marking it stable.
 - Keep candidate backends deferred until their weight, license, preprocessing, and validation blockers are cleared.

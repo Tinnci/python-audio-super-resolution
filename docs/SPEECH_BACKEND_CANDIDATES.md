@@ -104,6 +104,16 @@ Recommended follow-up:
 4. Define `ModelSpec` and managed weight manifest only after required files are finalized.
 5. Build a golden parity test before wiring a self-contained backend.
 
+`v0.6.0` spike acceptance:
+
+- Produce a JSON checkpoint-key summary for `last_best_checkpoint_m.pt` and
+  `last_best_checkpoint_g.pt` from a temporary cache.
+- Record whether upstream CPU inference can run on a sub-second fixture without implicit provider
+  downloads.
+- Decide whether a safe converted format is practical before any package-owned backend code starts.
+- Open implementation only after parity fixture shape, expected sample-rate behavior, and minimal
+  required files are known.
+
 ## Resemble Enhance
 
 Source facts:

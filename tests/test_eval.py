@@ -9,6 +9,8 @@ import soundfile as sf
 from audio_super_resolution.cli import main
 from audio_super_resolution.evaluation import (
     compare_eval_manifests,
+    degrade_audio,
+    init_speech_bwe_evalset,
     run_downstream_eval,
     run_eval_dataset,
     run_listening_export,
@@ -55,8 +57,14 @@ def test_run_eval_dataset_writes_full_reference_manifest(tmp_path: Path) -> None
     assert manifest["results"][0]["stability"]["clipped"] is False
     assert manifest["results"][0]["failure_cases"] == []
     assert manifest["results"][0]["performance"]["rtf"] is not None
+    assert manifest["results"][0]["performance"]["load_time_seconds"] >= 0
+    assert (
+        manifest["results"][0]["performance"]["total_elapsed_seconds"]
+        >= manifest["results"][0]["performance"]["elapsed_seconds"]
+    )
     assert manifest["results"][0]["performance"]["memory"]["strategy"] == "resource.getrusage(RUSAGE_SELF).ru_maxrss"
     assert "peak_rss_mb" in manifest["results"][0]["performance"]
+    assert manifest["planned_adapters"]["full_reference"][0]["name"] == "pesq"
 
 
 def test_compare_eval_manifests_reports_metric_deltas() -> None:
@@ -146,6 +154,94 @@ def test_cli_eval_run_and_compare(tmp_path: Path) -> None:
     assert comparison["candidate_backend"] == "sinc-resample"
     assert "highband_lsd_8_16k" in comparison["metric_summary"]
     assert "audio_quality" in comparison["tables"]
+
+
+def test_eval_run_records_optional_metric_skip_without_dependency(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+    output_path = tmp_path / "runs" / "sinc.json"
+
+    manifest = run_eval_dataset(
+        dataset_dir=dataset,
+        backend="sinc-resample",
+        output_path=output_path,
+        work_dir=tmp_path / "work",
+        optional_metrics=("mcd",),
+    )
+
+    assert manifest["optional_metrics_requested"] == ["mcd"]
+    optional_records = manifest["results"][0]["optional_metric_records"]
+    assert optional_records == [
+        {
+            "name": "mcd",
+            "status": "skipped",
+            "score": None,
+            "install_guidance": (
+                "Use a maintained feature extractor or a tested local implementation before enabling MCD."
+            ),
+            "error": "mcd does not have a default lightweight implementation",
+        }
+    ]
+
+
+def test_cli_eval_run_accepts_optional_metric(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+    output_path = tmp_path / "runs" / "sinc.json"
+
+    assert (
+        main(
+            [
+                "eval",
+                "run",
+                "--dataset",
+                str(dataset),
+                "--backend",
+                "sinc-resample",
+                "--output",
+                str(output_path),
+                "--work-dir",
+                str(tmp_path / "work"),
+                "--optional-metric",
+                "mcd",
+            ]
+        )
+        == 0
+    )
+
+    manifest = json.loads(output_path.read_text(encoding="utf-8"))
+    assert manifest["optional_metrics_requested"] == ["mcd"]
+    assert manifest["results"][0]["optional_metric_records"][0]["status"] == "skipped"
+
+
+def test_init_speech_bwe_evalset_writes_tiny_reference_set(tmp_path: Path) -> None:
+    evalset_dir = tmp_path / "evalsets" / "speech_bwe_v1"
+
+    manifest = init_speech_bwe_evalset(output_dir=evalset_dir, count=6, duration_seconds=0.04)
+
+    assert manifest["dataset_id"] == "speech_bwe_v1_tiny"
+    assert manifest["record_count"] == 6
+    assert (evalset_dir / "manifest.json").is_file()
+    assert len(list((evalset_dir / "speech_clean_48k").glob("*.wav"))) == 6
+    assert {record["language"] for record in manifest["records"]} == {"zh", "en"}
+    first = sf.info(evalset_dir / manifest["records"][0]["path"])
+    assert first.samplerate == 48000
+
+
+def test_new_eval_degraders_are_deterministic_and_lightweight() -> None:
+    sample_rate = 48000
+    audio = np.zeros((4800, 1), dtype=np.float32)
+    audio[:, 0] = 0.25 * np.sin(2 * np.pi * 440 * np.arange(4800) / sample_rate)
+
+    opus_like = degrade_audio(audio, sample_rate, "opus_16k_24kbps")
+    mp3_like = degrade_audio(audio, sample_rate, "mp3_32kbps")
+
+    assert opus_like.sample_rate == 16000
+    assert opus_like.recipe["codec"] == "opus-like"
+    assert mp3_like.sample_rate == 48000
+    assert mp3_like.recipe["codec"] == "mp3-like"
 
 
 def test_cli_eval_compare_thresholds(tmp_path: Path) -> None:

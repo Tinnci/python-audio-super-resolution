@@ -17,12 +17,14 @@ def build_benchmark_report(
     config: InferenceConfig,
     results: list[EnhancementResult],
     quality_reports: list[AudioQualityReport],
+    backend_init_seconds: float = 0.0,
     elapsed_seconds: float,
 ) -> dict[str, object]:
     """Build a machine-readable runtime benchmark summary."""
 
     total_input_duration = sum(result.input_duration_seconds for result in results)
     total_output_duration = sum(result.duration_seconds for result in results)
+    total_elapsed_seconds = backend_init_seconds + elapsed_seconds
     rtf = elapsed_seconds / total_output_duration if total_output_duration > 0 else None
     realtime_factor = total_output_duration / elapsed_seconds if elapsed_seconds > 0 else None
     memory = peak_rss_snapshot()
@@ -34,7 +36,10 @@ def build_benchmark_report(
         "runtime_provider": config.runtime_provider,
         "target_sample_rate": target_sample_rate,
         "job_count": len(results),
+        "load_time_seconds": backend_init_seconds,
+        "backend_init_seconds": backend_init_seconds,
         "elapsed_seconds": elapsed_seconds,
+        "total_elapsed_seconds": total_elapsed_seconds,
         "total_input_duration_seconds": total_input_duration,
         "total_output_duration_seconds": total_output_duration,
         "rtf": rtf,
