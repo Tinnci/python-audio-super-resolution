@@ -275,6 +275,76 @@ def run_eval_dataset(
     return manifest
 
 
+def run_eval_matrix(
+    *,
+    dataset_dir: str | Path,
+    output_dir: str | Path,
+    backends: tuple[str, ...],
+    degraders: tuple[str, ...],
+    target_sample_rate: int = 48000,
+    config: InferenceConfig | None = None,
+    limit: int | None = None,
+    optional_metrics: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Run multiple backend/degrader eval combinations and write a matrix index."""
+
+    if not backends:
+        raise ValueError("at least one backend is required")
+    if not degraders:
+        raise ValueError("at least one degrader is required")
+
+    dataset_path = Path(dataset_dir)
+    matrix_dir = Path(output_dir)
+    runs_dir = matrix_dir / "runs"
+    work_dir = matrix_dir / "work"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    resolved_config = config or InferenceConfig()
+
+    entries: list[dict[str, object]] = []
+    for backend in backends:
+        for degrader in degraders:
+            run_id = f"{_safe_eval_id(backend)}__{_safe_eval_id(degrader)}"
+            manifest_path = runs_dir / f"{run_id}.json"
+            manifest = run_eval_dataset(
+                dataset_dir=dataset_path,
+                backend=backend,
+                output_path=manifest_path,
+                work_dir=work_dir / run_id,
+                target_sample_rate=target_sample_rate,
+                degrader=degrader,
+                config=resolved_config,
+                limit=limit,
+                optional_metrics=optional_metrics,
+            )
+            results = manifest.get("results")
+            entries.append(
+                {
+                    "id": run_id,
+                    "backend": backend,
+                    "degrader": degrader,
+                    "manifest_path": str(manifest_path),
+                    "passed": bool(manifest.get("passed")),
+                    "result_count": len(results) if isinstance(results, list) else 0,
+                    "status_counts": manifest.get("status_counts", {}),
+                    "failure_count": manifest.get("failure_count", 0),
+                }
+            )
+
+    matrix = build_eval_matrix_manifest(
+        dataset_dir=dataset_path,
+        output_dir=matrix_dir,
+        backends=backends,
+        degraders=degraders,
+        target_sample_rate=target_sample_rate,
+        config=resolved_config,
+        limit=limit,
+        optional_metrics=optional_metrics,
+        entries=entries,
+    )
+    write_eval_manifest(matrix_dir / "matrix.json", matrix)
+    return matrix
+
+
 def init_speech_bwe_evalset(
     *,
     output_dir: str | Path,
@@ -355,6 +425,39 @@ def init_speech_bwe_evalset(
     }
     write_eval_manifest(manifest_path, manifest)
     return manifest
+
+
+def build_eval_matrix_manifest(
+    *,
+    dataset_dir: Path,
+    output_dir: Path,
+    backends: tuple[str, ...],
+    degraders: tuple[str, ...],
+    target_sample_rate: int,
+    config: InferenceConfig,
+    limit: int | None,
+    optional_metrics: tuple[str, ...],
+    entries: list[dict[str, object]],
+) -> dict[str, object]:
+    """Build an eval matrix index manifest."""
+
+    return {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "evaluation_type": "matrix",
+        "passed": all(bool(entry.get("passed")) for entry in entries),
+        "dataset": str(dataset_dir),
+        "output_dir": str(output_dir),
+        "target_sample_rate": target_sample_rate,
+        "config": config.as_dict(),
+        "limit": limit,
+        "backends": list(backends),
+        "degraders": list(degraders),
+        "optional_metrics_requested": list(optional_metrics),
+        "run_count": len(entries),
+        "runs": entries,
+        "results": entries,
+    }
 
 
 def run_no_reference_eval(
@@ -1622,6 +1725,10 @@ def _reference_files(dataset_path: Path, *, limit: int | None) -> list[Path]:
             raise ValueError("limit must be greater than zero")
         return references[:limit]
     return references
+
+
+def _safe_eval_id(value: str) -> str:
+    return "".join(character if character.isalnum() or character in {"-", "_"} else "_" for character in value)
 
 
 def _resample(audio: np.ndarray, source_sr: int, target_sr: int) -> np.ndarray:

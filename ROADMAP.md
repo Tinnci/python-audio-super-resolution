@@ -145,6 +145,8 @@ Tracked work:
   inspection, safe conversion planning, CPU smoke, and upstream parity evidence.
 - Runtime evidence: benchmark and eval manifests now report backend load/init time, enhancement
   elapsed time, total elapsed time, RTF, and peak RSS strategy/fallbacks.
+- Matrix execution: `audio-super-res eval matrix` can run backend/degrader smoke grids and write a
+  `matrix.json` index over the generated eval manifests.
 
 Decision rule:
 

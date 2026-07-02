@@ -375,6 +375,43 @@ def test_cli_eval_init_speech_bwe(tmp_path: Path, capsys) -> None:
     assert len(list((output_dir / "speech_clean_48k").glob("*.wav"))) == 4
 
 
+def test_cli_eval_matrix(tmp_path: Path, capsys) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    sample_rate = 48000
+    tone = 0.15 * np.sin(2 * np.pi * 440 * np.arange(sample_rate // 20) / sample_rate)
+    sf.write(dataset / "sample.wav", tone, sample_rate)
+    output_dir = tmp_path / "matrix"
+
+    assert (
+        main(
+            [
+                "eval",
+                "matrix",
+                "--dataset",
+                str(dataset),
+                "--output-dir",
+                str(output_dir),
+                "--backend",
+                "sinc-resample",
+                "--degrader",
+                "lowpass_4k",
+                "--degrader",
+                "mp3_32kbps",
+                "--optional-metric",
+                "mcd",
+            ]
+        )
+        == 0
+    )
+
+    matrix = json.loads((output_dir / "matrix.json").read_text(encoding="utf-8"))
+    assert "Wrote eval matrix" in capsys.readouterr().out
+    assert matrix["evaluation_type"] == "matrix"
+    assert matrix["run_count"] == 2
+    assert {run["degrader"] for run in matrix["runs"]} == {"lowpass_4k", "mp3_32kbps"}
+
+
 def test_cli_processes_single_file_in_chunks(tmp_path: Path) -> None:
     input_path = tmp_path / "input.wav"
     output_path = tmp_path / "output.wav"

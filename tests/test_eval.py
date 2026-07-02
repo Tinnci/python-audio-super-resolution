@@ -13,6 +13,7 @@ from audio_super_resolution.evaluation import (
     init_speech_bwe_evalset,
     run_downstream_eval,
     run_eval_dataset,
+    run_eval_matrix,
     run_listening_export,
     run_no_reference_eval,
     transcript_error_rates,
@@ -214,6 +215,33 @@ def test_cli_eval_run_accepts_optional_metric(tmp_path: Path) -> None:
     manifest = json.loads(output_path.read_text(encoding="utf-8"))
     assert manifest["optional_metrics_requested"] == ["mcd"]
     assert manifest["results"][0]["optional_metric_records"][0]["status"] == "skipped"
+
+
+def test_run_eval_matrix_writes_index_and_run_manifests(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _write_reference(dataset / "sample.wav")
+
+    matrix = run_eval_matrix(
+        dataset_dir=dataset,
+        output_dir=tmp_path / "matrix",
+        backends=("sinc-resample",),
+        degraders=("lowpass_4k", "wideband_16k"),
+        optional_metrics=("mcd",),
+    )
+
+    assert matrix["evaluation_type"] == "matrix"
+    assert matrix["passed"] is True
+    assert matrix["run_count"] == 2
+    assert matrix["backends"] == ["sinc-resample"]
+    assert matrix["degraders"] == ["lowpass_4k", "wideband_16k"]
+    assert matrix["optional_metrics_requested"] == ["mcd"]
+    assert (tmp_path / "matrix" / "matrix.json").is_file()
+    for run in matrix["runs"]:
+        run_manifest_path = Path(run["manifest_path"])
+        assert run_manifest_path.is_file()
+        run_manifest = json.loads(run_manifest_path.read_text(encoding="utf-8"))
+        assert run_manifest["results"][0]["optional_metric_records"][0]["status"] == "skipped"
 
 
 def test_init_speech_bwe_evalset_writes_tiny_reference_set(tmp_path: Path) -> None:

@@ -32,6 +32,15 @@ audio-super-res eval run \
   --work-dir runs/sinc-work \
   --output runs/sinc.json
 
+audio-super-res eval matrix \
+  --dataset evalsets/speech_bwe_v1/speech_clean_48k \
+  --backend sinc-resample \
+  --degrader lowpass_4k \
+  --degrader wideband_16k \
+  --degrader mp3_32kbps \
+  --optional-metric mcd \
+  --output-dir runs/matrix-smoke
+
 audio-super-res eval compare runs/sinc.json runs/lavasr.json --output runs/comparison.json
 ```
 
@@ -76,6 +85,10 @@ audio-super-res eval compare runs/sinc.json runs/lavasr.json \
 `eval run` accepts a directory of clean `.wav` reference files. It writes degraded inputs, backend
 outputs, full-reference metrics, quality/stability checks, and simple runtime data into a JSON
 manifest.
+
+`eval matrix` runs multiple backend/degrader combinations and writes each run manifest plus a
+`matrix.json` index. Use it for smoke grids, Colab evidence bundles, and release regression
+artifacts before comparing specific candidate manifests.
 
 `eval init-speech-bwe` creates a deterministic synthetic tiny evalset for smoke and regression
 testing. It is useful for CI and example commands, but it is not a substitute for a licensed real

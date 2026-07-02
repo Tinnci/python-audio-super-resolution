@@ -34,6 +34,7 @@ This project follows semantic versioning once published to PyPI.
 - Added deterministic `opus_16k_24kbps` and `mp3_32kbps` codec-like degraders for lightweight eval coverage without requiring ffmpeg.
 - Added explicit optional full-reference adapter attempts through `eval run --optional-metric` for PESQ, STOI, ESTOI, and MCD, with skipped dependency records when unavailable.
 - Added backend load/init time and total elapsed time fields to benchmark and eval performance reports.
+- Added `audio-super-res eval matrix` to run backend/degrader grids and write a `matrix.json` index over individual eval manifests.
 
 ### Changed
 

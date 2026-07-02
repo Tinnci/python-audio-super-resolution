@@ -29,6 +29,7 @@ from .evaluation import (
     load_eval_manifest,
     run_downstream_eval,
     run_eval_dataset,
+    run_eval_matrix,
     run_listening_export,
     run_no_reference_eval,
     write_eval_manifest,
@@ -236,6 +237,43 @@ def build_eval_parser() -> argparse.ArgumentParser:
         help="Duration of each generated fixture. Defaults to 0.35.",
     )
     init_parser.add_argument("--force", action="store_true", help="Allow writing into a non-empty output directory.")
+
+    matrix_parser = subparsers.add_parser("matrix", help="Run a backend/degrader evaluation matrix.")
+    matrix_parser.add_argument("--dataset", type=Path, required=True, help="Directory of clean reference WAV files.")
+    matrix_parser.add_argument("--output-dir", type=Path, required=True, help="Output directory for matrix artifacts.")
+    matrix_parser.add_argument(
+        "--backend",
+        action="append",
+        choices=_backend_names(),
+        default=[],
+        help="Backend to evaluate. Can be repeated. Defaults to sinc-resample.",
+    )
+    matrix_parser.add_argument(
+        "--degrader",
+        action="append",
+        choices=SUPPORTED_DEGRADERS,
+        default=[],
+        help="Controlled degradation recipe. Can be repeated. Defaults to wideband_16k.",
+    )
+    matrix_parser.add_argument("--target-sr", type=int, default=48000, help="Target sample rate. Defaults to 48000.")
+    matrix_parser.add_argument("--limit", type=int, help="Limit the number of reference files for smoke runs.")
+    matrix_parser.add_argument(
+        "--optional-metric",
+        action="append",
+        choices=OPTIONAL_FULL_REFERENCE_METRICS,
+        default=[],
+        help="Explicit optional full-reference metric to attempt for each matrix run.",
+    )
+    matrix_parser.add_argument(
+        "--device", choices=VALID_DEVICES, default="cpu", help="Inference device. Defaults to cpu."
+    )
+    matrix_parser.add_argument(
+        "--runtime-provider",
+        choices=VALID_RUNTIME_PROVIDERS,
+        default="auto",
+        help="Runtime provider selection. Defaults to auto.",
+    )
+    matrix_parser.add_argument("--model-cache-dir", type=Path, help="Directory for model weights and metadata.")
 
     run_parser = subparsers.add_parser("run", help="Run an evaluation dataset.")
     run_parser.add_argument("--dataset", type=Path, required=True, help="Directory of clean reference WAV files.")
@@ -462,6 +500,24 @@ def _run_eval_command(argv: list[str]) -> int:
                 force=args.force,
             )
             print(f"Wrote speech BWE evalset {args.output_dir} ({manifest['record_count']} reference file(s))")
+            return 0
+        if args.eval_command == "matrix":
+            model_cache_dir = args.model_cache_dir if args.model_cache_dir is not None else default_model_cache_dir()
+            manifest = run_eval_matrix(
+                dataset_dir=args.dataset,
+                output_dir=args.output_dir,
+                backends=tuple(args.backend or ["sinc-resample"]),
+                degraders=tuple(args.degrader or ["wideband_16k"]),
+                target_sample_rate=args.target_sr,
+                limit=args.limit,
+                optional_metrics=tuple(args.optional_metric),
+                config=InferenceConfig(
+                    device=args.device,
+                    runtime_provider=args.runtime_provider,
+                    model_cache_dir=model_cache_dir,
+                ),
+            )
+            print(f"Wrote eval matrix {args.output_dir / 'matrix.json'} ({manifest['run_count']} run(s))")
             return 0
         if args.eval_command == "run":
             model_cache_dir = args.model_cache_dir if args.model_cache_dir is not None else default_model_cache_dir()
