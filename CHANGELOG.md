@@ -24,6 +24,8 @@ This project follows semantic versioning once published to PyPI.
 - Added a pinned external Whisper evaluator specification and Colab-only transcript workflow for
   precomputed downstream WER/CER evidence without adding an ASR package dependency.
 - Added a Colab-only verified MUSHRA bundle export for the licensed LibriSpeech sinc/LavaSR matrix.
+- Added a bounded Colab-only MossFormer2 feasibility workflow covering minimal checkpoints, safe
+  conversion, offline CPU inference, channel behavior, alignment, and parity-fixture constraints.
 
 ## 0.6.0 - 2026-07-12
 

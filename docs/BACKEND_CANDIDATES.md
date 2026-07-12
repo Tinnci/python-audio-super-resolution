@@ -5,14 +5,15 @@ This document owns implementation-grade evidence for model candidates. Admission
 
 ## Current Decision
 
-Do not start another package-owned backend until v0.6.0 is released and broader LavaSR evidence is
-recorded. When capacity returns, run one bounded ClearerVoice `MossFormer2_SR_48K` feasibility spike.
-Do not implement MossFormer2, FlowHigh, and Resemble Enhance in parallel.
+The bounded ClearerVoice `MossFormer2_SR_48K` feasibility spike is complete. It clears the checkpoint,
+license, offline-loading, CPU-fallback, and basic I/O gates, but backend implementation remains a
+separate decision because the model is heavyweight and its output has a fixed alignment offset. Do
+not implement MossFormer2, FlowHigh, and Resemble Enhance in parallel.
 
 | Candidate | Domain | Decision |
 | --- | --- | --- |
 | `lavasr-v2-bwe` | Speech BWE | Implemented experimental baseline; broaden evidence before stable promotion. |
-| ClearerVoice `MossFormer2_SR_48K` | Speech SR to 48 kHz | First future spike; defer implementation pending safe checkpoint and parity evidence. |
+| ClearerVoice `MossFormer2_SR_48K` | Speech SR to 48 kHz | Feasibility passed; eligible for one bounded backend plan with tolerance-based parity. |
 | Resemble Enhance | Speech enhancement/BWE to 44.1 kHz | Deferred; consider only as an optional external backend. |
 | AudioSR `basic` / `speech` | General audio / speech | Keep the existing external-package backend; do not rewrite now. |
 | FlowHigh | General audio SR to 48 kHz | Deferred; CUDA-first runtime and checkpoint-license/provider blockers remain. |
@@ -24,6 +25,7 @@ Source:
 
 - repository: <https://github.com/modelscope/ClearerVoice-Studio>
 - code license: Apache-2.0
+- checkpoint license: Apache-2.0 in the pinned Hugging Face model card and repository tag
 - model repository: <https://huggingface.co/alibabasglab/MossFormer2_SR_48K>
 - inspected source revision: `6b3774dc79c46ae8bed2a4fa5f706f0ac8c75c61`
 - inspected model revision: `39eb1f25ea84f5e0315ade9ac0070fff216fc690`
@@ -38,24 +40,38 @@ Observed weight files:
 | `last_best_checkpoint_m.pt` | 218,471,889 | `6cbadb2b6b839e444bb65223c69eea162c8ad08f36e9d0a64144672c4095ab36` |
 | `do_03925000` | 1,744,458,369 | `549035d29a03928a854815b9c1b21c02d825845aa2e5f093af45694a236c1f19` |
 
-The public SR loader appears to use the pointer plus `m` and `g` checkpoints; the larger file should
-not enter a managed manifest unless the spike proves it is required.
+The Colab spike proved that the pointer plus `m` and `g` checkpoints are sufficient. The 1.74 GB
+`do_03925000` file was not downloaded and must not enter a managed manifest.
 
-Blockers:
+Recorded Colab CPU evidence:
 
-- upstream loading can download implicitly when files are absent;
-- checkpoints use PyTorch `.pt` loading and need a safe conversion/loading plan;
-- package-owned module boundaries and key mapping are not reproduced;
-- a short upstream CPU smoke and parity fixture have not been recorded;
-- the clean-speech limitation must remain visible in catalog metadata.
+- `last_best_checkpoint_m.pt` contains a `mossformer` state with 929 tensors and 54,497,666
+  parameters; `last_best_checkpoint_g.pt` contains a `generator` state with 311 tensors and
+  55,150,402 parameters;
+- both files load with `torch.load(..., weights_only=True)` and round-trip exactly through
+  safetensors after cloning shared rotary-frequency buffers;
+- converted sizes are 218,118,376 and 220,633,048 bytes, with recorded deterministic conversion
+  hashes in the evidence bundle;
+- a generated 0.25-second 16 kHz mono fixture ran on CPU with Hugging Face offline mode enabled;
+  model construction took 14-21 seconds and first inference took 4.1-5.2 seconds on Colab CPU;
+- repeated inference in one process was bit-exact, but separate clean sessions produced small
+  floating-point differences, so parity must use numeric/audio tolerances rather than a WAV hash;
+- 16 kHz mono input produced 48 kHz-domain shape `[1, 11776]`; 16 kHz stereo preserved two
+  independently processed channels with shape `[2, 11776]`;
+- both a 4000-sample 16 kHz input and a 12000-sample 48 kHz input produced 11776 samples, a fixed
+  `-224` sample (`-4.67 ms`) alignment delta for this fixture;
+- upstream preprocessing resamples inputs to 48 kHz, processes channels independently, and marks SR
+  output as 48 kHz rather than resampling it back to the original input rate.
 
-Spike exit criteria:
+The package-owned parity fixture should generate the same seeded 440 Hz mono input, compare the
+pre-alignment upstream float output, explicitly account for the 224-sample generator boundary loss,
+and use bounded waveform/spectral tolerances. Do not use a cross-process file hash as the parity
+oracle. The clean-speech limitation must remain visible in catalog metadata.
 
-1. Inspect tensor keys for the two required checkpoints from a temporary cache.
-2. Run upstream CPU inference on a sub-second fixture without provider calls during inference.
-3. Record input/output sample-rate, channel, alignment, and preprocessing behavior.
-4. Decide whether conversion to a safer package-owned format is practical.
-5. Define a parity fixture before opening backend implementation.
+Implementation is now technically admissible, but it should be accepted only as a bounded,
+self-contained backend task with two managed safetensors files, explicit alignment policy, no
+implicit downloads, and gated real-weight tests. Its approximately 110 million parameters and slow
+CPU startup/inference make it unsuitable as the default lightweight backend.
 
 ## Resemble Enhance
 

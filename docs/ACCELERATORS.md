@@ -269,6 +269,23 @@ The bundle uses MUSHRA metadata with seed `0` and four stimuli per trial: refere
 anchor, sinc output, and LavaSR output. Public stimuli contain only blind IDs and generic paths;
 backend, role, and source mapping remain in the separate answer key.
 
+Run the bounded MossFormer2 feasibility spike on a fresh CPU session. Checkpoint download,
+inspection, conversion, and real inference all remain remote:
+
+```sh
+colab new -s asr-mossformer2
+colab exec -s asr-mossformer2 -f examples/colab_mossformer2_spike.py --timeout 3600
+colab download -s asr-mossformer2 \
+  /content/asr-mossformer2-spike.tar.gz \
+  runs/asr-mossformer2-spike.tar.gz
+colab stop -s asr-mossformer2
+```
+
+The script pins both upstream revisions, downloads only the pointer and two inference checkpoints,
+forces offline mode before model construction, uses an isolated Python worker after dependency
+installation, and records safetensors round-trip plus mono/stereo/alignment evidence. Do not run it
+locally.
+
 For upstream LavaSR parity, install upstream dependencies deliberately and use the environment gates
 in [../tests/README.md](../tests/README.md). Validate AudioSR separately because its external package
 owns checkpoint and accelerator behavior.
