@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project follows semantic versioning once published to PyPI.
 
-## Unreleased
+## 0.6.0 - 2026-07-12
 
 ### Added
 
