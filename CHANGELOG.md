@@ -19,6 +19,8 @@ This project follows semantic versioning once published to PyPI.
 
 - Added a versioned release regression threshold policy and a Colab CLI workflow for same-backend
   baseline/candidate matrix evidence.
+- Added a pinned, license-recorded LibriSpeech `dev-clean` tiny baseline specification and
+  Colab-only real-speech matrix workflow.
 
 ## 0.6.0 - 2026-07-12
 

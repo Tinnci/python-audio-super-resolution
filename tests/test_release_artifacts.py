@@ -52,5 +52,21 @@ def test_eval_threshold_policy_is_valid_release_artifact() -> None:
     }
 
 
+def test_librispeech_evalset_spec_is_pinned_and_remote_only() -> None:
+    spec = _load_json("librispeech-dev-clean-tiny-v1.json")
+    source = spec["source"]
+    selection = spec["selection"]
+    storage_policy = spec["storage_policy"]
+
+    assert spec["dataset_id"] == "librispeech-dev-clean-tiny-v1"
+    assert source["subset"] == "dev-clean"
+    assert source["archive_md5"] == "42e2234ba48799c1f50f24a7926300a1"
+    assert source["license"] == "CC BY 4.0"
+    assert selection["speaker_count"] == selection["female_speakers"] + selection["male_speakers"] == 8
+    assert selection["target_sample_rate"] == 48000
+    assert storage_policy["commit_audio"] is False
+    assert storage_policy["run_location"] == "Colab CLI remote runtime"
+
+
 def _load_json(name: str) -> dict[str, object]:
     return json.loads((ARTIFACTS / name).read_text(encoding="utf-8"))

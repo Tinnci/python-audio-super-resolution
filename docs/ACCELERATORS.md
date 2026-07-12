@@ -225,6 +225,22 @@ also contains a `sinc-resample` matrix, the threshold policy, reports, resolved 
 matrix comparison. Override `ASR_BASELINE_REF` and `ASR_CANDIDATE_REF` only with reviewable refs;
 recorded evidence always includes the resolved commits.
 
+For the licensed real-speech baseline, run the pinned LibriSpeech workflow in a fresh T4 session:
+
+```sh
+colab new -s asr-librispeech --gpu T4
+colab exec -s asr-librispeech -f examples/colab_librispeech_eval.py --timeout 3600
+colab download -s asr-librispeech \
+  /content/asr-librispeech-evidence.tar.gz \
+  runs/asr-librispeech-evidence.tar.gz
+colab stop -s asr-librispeech
+```
+
+The workflow downloads the official `dev-clean` archive remotely, verifies its published MD5,
+retains the source license/README/speaker metadata, selects four female and four male speakers, and
+converts one utterance per speaker to 48 kHz. It then runs matching sinc/LavaSR matrices. The source
+archive, converted audio, and model computations never run or persist in the local repository.
+
 For upstream LavaSR parity, install upstream dependencies deliberately and use the environment gates
 in [../tests/README.md](../tests/README.md). Validate AudioSR separately because its external package
 owns checkpoint and accelerator behavior.

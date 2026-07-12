@@ -419,6 +419,28 @@ evalsets/
 Keep this dataset outside the repository unless licensing allows redistribution. Default tests use
 generated audio fixtures only.
 
+The first maintained real-speech baseline is specified by
+[`examples/artifacts/librispeech-dev-clean-tiny-v1.json`](../examples/artifacts/librispeech-dev-clean-tiny-v1.json).
+It pins the official LibriSpeech `dev-clean` archive URL and MD5, records the CC BY 4.0 license, and
+selects one utterance from four female and four male speakers deterministically. The Colab workflow
+downloads and converts the audio remotely; neither the source archive nor converted WAV files are
+committed.
+
+The first T4 run covered eight utterances (about 61 seconds total) with `wideband_16k` and
+`lowpass_4k`. Both backends completed all 16 items without stability failures. Mean results included:
+
+| Degrader | Backend | SI-SDR dB | LSD dB | High-band LSD 8–16 kHz | MCD | RTF |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `wideband_16k` | `sinc-resample` | 43.88 | 5.57 | 6.45 | 2.68 | 0.098 |
+| `wideband_16k` | `lavasr-compat` | 28.62 | 26.94 | 31.78 | 46.71 | 0.175 |
+| `lowpass_4k` | `sinc-resample` | 20.81 | 19.68 | 14.19 | 52.45 | 0.003 |
+| `lowpass_4k` | `lavasr-compat` | 20.81 | 19.82 | 14.17 | 52.45 | 0.074 |
+
+These figures are evidence, not an aggregate ranking. The wideband result shows that LavaSR's
+generated high-frequency content is penalized heavily by reference-fidelity metrics. Stable
+promotion therefore requires downstream ASR and blind listening evidence rather than interpreting
+matrix completion or one spectral score as proof of improvement.
+
 ## Golden Compatibility Validation
 
 Golden validation compares a package-owned compatible backend with an upstream output or a
