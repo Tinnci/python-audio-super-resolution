@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 This project follows semantic versioning once published to PyPI.
 
+## Unreleased
+
+### Fixed
+
+- Preserved exact digital silence in `lavasr-compat` instead of passing it through the model and
+  producing deterministic low-level output texture.
+- Made `audio-super-res eval matrix` return a non-zero exit status when any matrix run fails, so
+  remote evidence workflows cannot report success for failed stability checks.
+
 ## 0.6.0 - 2026-07-12
 
 ### Added

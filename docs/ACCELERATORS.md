@@ -224,3 +224,17 @@ A fresh Colab Tesla T4 run was recorded on 2026-07-01 UTC at commit
 
 This is historical evidence for the eager CUDA path, not a permanent performance baseline. Repeat
 the workflow on the release commit before making new device/provider claims.
+
+A v0.6.0 Colab CLI run on 2026-07-12 validated the published tag at commit
+`5e4241c5ed7399b29d04bbfe39f04fdfd9f100dc` on the same Tesla T4 environment:
+
+- real-weight download/verification and CUDA torch smoke passed;
+- explicit CUDA device detection passed;
+- four of five generated failure cases passed;
+- exact digital silence exposed deterministic model output around `-75 dBFS` RMS and was correctly
+  reported as `silence_hallucination` by the eval harness;
+- the follow-up exact-silence preservation fix passed all five cases on the same remote session,
+  with zero duration drift for the silence fixture.
+
+The downloaded evidence archive belongs under ignored `runs/` or the associated GitHub issue/PR,
+not in the source distribution.
