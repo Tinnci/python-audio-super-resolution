@@ -1,62 +1,86 @@
-# Release Checklist
+# Release And Merge Checklist
 
-Use this checklist when publishing a package release.
+This document owns repeatable merge and release verification. Milestone direction belongs in
+[../ROADMAP.md](../ROADMAP.md); user-facing changes belong in [../CHANGELOG.md](../CHANGELOG.md).
 
-## Local Verification
+## Before Merge
+
+1. Confirm the branch base and inspect the complete diff.
+2. Keep unrelated working-tree changes out of the merge.
+3. Add regression coverage for behavior changes.
+4. Update `CHANGELOG.md` when users, manifests, CLI behavior, packaging, or compatibility changes.
+5. Run:
 
 ```sh
 pixi run lint
 pixi run format-check
 pixi run typecheck
 pixi run test
+```
+
+6. Run `git diff --check` and review generated/untracked files.
+7. Treat real weights, external packages, and accelerator tests as explicit gates; record which were
+   run instead of implying they are covered by the default suite.
+
+## Before Release
+
+Run the merge checks, then build and inspect the distributions:
+
+```sh
 pixi run build
 pixi run metadata-check
 pixi run wheel-check
-pixi run uv pip check
 ```
 
-Also confirm:
+Also verify:
 
-- `CHANGELOG.md` describes the release.
-- `pyproject.toml` and `src/audio_super_resolution/__init__.py` use the same version.
-- README commands still match the CLI.
-- `examples/artifacts/` still contains current sample JSON artifacts.
-- `docs/COLAB.md` still reflects the current model status.
+- `pyproject.toml`, `audio_super_resolution.__version__`, tag, and changelog version agree;
+- the wheel contains `py.typed` and the expected package modules;
+- README installation and CLI examples match the release;
+- a clean environment can install the wheel and run `audio-super-res --version`,
+  `--list-backends`, and a short `sinc-resample` enhancement;
+- optional model status and limitations match `--list-models --list-format json`;
+- CI passes on the exact release commit.
 
 ## Publish Flow
 
-Trigger a GitHub Release only after the matching milestone gates in [ROADMAP.md](../ROADMAP.md) are satisfied.
+1. Merge the prepared release changes.
+2. Create a signed or annotated version tag matching the source version.
+3. Push the tag and use the GitHub release workflow.
+4. Verify the published files and metadata on PyPI.
+5. Install the published wheel in a clean environment and repeat the CLI smoke test.
+6. Record any release-specific exception in the GitHub release notes or issue tracker rather than
+   creating another permanent snapshot document.
 
-1. Confirm PyPI trusted publishing is configured for this repository.
-2. Create a version tag such as `v0.2.0`.
-3. Push the tag to GitHub.
-4. Create a GitHub release from the tag.
-5. The release workflow builds with Pixi and publishes through `pypa/gh-action-pypi-publish`.
+## Trusted Publishing
 
-## PyPI Trusted Publishing
+Publishing uses GitHub Actions OIDC with the `pypi` environment. The configured PyPI project is
+`audio-super-resolution`, owned by `Tinnci`, and the release workflow is `release.yml`. No PyPI API
+token should be stored in the repository.
 
-The release workflow already uses PyPI Trusted Publishing / GitHub OIDC:
+Before publishing, confirm the repository, workflow, environment, owner, and active GitHub account
+still match the trusted-publisher configuration.
 
-- `.github/workflows/release.yml` grants `id-token: write`.
-- The publish job uses the `pypi` GitHub environment.
-- `pypa/gh-action-pypi-publish` is called without a password or API token.
+## Historical Baseline
 
-The first public package has already been created on PyPI, so this repository should keep using the active trusted publisher rather than adding a long-lived API token.
+The first `0.1.0` release dry run established the reusable process now captured above:
 
-Expected publisher settings:
+- local test and build gates passed;
+- CI and security workflows passed on `main`;
+- sdist, wheel, and example JSON artifacts were inspected;
+- the GitHub `pypi` environment and PyPI pending trusted publisher were confirmed;
+- publishing used OIDC without an API token.
 
-- Project name: `audio-super-resolution`
-- Publisher: GitHub Actions
-- Owner: `Tinnci`
-- Repository: `python-audio-super-resolution`
-- Workflow: `release.yml`
-- Environment: `pypi`
+`0.1.0` was later superseded by `0.1.1` for Python 3.10 compatibility. Exact historical commits,
+workflow runs, and release artifacts remain available in Git and GitHub history; they do not need a
+separate living document.
 
-Confirm these settings in PyPI before tagging if the release workflow, repository owner, repository name, or publishing environment changes.
+## Evidence Retention
 
-## Records And Artifacts
-
-- Historical first-release dry-run record: [RELEASE_DRY_RUN_0.1.0.md](RELEASE_DRY_RUN_0.1.0.md)
-- Current release scope and milestone gates: [ROADMAP.md](../ROADMAP.md)
-- Sample release artifacts: [examples/artifacts/](../examples/artifacts/)
-- Docker usage: [README.md](../README.md#docker)
+- Keep stable commands and policies in this document.
+- Keep milestone priorities in `ROADMAP.md`.
+- Keep release-facing changes in `CHANGELOG.md`.
+- Keep generated matrix, benchmark, quality, and listening evidence under ignored `runs/` or attach
+  it to the relevant release/issue.
+- Add a permanent record only when it contains a decision or procedure that cannot be reconstructed
+  from Git history and generated artifacts.

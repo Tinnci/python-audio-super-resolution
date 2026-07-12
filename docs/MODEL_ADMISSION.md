@@ -11,7 +11,8 @@ Use two admission targets:
 | `catalog` | The model can be listed or tracked as a candidate, but may still depend on external code or incomplete validation. |
 | `self-contained` | The model is suitable for implementation in this package without importing upstream project code at inference time. |
 
-`v0.3.0` uses this document to compare model candidates. CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, and ONNX Runtime provider work belongs to `v0.4.0`.
+Use this gate before opening backend implementation. CUDA, ROCm, XPU, DirectML, OpenVINO,
+TensorRT, and ONNX Runtime provider work remains separate from model admission.
 
 ## Required Metadata
 

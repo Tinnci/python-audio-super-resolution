@@ -1,192 +1,117 @@
 # Roadmap
 
-The package has a stable lightweight baseline and is adding model-backed inference behind the same CLI/API surface. The default path must remain offline, deterministic, and small.
+The project has a stable lightweight baseline, an experimental self-contained LavaSR backend, and
+a broad evaluation harness. The next phase should convert that implementation breadth into release
+evidence and a smaller number of well-supported paths.
 
-## Current Baseline
+## Current Position
 
-- `sinc-resample` is the default backend and works without model weights or network access.
-- `audiosr` is available as an optional external-package backend; its checkpoint behavior is upstream-controlled.
-- `lavasr-compat` is available as an experimental self-contained LavaSR v2 BWE backend with managed weights.
-- Managed weight infrastructure is implemented: multi-file manifests, path safety, size/SHA256 verification, explicit Hugging Face downloads, and verified local cache resolution.
-- Regression helpers are implemented: run manifests, manifest comparison, quality reports, preprocessing, chunking, and sample JSON artifacts.
-- Release automation uses GitHub Actions with PyPI Trusted Publishing / OIDC.
-
-## Completed: v0.1.x
-
-`v0.1.0` shipped the first public alpha baseline. Its PyPI files were yanked after `v0.1.1` replaced it with Python 3.10-compatible metadata/code.
-
-`v0.1.1` is the current published baseline:
-
-- PyPI install and CLI smoke test were validated on Python 3.10.
-- The `v0.1.0` milestone is closed.
-- First-release dry-run notes remain in [docs/RELEASE_DRY_RUN_0.1.0.md](docs/RELEASE_DRY_RUN_0.1.0.md) as historical release evidence.
-
-## Completed: v0.2.0 Validation Gates
-
-Goal: make the first self-contained compatible model backend useful enough to validate with real weights.
-
-Tracked work:
-
-- `#16` Implement `lavasr-compat` self-contained inference. Completed: self-contained torch inference runs with real LavaSR v2 BWE weights.
-- `#17` Add golden-sample validation for compatible backends. Completed: fixture format, metrics, docs, and offline tests are available.
-- `#18` Add gated real-weight model validation. Completed: gated LavaSR download verification and torch smoke tests are available.
-- `#19` Publish validated Colab and GPU documentation. Completed: repository-based Colab/GPU validation guide passed on a fresh Colab T4 runtime.
-- `#25` Add LavaSR upstream golden parity validation. Completed: gated upstream LavaSR/Vocos parity harness passed locally with the same verified weights.
-- The `v0.2.0` milestone is closed.
-
-Current `lavasr-compat` status:
-
-- Model spec, managed weight metadata, local bundle validation, and experimental torch runtime are implemented.
-- Gated real-weight download, torch smoke, upstream LavaSR/Vocos parity, and Colab T4 CLI inference have passed.
-- Golden/parity details live in [docs/GOLDEN.md](docs/GOLDEN.md); gated test commands live in [tests/README.md](tests/README.md).
-
-Remaining before releasing `v0.2.0`:
-
-- Cut the release when changelog, version metadata, and release artifacts are ready.
-
-Remaining before marking `lavasr-compat` stable:
-
-- Broaden fixture coverage beyond the initial parity sample.
-- Add stricter mel/STFT exactness tests if future changes touch `lavasr_torch`.
-- Keep default installs and default tests CPU/offline.
-
-## Completed: v0.3.0 Planning
-
-Goal: plan model expansion after the first compatible inference path has real validation evidence.
-
-Tracked work:
-
-- `#21` Improve model catalog metadata for backend comparison. Completed: model listings expose task/domain, I/O, accelerator declarations, weight metadata, validation evidence, recommended use, and limitations.
-- `#22` Define model admission criteria and candidate scorecard. Completed: documentation and scorecard API are available.
-- `#23` Evaluate next speech SR/BWE compatible backend candidates. Completed: ClearerVoice `MossFormer2_SR_48K` is the next feasibility target.
-- `#24` Evaluate general-audio SR candidate backends. Completed: keep AudioSR external, track FlowHigh as a feasibility candidate, and defer new general-audio self-contained work until reproducibility is proven.
-- `#31` Map ClearerVoice `MossFormer2_SR_48K` compatibility feasibility. Completed: defer self-contained implementation until checkpoint conversion, upstream parity, and CPU smoke evidence exist.
-- `#32` Map FlowHigh compatibility feasibility. Completed: defer implementation until CPU/offline execution, checkpoint licensing, and provider-neutral runtime behavior are proven.
-- `#33` Map Resemble Enhance compatibility feasibility. Completed: defer as a future optional speech enhancement/BWE backend rather than immediate package-owned SR.
-
-Decision rule:
-
-- `v0.2.0` is for inference framework hardening and validation.
-- `v0.3.0` is for choosing what to add next and how to compare candidates.
-- `v0.4.0` is for hardware acceleration and runtime-provider work after the model/backend abstractions are clear.
-- New candidate backends should not move into implementation until their weight format, license, preprocessing, I/O shape, and validation path are clear.
-
-## Completed: v0.4.0 Runtime Provider Planning
-
-Goal: optimize execution across hardware and external runtimes without making the baseline install heavy.
-
-Tracked work:
-
-- `#26` Define accelerator capability model and fallback policy. Completed: logical devices now cover CPU/CUDA/ROCm/XPU/MPS/DirectML, model/backend listings expose declared accelerator support, `device=auto` is documented, and unsupported explicit devices fail before inference.
-- `#27` Add runtime provider abstraction for optimized execution. Completed: import-light runtime provider metadata and resolution are available for `python`, `torch-eager`, `onnxruntime`, and `external-package`, with mocked availability tests.
-- `#28` Add gated accelerator validation and benchmark matrix. Completed: default tests remain CPU/offline, hardware validation is opt-in, and enhancement runs can write machine-readable benchmark JSON with timing and quality metrics.
-- `#29` Document accelerator install strategy and optional extras. Completed: accelerator install paths and the conservative extras policy live in [docs/ACCELERATORS.md](docs/ACCELERATORS.md).
-- `#30` Evaluate LavaSR optimized runtime and export paths. Completed: keep `lavasr-compat` on PyTorch eager until `torch.compile`, ONNX Runtime, TensorRT, or OpenVINO have real-weight benchmark and parity evidence.
-
-Decision rule:
-
-- Accelerator support is a runtime layer, not a model-selection layer.
-- Backend code should request capabilities from a runtime/provider abstraction instead of hard-coding CUDA, ROCm, XPU, DirectML, OpenVINO, TensorRT, or ONNX Runtime checks.
-- GPU/SDK-specific tests must remain gated and should produce JSON evidence before they become release gates.
-
-## Completed: v0.5.0 Evaluation And Regression Harness
-
-Goal: build a reproducible backend benchmark and regression workflow that evaluates more than one
-audio-quality score.
-
-Tracked work:
-
-- `#38` Add full-reference objective evaluation metrics. Completed: controlled degraders,
-  SI-SDR/SDR, LSD, high-band LSD, spectral convergence, optional metric adapter requirements, and
-  JSON eval manifests.
-- `#39` Add no-reference objective evaluation adapters. Completed: `audio-super-res eval
-  no-reference`, builtin CPU/offline `signal-stats` records, stable no-reference JSON shape, and
-  gated DNSMOS/NISQA/UTMOS/ViSQOL integration requirements.
-- `#40` Add downstream task evaluation workflows. Completed: `audio-super-res eval downstream`,
-  builtin transcript WER/CER delta evaluation from precomputed ASR outputs, and gated
-  speaker/VAD/KWS adapter schema.
-- `#41` Add perceptual listening-test export workflow. Completed: `audio-super-res eval
-  listening-export` writes AB/ABX/MUSHRA-ready blind stimuli, public manifest, external answer key,
-  and rating dimensions without requiring a browser/survey runtime.
-- `#42` Add engineering performance and stability evaluation. Completed: eval manifests include
-  elapsed time, RTF, peak RSS strategy/fallbacks, sample-rate checks, duration drift, clipping,
-  per-result failure status, lightweight failure-case classification, and backend
-  capability/governance facts.
-- `#43` Add eval regression manifests and comparison workflow. Completed: `audio-super-res eval run`,
-  `audio-super-res eval compare`, threshold-based regression checks, and comparison tables for audio
-  quality, downstream, engineering, stability, and governance.
-
-Decision rule:
-
-- Do not reduce backend choice to one aggregate score.
-- Keep heavyweight evaluators, ASR models, listening-test tooling, and model weights optional or gated.
-- Prefer separate tables for full-reference quality, no-reference quality, downstream impact,
-  listening evidence, engineering performance, stability, and governance.
-
-## Active: v0.6.0 Release Hardening And Real Eval Evidence
-
-Goal: turn the completed planning/eval work into a release-ready package with a tiny reproducible
-evalset, explicit optional evaluator boundaries, richer runtime evidence, and clear next-backend
-spikes.
-
-Tracked work:
-
-- Release hardening: source version metadata is prepared for `0.6.0`; release remains gated on the
-  full Pixi quality suite, wheel metadata checks, and CI success.
-- Evalset v1: `audio-super-res eval init-speech-bwe` creates a deterministic tiny
-  `speech_bwe_v1_tiny` fixture for smoke/regression workflows without committing binary audio.
-- Optional metrics: `eval run --optional-metric pesq|stoi|estoi|mcd` attempts explicit optional
-  full-reference adapters and records skipped dependency guidance when unavailable.
-- LavaSR stability: failure-case reporting remains the default guardrail; broader real-weight
-  LavaSR fixture coverage is the next gated validation target before stable promotion.
-- Downstream eval: transcript WER/CER remains default/offline; real ASR, speaker, VAD, and KWS
-  adapters stay gated until model licenses, labels, and runtime requirements are explicit.
-- Speech backend spike: ClearerVoice `MossFormer2_SR_48K` should proceed only through checkpoint key
-  inspection, safe conversion planning, CPU smoke, and upstream parity evidence.
-- Runtime evidence: benchmark and eval manifests now report backend load/init time, enhancement
-  elapsed time, total elapsed time, RTF, and peak RSS strategy/fallbacks.
-- Matrix execution: `audio-super-res eval matrix` can run backend/degrader smoke grids and write a
-  `matrix.json` index over the generated eval manifests.
-- Matrix comparison and evidence: threshold policy files, matrix comparison, Markdown reports,
-  artifact bundles, dataset manifest validation, lightweight MCD, and optional CUDA memory
-  profiling are available without adding heavyweight default dependencies.
-- Gated hardening tools: matrix cache/continue controls, synthetic failure-case fixtures, explicit
-  local torch checkpoint inspection, and external adapter protocol documentation are available for
-  LavaSR and candidate-backend spikes.
-
-Decision rule:
-
-- A release can ship the harness and gating boundaries without shipping heavyweight evaluators or
-  new model weights.
-- Do not mark `lavasr-compat` stable until broader fixtures and gated real-weight evidence pass.
-- Do not implement MossFormer2, FlowHigh, or Resemble Enhance until admission blockers are closed
-  with reproducible evidence.
-
-## Later: Post-v0.6 Hardening
-
-- Keep broadening `lavasr-compat` fixture coverage before marking it stable.
-- Keep candidate backends deferred until their weight, license, preprocessing, and validation blockers are cleared.
-- Use benchmark JSON reports as evidence for future accelerator/provider claims.
-
-## Backend Planning Snapshot
-
-This table is a routing guide only. Detailed model evidence and risks live in the candidate review
-documents linked from [docs/README.md](docs/README.md).
-
-| Backend | Role |
+| Area | State |
 | --- | --- |
-| `sinc-resample` | Implemented deterministic baseline. |
-| `audiosr` | Implemented optional external AudioSR wrapper. |
-| `lavasr-compat` | Experimental self-contained speech BWE backend; real-weight download, torch smoke, and initial upstream parity pass. |
-| `mossformer-sr-compat` | Deferred feasibility candidate; requires checkpoint conversion/parity and CPU smoke evidence before implementation. |
-| `flowhigh-compat` | Deferred feasibility candidate; current upstream path is CUDA-first and checkpoint licensing/provider guarantees need resolution. |
-| `resemble-enhance` | Deferred speech enhancement/BWE candidate; better suited to a future optional external backend. |
-| `nuwave` | Deferred research candidate. |
-| custom backend | User-provided backend implementing the package protocol. |
+| Baseline | `sinc-resample` is stable, deterministic, CPU-only, and offline. |
+| External model | `audiosr` remains optional and upstream-owned. |
+| Self-contained model | `lavasr-compat` works with verified local weights but remains experimental. |
+| Evaluation | Full-reference, no-reference, downstream, listening, matrix, report, and bundle workflows are implemented. |
+| Packaging | Source version is `0.6.0`; build, metadata, wheel, lint, type, and default test gates are available through Pixi. |
+
+## Priority 0: Ship v0.6.0 Cleanly
+
+The immediate goal is a release-quality package, not another model backend.
+
+Required before release:
+
+1. Merge the relative matrix run-manifest resolution fix and its regression test.
+2. Run the complete local release checklist in [docs/RELEASE.md](docs/RELEASE.md).
+3. Confirm CI on the release commit and inspect the built wheel/sdist.
+4. Run a fresh installed-wheel CLI smoke test outside the source tree.
+5. Publish release notes from [CHANGELOG.md](CHANGELOG.md) and retain generated evidence outside the
+   repository unless it is small and intentionally versioned.
+
+Release scope deliberately excludes new heavyweight evaluators, new model weights, and a new
+self-contained backend.
+
+## Priority 1: Stabilize LavaSR With Broader Evidence
+
+`lavasr-compat` should not be marked stable from a single parity path. The next validation slice is:
+
+- several short speech fixtures covering silence, low volume, near clipping, stereo/channel
+  behavior, different input sample rates, and Chinese/English speech;
+- real-weight CPU and CUDA evidence using the same manifest and benchmark schema;
+- stricter mel/STFT parity tests before changing `lavasr_torch` internals;
+- golden or upstream parity thresholds that distinguish numerical drift from audible regressions;
+- documented failure rates, RTF, peak memory, and output quality rather than a single score.
+
+Promotion criteria:
+
+- no implicit downloads during inference;
+- verified, license-usable local weights;
+- reproducible fixtures and commands;
+- passing stability and parity evidence on the supported runtime path;
+- known limitations visible in model listings.
+
+## Priority 2: Produce Real Evaluation Evidence
+
+The harness is implemented; the missing value is a repeatable evidence set.
+
+Next deliverables:
+
+1. Define a small licensed speech BWE evaluation set outside the repository.
+2. Commit a threshold-policy example for release regression use.
+3. Record baseline matrices for `sinc-resample` and gated `lavasr-compat` runs.
+4. Add precomputed ASR transcript evidence before integrating any real ASR runtime.
+5. Export one blind listening bundle and document how results map back to objective and stability
+   tables.
+
+Do not collapse quality, downstream usefulness, speed, stability, and governance into one ranking.
+The evaluation policy lives in [docs/EVALUATION.md](docs/EVALUATION.md).
+
+## Priority 3: One Candidate Spike, Not Three Implementations
+
+ClearerVoice `MossFormer2_SR_48K` is the first candidate to revisit because it has a clear 48 kHz
+speech SR contract and identifiable checkpoint files. The spike must stop before backend
+implementation unless all of these are proven:
+
+- minimal required checkpoint files and stable hashes;
+- safe loading or a practical conversion format;
+- upstream CPU inference on a sub-second fixture without hidden downloads;
+- exact input/output sample-rate and channel behavior;
+- an upstream parity fixture suitable for a gated test.
+
+FlowHigh remains deferred until CPU/provider-neutral execution and checkpoint licensing are clear.
+Resemble Enhance remains a possible external speech-enhancement backend, not an immediate
+package-owned 48 kHz SR path. Detailed evidence lives in
+[docs/BACKEND_CANDIDATES.md](docs/BACKEND_CANDIDATES.md).
+
+## Priority 4: Optimize Only After Measurement
+
+Keep `lavasr-compat` on `torch-eager` until another provider has real-weight benchmarks and parity
+evidence. Evaluate `torch.compile` first because it changes the packaging surface less than ONNX,
+TensorRT, or OpenVINO. An optimized provider must retain deterministic CPU fallback and the same
+verified weight-store boundary.
+
+## Deferred
+
+- package-owned FlowHigh or Resemble Enhance implementations;
+- ONNX Runtime, TensorRT, OpenVINO, DirectML, ROCm, or XPU extras without an accepted backend;
+- heavyweight no-reference or downstream models in default dependencies;
+- new research candidates without official code, usable licenses, stable weights, and reproducible
+  inference.
+
+## Completed Milestones
+
+| Milestone | Outcome |
+| --- | --- |
+| v0.1.x | Public lightweight CLI/API baseline and Python 3.10-compatible release. |
+| v0.2.0 | Self-contained LavaSR runtime, managed weights, gated real-weight and parity validation. |
+| v0.3.0 | Model metadata, admission scorecard, and candidate feasibility decisions. |
+| v0.4.0 | Device/runtime-provider model and gated accelerator evidence workflow. |
+| v0.5.0 | Multi-dimensional evaluation and regression harness. |
+
+Detailed released and unreleased changes belong in [CHANGELOG.md](CHANGELOG.md), not this roadmap.
 
 ## Constraints
 
 - Baseline installation must not require GPU libraries, model weights, or network access.
-- Normal inference must remain offline unless the user explicitly opts into downloading weights.
-- Backend inference code must use verified local weight paths and must not call provider APIs directly.
-- Default tests must not require GPU access or large model downloads.
+- Normal inference must remain offline unless weight download is explicitly requested.
+- Backend inference must use verified local weights and must not call provider APIs directly.
+- Default tests must remain CPU-friendly, offline, and free of large binary fixtures.

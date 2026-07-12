@@ -2355,7 +2355,33 @@ def _resolve_manifest_path(record: dict[str, object], *, base_path: Path) -> Pat
     path = Path(raw_path)
     if path.is_absolute():
         return path
-    return base_path.parent / path
+    candidates = _relative_manifest_path_candidates(path, base_path=base_path)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
+def _relative_manifest_path_candidates(path: Path, *, base_path: Path) -> list[Path]:
+    matrix_dir = base_path.parent
+    candidates = [matrix_dir / path]
+    path_parts = path.parts
+    matrix_parts = matrix_dir.parts
+    for prefix_size in range(min(len(path_parts), len(matrix_parts)), 0, -1):
+        if path_parts[:prefix_size] != matrix_parts[-prefix_size:]:
+            continue
+        candidates.append(matrix_dir.parents[prefix_size - 1] / path)
+        break
+    candidates.append(path)
+    unique_candidates: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_candidates.append(candidate)
+    return unique_candidates
 
 
 def _metric_summary(

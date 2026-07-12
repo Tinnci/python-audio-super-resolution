@@ -1,8 +1,8 @@
 # Evaluation And Regression Harness
 
-This document owns the `v0.5.0` backend evaluation plan. Evaluation is not a single audio-quality
-score. It is a reproducible workflow that compares backends across quality, downstream usefulness,
-engineering cost, stability, and governance.
+This document owns backend evaluation and regression policy. Evaluation is not a single
+audio-quality score. It is a reproducible workflow that compares backends across quality,
+downstream usefulness, engineering cost, stability, and governance.
 
 ## Core Flow
 
@@ -413,7 +413,63 @@ evalsets/
 Keep this dataset outside the repository unless licensing allows redistribution. Default tests use
 generated audio fixtures only.
 
+## Golden Compatibility Validation
+
+Golden validation compares a package-owned compatible backend with an upstream output or a
+previously accepted artifact. It is intended for paths such as `lavasr-compat`; real checkpoints
+must remain outside the default suite.
+
+A fixture records the backend/model identity, relative input and reference paths, sample rates,
+upstream source revision, and comparison thresholds. Example:
+
+```json
+{
+  "schema_version": 1,
+  "id": "lavasr-v2-bwe-sine-16k",
+  "backend": "lavasr-compat",
+  "model_id": "lavasr-v2-bwe",
+  "input": {"path": "input.wav", "sample_rate": 16000},
+  "reference": {
+    "path": "reference.wav",
+    "source": "upstream LavaSR commit <sha>",
+    "sample_rate": 48000
+  },
+  "thresholds": {
+    "max_duration_drift_seconds": 0.05,
+    "max_peak_delta": 0.02,
+    "max_rms_delta": 0.02,
+    "max_log_mel_l1": 0.5,
+    "max_hf_energy_ratio_delta": 0.05,
+    "high_frequency_start_hz": 8000
+  }
+}
+```
+
+`compare_golden_outputs()` and `compare_golden_fixture()` check sample rate, duration drift, peak
+and RMS deltas, mean absolute log-mel difference, and high-frequency energy-ratio drift. Use
+spectral statistics and relaxed thresholds for stochastic models instead of strict waveform
+identity.
+
+Regeneration procedure:
+
+1. Pin upstream code, checkpoint revision, device, precision, and seed.
+2. Use a short license-safe input.
+3. Generate the upstream reference and local output from the same verified weights.
+4. Tune thresholds only for expected numerical drift.
+5. Keep small legal fixtures in the repository; keep large or third-party artifacts in gated
+   external storage.
+
+The gated LavaSR parity test compares `lavasr-compat` with upstream `LavaSR.enhancer.LavaBWE` using
+the same local weights. Installation and environment gates are documented in
+[../tests/README.md](../tests/README.md).
+
 ## Future Work
 
-The first `v0.5.0` harness keeps richer memory/load-time profiling, expanded optional evaluator
-adapters, and stricter release threshold policies as future work.
+Prioritize evidence over additional adapters:
+
+- define a small licensed evaluation set outside the repository;
+- publish an example threshold policy for release regression runs;
+- record repeatable `sinc-resample` and gated `lavasr-compat` matrix evidence;
+- broaden real-weight stability and golden fixtures before changing model internals;
+- add heavyweight no-reference, ASR, speaker, VAD, or KWS adapters only for a concrete deployment
+  question with explicit model, license, label, and runtime requirements.
