@@ -108,6 +108,34 @@ def test_compare_eval_manifests_applies_threshold_directions() -> None:
     assert ("rtf", "lower_is_better") in regressions
 
 
+def test_compare_eval_manifests_treats_all_elapsed_times_as_lower_is_better() -> None:
+    baseline = _eval_manifest("lavasr-compat", si_sdr=10.0, lsd=3.0)
+    candidate = _eval_manifest("lavasr-compat", si_sdr=10.0, lsd=3.0)
+    baseline["results"][0]["performance"].update(
+        {
+            "load_time_seconds": 1.0,
+            "total_elapsed_seconds": 2.0,
+        }
+    )
+    candidate["results"][0]["performance"].update(
+        {
+            "load_time_seconds": 1.5,
+            "total_elapsed_seconds": 2.5,
+        }
+    )
+
+    comparison = compare_eval_manifests(
+        baseline,
+        candidate,
+        thresholds={"load_time_seconds": 0.1, "total_elapsed_seconds": 0.1},
+    )
+
+    assert comparison["passed"] is False
+    regressions = {(regression["field"], regression["direction"]) for regression in comparison["regressions"]}
+    assert ("load_time_seconds", "lower_is_better") in regressions
+    assert ("total_elapsed_seconds", "lower_is_better") in regressions
+
+
 def test_cli_eval_run_and_compare(tmp_path: Path) -> None:
     dataset = tmp_path / "dataset"
     dataset.mkdir()

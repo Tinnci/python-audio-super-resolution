@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "release-regression-v1",
+  "description": "Conservative per-item quality and stability regression limits for same-backend release comparisons.",
+  "thresholds": {
+    "si_sdr_db": 0.5,
+    "sdr_db": 0.5,
+    "lsd_db": 0.25,
+    "spectral_convergence": 0.05,
+    "highband_lsd_4_8k": 0.25,
+    "highband_lsd_8_16k": 0.25,
+    "mcd": 0.5,
+    "duration_drift_seconds": 0.01,
+    "clipped_fraction": 0.001
+  },
+  "notes": [
+    "Use only when baseline and candidate share backend, dataset, degrader, device class, and runtime provider.",
+    "Performance limits are intentionally excluded until device-specific repeated-run variance is recorded.",
+    "Candidate failures, stability failures, and quality failures remain regressions independently of numeric thresholds."
+  ]
+}

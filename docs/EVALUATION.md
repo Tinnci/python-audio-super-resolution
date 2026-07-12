@@ -111,6 +111,12 @@ referenced run manifests into a portable evidence directory, optionally archived
 Use `eval matrix --reuse-existing` to keep completed run manifests, and `--fail-fast` when a
 combination-level failure should stop the whole matrix instead of being recorded as a failed run.
 
+The maintained example policy is
+[`examples/artifacts/eval-threshold-policy.json`](../examples/artifacts/eval-threshold-policy.json).
+It covers same-backend quality and stability regressions. It deliberately excludes RTF, elapsed
+time, and memory thresholds until repeated runs establish variance for a specific device/runtime
+pair. Never compare performance numbers across unlike hardware with this policy.
+
 `eval init-speech-bwe` creates a deterministic synthetic tiny evalset for smoke and regression
 testing. It is useful for CI and example commands, but it is not a substitute for a licensed real
 speech dataset when making backend quality claims.
