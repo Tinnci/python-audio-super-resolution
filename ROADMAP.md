@@ -49,7 +49,7 @@ Promotion criteria:
 - passing stability and parity evidence on the supported runtime path;
 - known limitations visible in model listings.
 
-## Priority 2: Produce Real Evaluation Evidence
+## Completed: Produce Real Evaluation Evidence
 
 The harness is implemented; the missing value is a repeatable evidence set.
 
@@ -59,7 +59,7 @@ Next deliverables:
 - [x] Commit a threshold-policy example for release regression use.
 - [x] Record baseline matrices for `sinc-resample` and gated `lavasr-compat` runs.
 - [x] Add precomputed ASR transcript evidence before integrating any real ASR runtime.
-- [ ] Export one blind listening bundle and document how results map back to objective and stability
+- [x] Export one blind listening bundle and document how results map back to objective and stability
    tables.
 
 First real-speech finding: the eight-speaker LibriSpeech `dev-clean` T4 run had no stability
@@ -70,6 +70,11 @@ downstream ASR plus blind listening evidence the next required decision inputs.
 Pinned Whisper `tiny.en` downstream evidence on the same eight utterances reported identical mean
 WER (`0.1594`) and CER (`0.0757`) for degraded input, sinc output, and LavaSR output. LavaSR neither
 improved nor degraded this small ASR slice, so blind listening remains the final P2 evidence gap.
+
+The deterministic MUSHRA export contains eight trials and 32 stimuli: reference, degraded anchor,
+sinc output, and LavaSR output for each utterance. Public trial entries expose only blind IDs and
+generic paths; role/backend/source mapping remains in the separately hashed answer key. Collecting
+human ratings is a follow-up study, not a prerequisite for completing the export workflow.
 
 Do not collapse quality, downstream usefulness, speed, stability, and governance into one ranking.
 The evaluation policy lives in [docs/EVALUATION.md](docs/EVALUATION.md).

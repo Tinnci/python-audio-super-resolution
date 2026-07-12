@@ -447,6 +447,12 @@ Mean WER was `0.1594` and mean CER was `0.0757` for all three conditions, with z
 delta on this eight-item slice. This rules out a measured ASR benefit here, but the sample is too
 small to prove general neutrality; it remains a reproducible downstream smoke baseline.
 
+The matching MUSHRA export uses seed `0` and includes eight trials with four stimuli each:
+reference, degraded anchor, sinc output, and LavaSR output. The verified public trial stimuli contain
+only `blind_id` and generic `path`; 8 reference, 8 anchor, and 16 system mappings remain in the
+external answer key. The downloaded bundle records SHA256 for both manifests so study results can
+be tied back to the exact blind ordering.
+
 ## Golden Compatibility Validation
 
 Golden validation compares a package-owned compatible backend with an upstream output or a
