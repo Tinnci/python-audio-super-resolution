@@ -18,14 +18,14 @@ evidence and a smaller number of well-supported paths.
 
 The immediate goal is a release-quality package, not another model backend.
 
-Required before release:
+Release-preparation status:
 
-1. Merge the relative matrix run-manifest resolution fix and its regression test.
-2. Run the complete local release checklist in [docs/RELEASE.md](docs/RELEASE.md).
-3. Confirm CI on the release commit and inspect the built wheel/sdist.
-4. Run a fresh installed-wheel CLI smoke test outside the source tree.
-5. Publish release notes from [CHANGELOG.md](CHANGELOG.md) and retain generated evidence outside the
-   repository unless it is small and intentionally versioned.
+- [x] Merge the relative matrix run-manifest resolution fix and its regression test.
+- [x] Run the complete local release checklist in [docs/RELEASE.md](docs/RELEASE.md).
+- [x] Confirm CI on the merge commit and inspect the built wheel/sdist.
+- [x] Run a fresh installed-wheel CLI smoke test outside the source tree.
+- [ ] Tag `v0.6.0`, publish the GitHub release, and verify the trusted-publishing workflow and PyPI
+  installation.
 
 Release scope deliberately excludes new heavyweight evaluators, new model weights, and a new
 self-contained backend.
