@@ -45,7 +45,10 @@ def test_lavasr_backend_preserves_exact_digital_silence(monkeypatch, tmp_path) -
         "audio_super_resolution.backends.lavasr_validation.validate_lavasr_v2_weight_bundle",
         lambda resolved: bundle_info,
     )
-    monkeypatch.setattr("audio_super_resolution.backends.lavasr_compat.resolve_runtime_provider", lambda *args: None)
+    monkeypatch.setattr(
+        "audio_super_resolution.backends.lavasr_compat.resolve_runtime_provider",
+        lambda *args: None,
+    )
     monkeypatch.setattr("audio_super_resolution.backends.lavasr_compat.resolve_device", lambda *args, **kwargs: "cuda")
     monkeypatch.setattr("audio_super_resolution.backends.lavasr_compat._require_torch_runtime", lambda: None)
 

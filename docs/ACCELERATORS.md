@@ -130,14 +130,20 @@ evidence, not a hard release gate, until stable baselines exist per device/provi
 
 ## LavaSR Optimization Recommendation
 
-Current recommendation: keep `lavasr-compat` on PyTorch eager.
+Current recommendation: keep `lavasr-compat` on PyTorch eager. A measured T4 `torch.compile` trial
+did not justify a selectable provider.
 
 Evidence and risk:
 
 - The PyTorch eager path has real-weight download verification, torch smoke coverage, upstream
   parity coverage, and a fresh Colab T4 validation record.
-- `torch.compile` may help some shapes, but it needs per-device measurement and output drift checks
-  before becoming a selectable provider.
+- Two fresh-session runs on the same one-second 16 kHz fixture produced contradictory warm results:
+  `0.96x` (compile slightly slower) and `1.82x` (compile faster). This is not a stable speedup claim.
+  First inference consistently increased from about `2.3-2.4 s` to `34-35 s`, and peak CUDA
+  allocation consistently increased from 72.2 MB to 80.8 MB.
+- Compile/eager drift was numerically small (maximum absolute error `5.22e-8`, RMS error
+  `1.06e-8`), but compiled repeats were not bit-exact. TorchInductor also warned that complex
+  operators are not supported for code generation and performance may be worse than eager.
 - ONNX export is not yet accepted because the current LavaSR graph includes STFT/ISTFT, mel
   projection, complex tensors, and `FastLRMerge` behavior that need parity fixtures before export.
 - TensorRT and OpenVINO should be separate graph-provider experiments after ONNX parity exists.
@@ -150,6 +156,22 @@ Future acceptance for replacing or adding an optimized LavaSR provider requires:
 2. A golden or upstream parity report showing output drift is acceptable.
 3. A documented dependency and packaging cost.
 4. A CPU fallback path that remains deterministic and offline.
+
+Reproduce the rejected compile experiment in a fresh T4 session:
+
+```sh
+colab new -s asr-lavasr-compile --gpu T4
+colab exec -s asr-lavasr-compile \
+  -f examples/colab_lavasr_compile_benchmark.py --timeout 3600
+colab download -s asr-lavasr-compile \
+  /content/asr-lavasr-compile-benchmark.tar.gz \
+  runs/asr-lavasr-compile-benchmark.tar.gz
+colab stop -s asr-lavasr-compile
+```
+
+The experiment compiles the already verified package-owned model internally; it deliberately does
+not register `torch-compile` as a public provider. Repeat it across fresh sessions and representative
+audio lengths before treating warm throughput as stable evidence.
 
 ## Fresh GPU Validation Workflow
 

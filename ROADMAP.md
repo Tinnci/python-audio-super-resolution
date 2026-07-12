@@ -102,12 +102,20 @@ and native 48 kHz inputs ran successfully; stereo channels were preserved. The s
 exposed a consistent 224-sample output shortening and cross-process floating-point drift, so any
 future backend needs explicit alignment plus tolerance-based parity rather than hash equality.
 
-## Priority 4: Optimize Only After Measurement
+## Completed: Optimize Only After Measurement
 
 Keep `lavasr-compat` on `torch-eager` until another provider has real-weight benchmarks and parity
 evidence. Evaluate `torch.compile` first because it changes the packaging surface less than ONNX,
 TensorRT, or OpenVINO. An optimized provider must retain deterministic CPU fallback and the same
 verified weight-store boundary.
+
+Two fresh T4 measurements rejected promoting `torch.compile`: warm results contradicted each other
+(`0.96x` and `1.82x`), cold inference consistently paid roughly 32 seconds of additional
+compilation, peak CUDA allocation increased, and compiled repeats were not bit-exact. Numerical
+eager/compile drift was small, but Inductor could not generate optimized code for the graph's
+complex operators. `torch-eager` therefore remains the only selectable package-owned provider;
+ONNX and hardware-specific providers remain deferred until a different graph strategy has parity
+evidence and a credible, repeatable measured benefit.
 
 ## Deferred
 
