@@ -26,6 +26,8 @@ This project follows semantic versioning once published to PyPI.
 - Added a Colab-only verified MUSHRA bundle export for the licensed LibriSpeech sinc/LavaSR matrix.
 - Added a bounded Colab-only MossFormer2 feasibility workflow covering minimal checkpoints, safe
   conversion, offline CPU inference, channel behavior, alignment, and parity-fixture constraints.
+- Added a Colab T4 LavaSR eager/`torch.compile` benchmark and recorded the evidence-based decision
+  to keep eager as the only selectable provider.
 
 ## 0.6.0 - 2026-07-12
 
