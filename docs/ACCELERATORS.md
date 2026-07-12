@@ -207,6 +207,24 @@ Set `ASR_GIT_REF`, `ASR_LAVASR_DEVICE`, or `ASR_COLAB_ARCHIVE` in the remote exe
 only when validating another immutable ref, device, or evidence destination. Do not run
 `examples/colab_lavasr_validation.py` locally: it intentionally refuses to run outside `/content`.
 
+For same-backend release regression evidence across Git refs, use a separate session or a fresh
+runtime after the stability workflow:
+
+```sh
+colab new -s asr-regression --gpu T4
+colab exec -s asr-regression -f examples/colab_eval_regression.py --timeout 3600
+colab download -s asr-regression \
+  /content/asr-eval-regression.tar.gz \
+  runs/asr-eval-regression.tar.gz
+colab stop -s asr-regression
+```
+
+The defaults compare `v0.6.0` with `main`, share one verified LavaSR cache, and run identical
+`wideband_16k`/`lowpass_4k` matrices over the deterministic eight-item smoke evalset. The archive
+also contains a `sinc-resample` matrix, the threshold policy, reports, resolved commits, and the
+matrix comparison. Override `ASR_BASELINE_REF` and `ASR_CANDIDATE_REF` only with reviewable refs;
+recorded evidence always includes the resolved commits.
+
 For upstream LavaSR parity, install upstream dependencies deliberately and use the environment gates
 in [../tests/README.md](../tests/README.md). Validate AudioSR separately because its external package
 owns checkpoint and accelerator behavior.

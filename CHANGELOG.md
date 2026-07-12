@@ -12,6 +12,13 @@ This project follows semantic versioning once published to PyPI.
   producing deterministic low-level output texture.
 - Made `audio-super-res eval matrix` return a non-zero exit status when any matrix run fails, so
   remote evidence workflows cannot report success for failed stability checks.
+- Corrected `load_time_seconds` and `total_elapsed_seconds` comparison direction to
+  `lower_is_better` alongside the other runtime metrics.
+
+### Added
+
+- Added a versioned release regression threshold policy and a Colab CLI workflow for same-backend
+  baseline/candidate matrix evidence.
 
 ## 0.6.0 - 2026-07-12
 
