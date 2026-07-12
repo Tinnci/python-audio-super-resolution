@@ -241,6 +241,21 @@ retains the source license/README/speaker metadata, selects four female and four
 converts one utterance per speaker to 48 kHz. It then runs matching sinc/LavaSR matrices. The source
 archive, converted audio, and model computations never run or persist in the local repository.
 
+To add downstream ASR evidence without introducing an ASR package dependency, run the pinned
+external evaluator immediately after the LibriSpeech workflow in the same session:
+
+```sh
+colab exec -s asr-librispeech -f examples/colab_asr_downstream.py --timeout 3600
+colab download -s asr-librispeech \
+  /content/asr-downstream-evidence.tar.gz \
+  runs/asr-downstream-evidence.tar.gz
+```
+
+The external model metadata and revision are pinned in
+`examples/artifacts/asr-evaluator-whisper-tiny-en.json`. Whisper runs only in Colab and writes
+precomputed transcripts. The package's normal `eval downstream` command remains lightweight and
+computes WER/CER from JSON rather than importing or downloading an ASR model.
+
 For upstream LavaSR parity, install upstream dependencies deliberately and use the environment gates
 in [../tests/README.md](../tests/README.md). Validate AudioSR separately because its external package
 owns checkpoint and accelerator behavior.

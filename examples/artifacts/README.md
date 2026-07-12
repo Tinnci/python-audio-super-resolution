@@ -10,5 +10,7 @@ These files are small, static examples of the JSON artifacts produced by the CLI
   variance is available.
 - `librispeech-dev-clean-tiny-v1.json`: source, checksum, license, deterministic selection, and
   storage policy for the remote-only real-speech evaluation baseline. No dataset audio is committed.
+- `asr-evaluator-whisper-tiny-en.json`: pinned external Whisper evaluator metadata for Colab-only
+  transcript generation. The package continues to consume precomputed transcripts only.
 
 They are intended for release notes, documentation, and downstream CI examples.

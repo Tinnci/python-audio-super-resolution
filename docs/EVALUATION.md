@@ -441,6 +441,12 @@ generated high-frequency content is penalized heavily by reference-fidelity metr
 promotion therefore requires downstream ASR and blind listening evidence rather than interpreting
 matrix completion or one spectral score as proof of improvement.
 
+Pinned external Whisper `tiny.en` transcription was then run in Colab over the `wideband_16k`
+degraded, sinc-enhanced, and LavaSR-enhanced files. The package consumed only the resulting JSON.
+Mean WER was `0.1594` and mean CER was `0.0757` for all three conditions, with zero sinc/LavaSR
+delta on this eight-item slice. This rules out a measured ASR benefit here, but the sample is too
+small to prove general neutrality; it remains a reproducible downstream smoke baseline.
+
 ## Golden Compatibility Validation
 
 Golden validation compares a package-owned compatible backend with an upstream output or a
