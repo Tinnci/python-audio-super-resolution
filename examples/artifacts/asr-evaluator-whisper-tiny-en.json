@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "evaluator_id": "whisper-tiny-en-pinned-v1",
+  "purpose": "External Colab-only ASR transcription for precomputed downstream WER/CER evidence.",
+  "model": {
+    "provider": "huggingface",
+    "id": "openai/whisper-tiny.en",
+    "revision": "87c7102498dcde7456f24cfd30239ca606ed9063",
+    "license": "Apache-2.0",
+    "task": "automatic-speech-recognition",
+    "language": "en"
+  },
+  "runtime": {
+    "transformers_version": "5.13.1",
+    "device": "cuda",
+    "dtype": "float16",
+    "input_sample_rate": 16000
+  },
+  "normalization": {
+    "casefold": true,
+    "keep": "ASCII letters, digits, apostrophes, and spaces",
+    "collapse_whitespace": true
+  },
+  "integration_policy": {
+    "package_dependency": false,
+    "run_location": "Colab CLI remote runtime",
+    "package_input": "Precomputed reference, baseline, and enhanced transcript JSON only"
+  }
+}

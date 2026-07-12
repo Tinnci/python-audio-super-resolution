@@ -21,6 +21,8 @@ This project follows semantic versioning once published to PyPI.
   baseline/candidate matrix evidence.
 - Added a pinned, license-recorded LibriSpeech `dev-clean` tiny baseline specification and
   Colab-only real-speech matrix workflow.
+- Added a pinned external Whisper evaluator specification and Colab-only transcript workflow for
+  precomputed downstream WER/CER evidence without adding an ASR package dependency.
 
 ## 0.6.0 - 2026-07-12
 

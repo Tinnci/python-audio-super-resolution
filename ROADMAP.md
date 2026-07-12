@@ -58,7 +58,7 @@ Next deliverables:
 - [x] Define a small licensed speech BWE evaluation set outside the repository.
 - [x] Commit a threshold-policy example for release regression use.
 - [x] Record baseline matrices for `sinc-resample` and gated `lavasr-compat` runs.
-- [ ] Add precomputed ASR transcript evidence before integrating any real ASR runtime.
+- [x] Add precomputed ASR transcript evidence before integrating any real ASR runtime.
 - [ ] Export one blind listening bundle and document how results map back to objective and stability
    tables.
 
@@ -66,6 +66,10 @@ First real-speech finding: the eight-speaker LibriSpeech `dev-clean` T4 run had 
 failures, but `sinc-resample` substantially outperformed `lavasr-compat` on full-reference
 wideband-16k fidelity metrics. This prevents stable promotion from objective metrics alone and makes
 downstream ASR plus blind listening evidence the next required decision inputs.
+
+Pinned Whisper `tiny.en` downstream evidence on the same eight utterances reported identical mean
+WER (`0.1594`) and CER (`0.0757`) for degraded input, sinc output, and LavaSR output. LavaSR neither
+improved nor degraded this small ASR slice, so blind listening remains the final P2 evidence gap.
 
 Do not collapse quality, downstream usefulness, speed, stability, and governance into one ranking.
 The evaluation policy lives in [docs/EVALUATION.md](docs/EVALUATION.md).

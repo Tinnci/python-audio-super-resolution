@@ -68,5 +68,21 @@ def test_librispeech_evalset_spec_is_pinned_and_remote_only() -> None:
     assert storage_policy["run_location"] == "Colab CLI remote runtime"
 
 
+def test_asr_evaluator_spec_is_pinned_and_not_a_package_dependency() -> None:
+    spec = _load_json("asr-evaluator-whisper-tiny-en.json")
+    model = spec["model"]
+    runtime = spec["runtime"]
+    integration_policy = spec["integration_policy"]
+
+    assert spec["evaluator_id"] == "whisper-tiny-en-pinned-v1"
+    assert model["id"] == "openai/whisper-tiny.en"
+    assert model["revision"] == "87c7102498dcde7456f24cfd30239ca606ed9063"
+    assert model["license"] == "Apache-2.0"
+    assert runtime["transformers_version"] == "5.13.1"
+    assert runtime["device"] == "cuda"
+    assert integration_policy["package_dependency"] is False
+    assert integration_policy["package_input"] == "Precomputed reference, baseline, and enhanced transcript JSON only"
+
+
 def _load_json(name: str) -> dict[str, object]:
     return json.loads((ARTIFACTS / name).read_text(encoding="utf-8"))
