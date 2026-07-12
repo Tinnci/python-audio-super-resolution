@@ -55,12 +55,17 @@ The harness is implemented; the missing value is a repeatable evidence set.
 
 Next deliverables:
 
-1. Define a small licensed speech BWE evaluation set outside the repository.
-2. Commit a threshold-policy example for release regression use.
-3. Record baseline matrices for `sinc-resample` and gated `lavasr-compat` runs.
-4. Add precomputed ASR transcript evidence before integrating any real ASR runtime.
-5. Export one blind listening bundle and document how results map back to objective and stability
+- [x] Define a small licensed speech BWE evaluation set outside the repository.
+- [x] Commit a threshold-policy example for release regression use.
+- [x] Record baseline matrices for `sinc-resample` and gated `lavasr-compat` runs.
+- [ ] Add precomputed ASR transcript evidence before integrating any real ASR runtime.
+- [ ] Export one blind listening bundle and document how results map back to objective and stability
    tables.
+
+First real-speech finding: the eight-speaker LibriSpeech `dev-clean` T4 run had no stability
+failures, but `sinc-resample` substantially outperformed `lavasr-compat` on full-reference
+wideband-16k fidelity metrics. This prevents stable promotion from objective metrics alone and makes
+downstream ASR plus blind listening evidence the next required decision inputs.
 
 Do not collapse quality, downstream usefulness, speed, stability, and governance into one ranking.
 The evaluation policy lives in [docs/EVALUATION.md](docs/EVALUATION.md).

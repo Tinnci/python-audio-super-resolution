@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "dataset_id": "librispeech-dev-clean-tiny-v1",
+  "purpose": "Small licensed real-speech full-reference baseline for remote audio super-resolution evaluation.",
+  "source": {
+    "name": "LibriSpeech ASR corpus",
+    "subset": "dev-clean",
+    "url": "https://www.openslr.org/resources/12/dev-clean.tar.gz",
+    "archive_md5": "42e2234ba48799c1f50f24a7926300a1",
+    "project_url": "https://www.openslr.org/12",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "selection": {
+    "speaker_count": 8,
+    "female_speakers": 4,
+    "male_speakers": 4,
+    "strategy": "Sort dev-clean speaker IDs by sex and choose the first four female and first four male speakers; choose the first FLAC utterance for each speaker.",
+    "language": "en",
+    "source_sample_rate": 16000,
+    "target_sample_rate": 48000
+  },
+  "storage_policy": {
+    "commit_audio": false,
+    "run_location": "Colab CLI remote runtime",
+    "evidence_location": "Ignored runs/ directory or GitHub issue/release attachment"
+  }
+}
