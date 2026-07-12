@@ -350,6 +350,30 @@ def test_threshold_policy_report_bundle_and_dataset_validation(tmp_path: Path) -
     assert (tmp_path / "bundle.tar.gz").is_file()
 
 
+def test_bundle_resolves_cwd_relative_matrix_run_manifests(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from audio_super_resolution.evaluation import bundle_eval_artifacts
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    monkeypatch.chdir(workspace)
+    dataset = Path("evalset")
+    manifest = init_speech_bwe_evalset(output_dir=dataset, count=1, duration_seconds=0.03)
+    run_eval_matrix(
+        dataset_dir=dataset / manifest["reference_dir"],
+        output_dir=Path("matrix"),
+        backends=("sinc-resample",),
+        degraders=("lowpass_4k",),
+    )
+
+    monkeypatch.chdir(tmp_path)
+    bundle = bundle_eval_artifacts(
+        manifest_paths=[workspace / "matrix" / "matrix.json"],
+        output_dir=tmp_path / "bundle",
+    )
+
+    assert bundle["artifact_count"] == 2
+
+
 def test_init_speech_bwe_evalset_writes_tiny_reference_set(tmp_path: Path) -> None:
     evalset_dir = tmp_path / "evalsets" / "speech_bwe_v1"
 

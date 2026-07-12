@@ -46,7 +46,14 @@ This project follows semantic versioning once published to PyPI.
 - Updated roadmap and release documentation for the completed `v0.1.x` release flow and completed `v0.2.0` validation gates.
 - Updated model and backend listing metadata to report declared accelerators and runtime providers without importing heavy runtimes.
 - Simplified documentation ownership by adding a docs index and keeping README focused on user entry points.
+- Consolidated GPU/Colab, golden validation, backend candidate, and release records into their
+  long-lived owner documents; refocused the roadmap on post-v0.6 priorities.
 - Updated Docker installation to use `uv pip install --system` instead of direct `pip install`.
+
+### Fixed
+
+- Fixed eval matrix run-manifest resolution when `matrix.json` was created from a relative output
+  directory and later compared or bundled from a different working directory.
 
 ## 0.1.1
 

@@ -1,7 +1,8 @@
 # Accelerators And Runtime Providers
 
-This document owns the `v0.4.0` accelerator and optimized-runtime policy. Accelerator support must
-not make the baseline install heavy, non-deterministic, or network-dependent.
+This document owns accelerator selection, hardware validation, and optimized-runtime policy.
+Accelerator support must not make the baseline install heavy, non-deterministic, or
+network-dependent.
 
 ## Current Decision
 
@@ -149,3 +150,61 @@ Future acceptance for replacing or adding an optimized LavaSR provider requires:
 2. A golden or upstream parity report showing output drift is acceptable.
 3. A documented dependency and packaging cost.
 4. A CPU fallback path that remains deterministic and offline.
+
+## Fresh GPU Validation Workflow
+
+Use a repository checkout when validating unreleased code or gated tests:
+
+```sh
+git clone https://github.com/Tinnci/python-audio-super-resolution.git
+cd python-audio-super-resolution
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv pip install --system -e ".[lavasr,download]"
+```
+
+Inspect the runtime before downloading weights:
+
+```sh
+audio-super-res --env-info
+audio-super-res --list-backends --list-format json
+audio-super-res --list-models --list-format json
+```
+
+Prepare weights explicitly, then run a short enhancement with machine-readable evidence:
+
+```sh
+audio-super-res --backend lavasr-compat --download-weights --prepare-model-cache
+audio-super-res --backend lavasr-compat --verify-weights
+
+audio-super-res input.wav output.wav \
+  --backend lavasr-compat \
+  --target-sr 48000 \
+  --device auto \
+  --runtime-provider auto \
+  --manifest run.json \
+  --quality-report-json quality.json \
+  --benchmark-json benchmark.json
+```
+
+Record the device, Python/torch versions, environment output, weight revision, inference command,
+sample rate, quality result, timing, peak memory strategy, and any parity test result. Keep generated
+artifacts in ignored `runs/` or attach them to the corresponding issue/release.
+
+For upstream LavaSR parity, install upstream dependencies deliberately and use the environment gates
+in [../tests/README.md](../tests/README.md). Validate AudioSR separately because its external package
+owns checkpoint and accelerator behavior.
+
+## Recorded GPU Evidence
+
+A fresh Colab Tesla T4 run was recorded on 2026-07-01 UTC at commit
+`a928d899547792fb2588ab3fe28f8a1da0578b8d`:
+
+- Python 3.12.13 and torch 2.11.0+cu128 detected CUDA successfully;
+- the default test suite passed;
+- LavaSR v2 BWE weights downloaded and verified explicitly;
+- the gated real-weight CUDA smoke passed;
+- CLI CUDA inference wrote a 48 kHz output plus passing run and quality records.
+
+This is historical evidence for the eager CUDA path, not a permanent performance baseline. Repeat
+the workflow on the release commit before making new device/provider claims.

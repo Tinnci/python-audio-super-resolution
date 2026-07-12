@@ -9,3 +9,5 @@ dist/
 .coverage
 coverage.xml
 .DS_Store
+.mypy_cache/
+runs/
