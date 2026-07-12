@@ -79,7 +79,7 @@ human ratings is a follow-up study, not a prerequisite for completing the export
 Do not collapse quality, downstream usefulness, speed, stability, and governance into one ranking.
 The evaluation policy lives in [docs/EVALUATION.md](docs/EVALUATION.md).
 
-## Priority 3: One Candidate Spike, Not Three Implementations
+## Completed: One Candidate Spike, Not Three Implementations
 
 ClearerVoice `MossFormer2_SR_48K` is the first candidate to revisit because it has a clear 48 kHz
 speech SR contract and identifiable checkpoint files. The spike must stop before backend
@@ -95,6 +95,12 @@ FlowHigh remains deferred until CPU/provider-neutral execution and checkpoint li
 Resemble Enhance remains a possible external speech-enhancement backend, not an immediate
 package-owned 48 kHz SR path. Detailed evidence lives in
 [docs/BACKEND_CANDIDATES.md](docs/BACKEND_CANDIDATES.md).
+
+The Colab CPU spike passed with only the pointer plus `m` and `g` checkpoints. Both state dicts can
+be loaded with `weights_only=True` and converted exactly to safetensors. Offline 16 kHz mono/stereo
+and native 48 kHz inputs ran successfully; stereo channels were preserved. The sub-second fixture
+exposed a consistent 224-sample output shortening and cross-process floating-point drift, so any
+future backend needs explicit alignment plus tolerance-based parity rather than hash equality.
 
 ## Priority 4: Optimize Only After Measurement
 
