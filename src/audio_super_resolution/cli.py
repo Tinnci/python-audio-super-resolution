@@ -602,7 +602,7 @@ def _run_eval_command(argv: list[str]) -> int:
                 ),
             )
             print(f"Wrote eval matrix {args.output_dir / 'matrix.json'} ({manifest['run_count']} run(s))")
-            return 0
+            return 0 if manifest["passed"] else 1
         if args.eval_command == "run":
             model_cache_dir = args.model_cache_dir if args.model_cache_dir is not None else default_model_cache_dir()
             manifest = run_eval_dataset(

@@ -423,6 +423,27 @@ def test_cli_eval_matrix(tmp_path: Path, capsys) -> None:
     assert {run["degrader"] for run in matrix["runs"]} == {"lowpass_4k", "mp3_32kbps"}
 
 
+def test_cli_eval_matrix_returns_nonzero_when_a_run_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setattr(
+        "audio_super_resolution.cli.run_eval_matrix",
+        lambda **kwargs: {"passed": False, "run_count": 1},
+    )
+
+    exit_code = main(
+        [
+            "eval",
+            "matrix",
+            "--dataset",
+            str(tmp_path / "dataset"),
+            "--output-dir",
+            str(tmp_path / "matrix"),
+        ]
+    )
+
+    assert exit_code == 1
+    assert "Wrote eval matrix" in capsys.readouterr().out
+
+
 def test_cli_eval_matrix_compare_report_bundle_and_validate_dataset(tmp_path: Path, capsys) -> None:
     evalset = tmp_path / "evalset"
     assert (

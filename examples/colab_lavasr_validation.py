@@ -194,6 +194,9 @@ def main() -> int:
             ],
             cwd=REPO_DIR,
         )
+        matrix_manifest = json.loads((matrix_dir / "matrix.json").read_text(encoding="utf-8"))
+        if not matrix_manifest.get("passed"):
+            raise RuntimeError("LavaSR failure-case matrix reported one or more failed runs")
         _write_summary(status="passed")
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"

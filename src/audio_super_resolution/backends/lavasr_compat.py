@@ -117,10 +117,13 @@ class LavaSRCompatBackend:
         device = resolve_device(self.config.device, supported_devices=LAVASR_CAPABILITY.accelerators)
         _require_torch_runtime()
 
+        prepared_audio, was_mono = _prepare_lavasr_input(audio, sample_rate)
+        if not np.any(prepared_audio):
+            return _restore_lavasr_output(np.zeros_like(prepared_audio).T, was_mono=was_mono)
+
         import torch
 
         model = self._load_model(resolved_weights, bundle_info, device=device)
-        prepared_audio, was_mono = _prepare_lavasr_input(audio, sample_rate)
         waveform = torch.from_numpy(prepared_audio.T.copy()).to(device=device, dtype=torch.float32)
 
         with torch.inference_mode():
