@@ -30,7 +30,7 @@ Release-preparation status:
 Release scope deliberately excludes new heavyweight evaluators, new model weights, and a new
 self-contained backend.
 
-## Priority 1: Stabilize LavaSR With Broader Evidence
+## Completed: Stabilize LavaSR With Broader Evidence
 
 `lavasr-compat` should not be marked stable from a single parity path. The next validation slice is:
 
@@ -48,6 +48,12 @@ Promotion criteria:
 - reproducible fixtures and commands;
 - passing stability and parity evidence on the supported runtime path;
 - known limitations visible in model listings.
+
+The release-tag and follow-up T4 workflows now cover verified real weights, CUDA smoke, failure-case
+matrices, strict digital-silence preservation, deterministic repeated inference, versioned
+regression thresholds, and same-backend parity across refs. The backend remains experimental because
+real-speech full-reference metrics did not justify stable promotion, not because the stability
+evidence is missing.
 
 ## Completed: Produce Real Evaluation Evidence
 
