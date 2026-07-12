@@ -256,6 +256,19 @@ The external model metadata and revision are pinned in
 precomputed transcripts. The package's normal `eval downstream` command remains lightweight and
 computes WER/CER from JSON rather than importing or downloading an ASR model.
 
+Export the blind listening bundle from the same real-speech matrices before stopping the session:
+
+```sh
+colab exec -s asr-librispeech -f examples/colab_listening_export.py --timeout 900
+colab download -s asr-librispeech \
+  /content/asr-listening-evidence.tar.gz \
+  runs/asr-listening-evidence.tar.gz
+```
+
+The bundle uses MUSHRA metadata with seed `0` and four stimuli per trial: reference, degraded
+anchor, sinc output, and LavaSR output. Public stimuli contain only blind IDs and generic paths;
+backend, role, and source mapping remain in the separate answer key.
+
 For upstream LavaSR parity, install upstream dependencies deliberately and use the environment gates
 in [../tests/README.md](../tests/README.md). Validate AudioSR separately because its external package
 owns checkpoint and accelerator behavior.
