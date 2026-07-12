@@ -237,6 +237,9 @@ On Unix-like shells, use `-v "$PWD":/workdir`.
 - [tests/README.md](tests/README.md): default and optional test strategy.
 - [examples/](examples/): Python examples and sample JSON artifacts.
 
+Real-weight/GPU validation is remote-only by policy. Use the Colab CLI workflow in
+[docs/ACCELERATORS.md](docs/ACCELERATORS.md) instead of running heavyweight validation locally.
+
 ## Requirements
 
 - Python 3.10 or newer

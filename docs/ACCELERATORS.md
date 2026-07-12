@@ -191,6 +191,22 @@ Record the device, Python/torch versions, environment output, weight revision, i
 sample rate, quality result, timing, peak memory strategy, and any parity test result. Keep generated
 artifacts in ignored `runs/` or attach them to the corresponding issue/release.
 
+For the maintained v0.6 LavaSR evidence workflow, use the Colab CLI from the repository root. The
+script performs all real-weight and GPU computation in the remote session:
+
+```sh
+colab new -s asr-v060 --gpu T4
+colab exec -s asr-v060 -f examples/colab_lavasr_validation.py --timeout 3600
+colab download -s asr-v060 \
+  /content/asr-v0.6.0-colab-evidence.tar.gz \
+  runs/asr-v0.6.0-colab-evidence.tar.gz
+colab stop -s asr-v060
+```
+
+Set `ASR_GIT_REF`, `ASR_LAVASR_DEVICE`, or `ASR_COLAB_ARCHIVE` in the remote execution environment
+only when validating another immutable ref, device, or evidence destination. Do not run
+`examples/colab_lavasr_validation.py` locally: it intentionally refuses to run outside `/content`.
+
 For upstream LavaSR parity, install upstream dependencies deliberately and use the environment gates
 in [../tests/README.md](../tests/README.md). Validate AudioSR separately because its external package
 owns checkpoint and accelerator behavior.
