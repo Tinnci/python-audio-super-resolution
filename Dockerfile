@@ -1,6 +1,6 @@
-FROM ghcr.io/astral-sh/uv:0.11.29 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libsndfile1 \
